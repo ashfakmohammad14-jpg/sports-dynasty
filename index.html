@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sports Dynasty - Live Cricket Score & Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            green: '#059669',
+                            darkgreen: '#064e3b',
+                            emerald: '#10b981',
+                            light: '#34d399'
+                        },
+                        dark: {
+                            900: '#0b0f19',
+                            800: '#111827',
+                            700: '#1f2937',
+                            600: '#374151'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PWA & SEO Meta Tags -->
+    <meta name="description" content="Sports Dynasty - Real-Time Live Cricket Scorecards, Breaking News, Series Standings, Team Profiles, and ICC Rankings.">
+    <meta name="theme-color" content="#064e3b">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/png" href="https://a.espncdn.com/i/teamlogos/cricket/500/6.png">
+    <link rel="apple-touch-icon" href="https://a.espncdn.com/i/teamlogos/cricket/500/6.png">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/custom.css?v=6.4.0">
+</head>
+<body class="bg-[#f0f4f2] dark:bg-dark-900 text-slate-900 dark:text-gray-100 min-h-screen flex flex-col font-sans antialiased selection:bg-[#00ff88] selection:text-black transition-colors duration-200">
+
+    <!-- Top Navigation Bar (Cricket Stadium Emerald & Neon Theme) -->
+    <header class="bg-[#064e3b] dark:bg-[#062c22] text-white shadow-xl border-b border-[#00ff88]/30 sticky top-0 z-50">
+        <div class="max-w-[1700px] mx-auto px-3 sm:px-5 h-14 flex items-center justify-between">
+            <!-- Brand & Nav Menu -->
+            <div class="flex items-center space-x-6">
+                <!-- Sports Dynasty Brand Logo -->
+                <div class="flex items-center space-x-2.5 cursor-pointer select-none" onclick="window.location.reload()">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400/30 to-emerald-600/20 flex items-center justify-center border border-amber-400/50 shadow-[0_0_15px_rgba(251,191,36,0.5)]">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-amber-300 gold-crown-glow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 14.17a1 1 0 0 1-.98.811H5.833a1 1 0 0 1-.98-.811L2.019 6.019a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/>
+                            <path d="M5 21h14"/>
+                        </svg>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-xl sm:text-2xl font-black tracking-tight font-sans leading-none text-white drop-shadow-[0_0_8px_rgba(0,255,136,0.3)]">
+                            SPORTS <span class="text-[#00ff88] gradient-text-emerald">DYNASTY</span>
+                        </span>
+                        <span class="text-[9px] uppercase tracking-widest font-black text-amber-300/95 font-mono leading-none mt-0.5">Live Cricket Center</span>
+                    </div>
+                </div>
+
+                <!-- Header Navigation Links (Multi-Hub Web Platform) -->
+                <nav class="hidden lg:flex items-center space-x-1 text-xs font-semibold tracking-tight text-white/90">
+                    <button onclick="switchPlatformView('live')" class="platform-nav-btn px-3 py-1.5 rounded transition font-bold text-[#00ff88] bg-white/10" data-view="live">Live Scores</button>
+                    <button onclick="switchPlatformView('news')" class="platform-nav-btn px-3 py-1.5 rounded hover:bg-white/10 transition text-white/80" data-view="news">News & Features</button>
+                    <button onclick="switchPlatformView('series')" class="platform-nav-btn px-3 py-1.5 rounded hover:bg-white/10 transition text-white/80" data-view="series">Series & Standings</button>
+                    <button onclick="switchPlatformView('teams')" class="platform-nav-btn px-3 py-1.5 rounded hover:bg-white/10 transition text-white/80" data-view="teams">Teams</button>
+                    <button onclick="switchPlatformView('rankings')" class="platform-nav-btn px-3 py-1.5 rounded hover:bg-white/10 transition text-white/80" data-view="rankings">ICC Rankings</button>
+                </nav>
+            </div>
+
+            <!-- Controls (Live Stream On Air, Theme Toggle, Auto-Sync, Refresh) -->
+            <div class="flex items-center space-x-2 sm:space-x-2.5">
+                <!-- Stream On Air Indicator -->
+                <div class="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-rose-600/20 border border-rose-500/50 shadow-[0_0_15px_rgba(255,0,85,0.4)] text-[11px] font-black text-[#ff4d6d] uppercase tracking-wider">
+                    <span class="w-2 h-2 rounded-full bg-[#ff0055] shadow-[0_0_8px_#ff0055] animate-ping inline-block"></span>
+                    <span>LIVE ON AIR</span>
+                </div>
+
+                <!-- Edition Selector -->
+                <div class="hidden md:flex items-center space-x-1 bg-[#043d2e] dark:bg-dark-800 px-2.5 py-1 rounded text-xs font-semibold border border-white/15 dark:border-gray-700">
+                    <span>Edition IN</span>
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 opacity-80"></i>
+                </div>
+
+                <!-- Global Player Search Button -->
+                <button id="global-player-search-btn" onclick="openPlayerSearchModal()" class="flex items-center space-x-1.5 bg-[#043d2e] dark:bg-dark-800 hover:bg-white/15 text-white/90 px-2.5 py-1 rounded text-xs font-semibold border border-white/15 dark:border-gray-700 shadow-sm transition active:scale-95 cursor-pointer" title="Search Any Player Worldwide (Ctrl+K)">
+                    <i data-lucide="user-search" class="w-3.5 h-3.5 text-[#00ff88]"></i>
+                    <span class="hidden sm:inline font-mono text-[11px]">Player Search</span>
+                </button>
+
+                <!-- Theme Toggle Button -->
+                <button id="theme-toggle-btn" class="p-1.5 rounded-lg bg-[#043d2e] dark:bg-dark-800 hover:bg-white/10 text-white/90 transition border border-white/15 dark:border-gray-700 shadow-sm" title="Toggle Light/Dark Theme">
+                    <i data-lucide="moon" class="w-4 h-4 dark:hidden"></i>
+                    <i data-lucide="sun" class="w-4 h-4 hidden dark:block text-yellow-300 drop-shadow-[0_0_6px_rgba(253,224,71,0.8)]"></i>
+                </button>
+
+                <!-- Live Auto-Sync Status Indicator -->
+                <div class="flex items-center space-x-2 bg-[#043d2e] dark:bg-dark-800 px-2.5 py-1 rounded text-xs border border-white/15 dark:border-gray-700 shadow-sm">
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00ff88] opacity-80"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-[#00ff88] shadow-[0_0_8px_#00ff88]"></span>
+                    </span>
+                    <span class="text-white/80 font-medium hidden md:inline">Sync in</span>
+                    <span id="countdown-timer" class="font-mono text-[#00ff88] font-black drop-shadow-[0_0_6px_rgba(0,255,136,0.6)]">10s</span>
+                </div>
+
+                <!-- Manual Refresh Button -->
+                <button id="manual-refresh-btn" class="flex items-center space-x-1 bg-[#00ff88] hover:bg-[#34d399] text-[#03140f] px-3 py-1 rounded text-xs font-black shadow-[0_0_15px_rgba(0,255,136,0.4)] transition active:scale-95">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="refresh-icon"></i>
+                    <span class="hidden sm:inline">Refresh</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container Layout (Top Horizontal Match Center Strip + Full-Width Selected Match Detail Below) -->
+    <main class="max-w-[1700px] mx-auto px-2.5 sm:px-4 py-2.5 flex-1 w-full space-y-3 pb-16 lg:pb-3">
+
+        <!-- ======================================================== -->
+        <!-- PLATFORM VIEW 1: LIVE MATCHES & MATCH CENTER (CORE HUB) -->
+        <!-- ======================================================== -->
+        <div id="view-live" class="platform-view space-y-3">
+
+        <!-- TOP SECTION: 3D FLOATING MATCH CAROUSEL STRIP -->
+        <section class="hud-glass-panel rounded-2xl p-3 border border-slate-200/80 dark:border-emerald-500/30 shadow-lg space-y-2.5">
+            
+            <!-- Controls & Category Header Bar -->
+            <div class="flex flex-wrap items-center justify-between gap-2.5 pb-2 border-b border-slate-200/60 dark:border-gray-800/80">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shadow-[0_0_10px_rgba(16,185,129,0.5)]">
+                        <i data-lucide="trophy" class="w-4 h-4"></i>
+                    </div>
+                    <h2 class="text-xs sm:text-sm font-black text-slate-800 dark:text-gray-100 uppercase tracking-wider font-mono">
+                        3D Live Match Arena
+                    </h2>
+                    <span id="match-count-badge" class="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 font-mono font-black">0 Matches</span>
+                </div>
+
+                <!-- Match Category 3D Pills -->
+                <div class="flex p-1 bg-slate-200/60 dark:bg-dark-900/90 rounded-xl text-xs font-bold gap-1 border border-slate-300/40 dark:border-gray-700/50 shadow-inner">
+                    <button class="match-category-tab px-3 py-1 rounded-lg transition bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md font-extrabold" data-cat="all">All</button>
+                    <button class="match-category-tab px-3 py-1 rounded-lg transition text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white" data-cat="live">Live (<span id="live-count">0</span>)</button>
+                    <button class="match-category-tab px-3 py-1 rounded-lg transition text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white" data-cat="recent">Recent</button>
+                    <button class="match-category-tab px-3 py-1 rounded-lg transition text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white" data-cat="upcoming">Upcoming</button>
+                </div>
+
+                <!-- Search Input & Scroll Arrows -->
+                <div class="flex items-center space-x-2">
+                    <div class="relative w-40 sm:w-56">
+                        <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 dark:text-gray-400 absolute left-2.5 top-2.5"></i>
+                        <input type="text" id="match-search-input" placeholder="Search team, series..." class="w-full bg-white dark:bg-dark-900 border border-slate-200 dark:border-gray-700 rounded-xl pl-8 pr-2.5 py-1 text-xs text-slate-800 dark:text-gray-200 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition shadow-inner">
+                    </div>
+                    <div class="hidden sm:flex items-center space-x-1">
+                        <button onclick="scrollMatchList(-320)" class="p-1.5 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-dark-900 text-slate-600 dark:text-gray-300 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:text-emerald-400 transition shadow-sm active:scale-95" title="Scroll Left">
+                            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="scrollMatchList(320)" class="p-1.5 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-dark-900 text-slate-600 dark:text-gray-300 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:text-emerald-400 transition shadow-sm active:scale-95" title="Scroll Right">
+                            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Horizontal Scrollable 3D Match Strip -->
+            <div id="match-list-container" class="flex space-x-3 overflow-x-auto pb-1.5 pt-1 custom-scrollbar snap-x scroll-smooth">
+                <!-- Match cards injected via JS -->
+                <div class="text-center py-6 text-slate-400 text-xs w-full">
+                    <div class="animate-spin inline-block w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full mb-2"></div>
+                    <p class="font-semibold tracking-wide">Connecting to 3D Live Match Broadcast Feed...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- BOTTOM SECTION: SELECTED MATCH FULL-WIDTH 3D DETAILS VIEW -->
+        <section class="space-y-3">
+
+            <!-- 3D Stadium Match Scorecard Banner -->
+            <div id="match-hero-card" class="stadium-hero-card rounded-2xl p-4 shadow-xl relative overflow-hidden">
+                <div id="match-hero-content">
+                    <div class="text-center py-10 text-slate-400 dark:text-gray-400">
+                        <i data-lucide="activity" class="w-8 h-8 mx-auto mb-2 text-emerald-500 dark:text-emerald-400 opacity-60 animate-pulse"></i>
+                        <p class="text-sm font-bold">Select any match card above to launch full 3D stadium scorecard and live crease arena.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3D Main Details Container (Tabs & Sub-Views) -->
+            <div class="hud-glass-panel rounded-2xl border border-slate-200/80 dark:border-emerald-500/20 shadow-lg overflow-hidden flex flex-col">
+                
+                <!-- 3D Navigation Tab Bar -->
+                <div class="flex border-b border-slate-200 dark:border-gray-800/80 px-3 py-2 overflow-x-auto custom-scrollbar bg-slate-100/60 dark:bg-dark-900/60 gap-1.5">
+                    <button class="main-tab-btn cricinfo-tab active flex items-center gap-1.5" data-tab="live">
+                        <i data-lucide="radio" class="w-3.5 h-3.5"></i> Live
+                    </button>
+                    <button class="main-tab-btn cricinfo-tab flex items-center gap-1.5" data-tab="scorecard">
+                        <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> Scorecard
+                    </button>
+                    <button class="main-tab-btn cricinfo-tab flex items-center gap-1.5" data-tab="coverage">
+                        <i data-lucide="newspaper" class="w-3.5 h-3.5"></i> Match Coverage
+                    </button>
+                    <button class="main-tab-btn cricinfo-tab flex items-center gap-1.5" data-tab="commentary">
+                        <i data-lucide="message-square" class="w-3.5 h-3.5"></i> Commentary
+                    </button>
+                    <button class="main-tab-btn cricinfo-tab flex items-center gap-1.5" data-tab="analytics">
+                        <i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i> Analysis & Charts
+                    </button>
+                    <button class="main-tab-btn cricinfo-tab flex items-center gap-1.5" data-tab="squads">
+                        <i data-lucide="users" class="w-3.5 h-3.5"></i> Squads
+                    </button>
+                    <button class="main-tab-btn cricinfo-tab flex items-center gap-1.5" data-tab="info">
+                        <i data-lucide="info" class="w-3.5 h-3.5"></i> Match Info
+                    </button>
+                </div>
+
+                <!-- Tabs Content Panes -->
+                <div class="p-2.5 sm:p-3 flex-1">
+
+                    <!-- TAB 1: CRICINFO LIVE TAB (Exact Match with Screenshot) -->
+                    <div id="tab-live" class="tab-pane block space-y-2">
+                        
+                        <!-- Top Live Crease & Match Pulse Insights (Left: Batters & Bowlers Table, Right: Run Rate, Last 5 Overs, Last Batter Out, Partnership, Fall of Wickets) -->
+                        <div id="cricinfo-live-crease-table-container">
+                            <!-- Injected dynamically via renderCricinfoLiveTab -->
+                            <div class="text-center py-6 text-slate-400 text-xs">
+                                <p>Loading live crease statistics...</p>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- TAB 2: FULL SCORECARD TAB -->
+                    <div id="tab-scorecard" class="tab-pane hidden space-y-5">
+                        <!-- Innings Selector Buttons -->
+                        <div id="innings-selector-container" class="flex flex-wrap gap-2 pb-3 border-b border-slate-200 dark:border-gray-800">
+                            <!-- Injected dynamically -->
+                        </div>
+
+                        <!-- Batting Table -->
+                        <div class="space-y-2.5">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-[#034b9d] dark:text-sky-400 flex items-center gap-1.5">
+                                <i data-lucide="shield" class="w-3.5 h-3.5"></i> Batting Scorecard
+                            </h3>
+                            <div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-gray-800">
+                                <table class="cricinfo-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="text-left">Batter</th>
+                                            <th class="text-left">Dismissal</th>
+                                            <th class="text-right">Runs</th>
+                                            <th class="text-right">Balls</th>
+                                            <th class="text-right">4s</th>
+                                            <th class="text-right">6s</th>
+                                            <th class="text-right">SR</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="batting-table-body" class="divide-y divide-slate-100 dark:divide-gray-800">
+                                        <tr><td colspan="7" class="py-6 text-center text-slate-400">No batting data available.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <!-- Extras & Total Summary -->
+                            <div id="innings-total-summary" class="bg-slate-50 dark:bg-dark-900/60 p-3 rounded-lg border border-slate-200 dark:border-gray-800 flex flex-wrap justify-between items-center text-xs text-slate-700 dark:text-gray-300">
+                                <div><span class="text-slate-500 dark:text-gray-400 font-semibold">Extras:</span> <span id="extras-text" class="font-medium">-</span></div>
+                                <div><span class="text-slate-500 dark:text-gray-400 font-semibold">Total:</span> <span id="total-text" class="font-bold text-slate-900 dark:text-white text-sm">-</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Bowling Table -->
+                        <div class="space-y-2.5 pt-1">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 flex items-center gap-1.5">
+                                <i data-lucide="crosshair" class="w-3.5 h-3.5"></i> Bowling Figures
+                            </h3>
+                            <div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-gray-800">
+                                <table class="cricinfo-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="text-left">Bowler</th>
+                                            <th class="text-right">O</th>
+                                            <th class="text-right">M</th>
+                                            <th class="text-right">R</th>
+                                            <th class="text-right">W</th>
+                                            <th class="text-right">Econ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bowling-table-body" class="divide-y divide-slate-100 dark:divide-gray-800">
+                                        <tr><td colspan="6" class="py-6 text-center text-slate-400">No bowling figures available.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Fall of Wickets (FoW) Section -->
+                        <div class="space-y-2.5 pt-1">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                                <i data-lucide="arrow-down-circle" class="w-3.5 h-3.5"></i> Fall of Wickets (FoW)
+                            </h3>
+                            <div id="fow-cards-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                                <!-- Injected via JS -->
+                            </div>
+                        </div>
+
+                        <!-- Partnerships Breakdown -->
+                        <div class="space-y-2.5 pt-1">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                                <i data-lucide="git-commit" class="w-3.5 h-3.5"></i> Partnerships Breakdown
+                            </h3>
+                            <div id="partnerships-cards-container" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                <!-- Injected via JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: MATCH COVERAGE & NEWS (As in Screenshot) -->
+                    <div id="tab-coverage" class="tab-pane hidden space-y-4">
+                        <div class="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-gray-800">
+                            <h3 class="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider">
+                                Match Coverage & Headlines
+                            </h3>
+                            <span class="text-xs text-[#034b9d] dark:text-sky-400 font-semibold cursor-pointer">Live Updates</span>
+                        </div>
+                        <div id="match-coverage-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: COMMENTARY & DRS TIMELINE -->
+                    <div id="tab-commentary" class="tab-pane hidden space-y-3">
+                        <div class="flex flex-wrap gap-1.5 pb-2 border-b border-slate-200 dark:border-gray-800 text-xs">
+                            <button class="comm-filter-btn px-3 py-1 rounded-md bg-[#034b9d] text-white font-semibold transition" data-filter="all">All Events</button>
+                            <button class="comm-filter-btn px-3 py-1 rounded-md bg-slate-100 dark:bg-dark-900 border border-slate-200 dark:border-gray-800 text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white font-medium transition" data-filter="milestone">Milestones & 50s/100s</button>
+                            <button class="comm-filter-btn px-3 py-1 rounded-md bg-slate-100 dark:bg-dark-900 border border-slate-200 dark:border-gray-800 text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white font-medium transition" data-filter="review">DRS & Reviews</button>
+                            <button class="comm-filter-btn px-3 py-1 rounded-md bg-slate-100 dark:bg-dark-900 border border-slate-200 dark:border-gray-800 text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white font-medium transition" data-filter="break">Breaks & Stumps</button>
+                        </div>
+                        <div id="commentary-stream" class="space-y-2.5 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- TAB 5: ANALYTICS & CHARTS -->
+                    <div id="tab-analytics" class="tab-pane hidden space-y-5">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Chart 1: Partnership Bar Chart -->
+                            <div class="bg-slate-50 dark:bg-dark-900/80 p-4 rounded-xl border border-slate-200 dark:border-gray-800 shadow-sm">
+                                <h4 class="text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                    <i data-lucide="bar-chart" class="w-3.5 h-3.5 text-[#034b9d] dark:text-sky-400"></i> Partnerships by Wicket
+                                </h4>
+                                <div class="h-60 relative">
+                                    <canvas id="partnershipsChart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Chart 2: Batsman Run Share Doughnut Chart -->
+                            <div class="bg-slate-50 dark:bg-dark-900/80 p-4 rounded-xl border border-slate-200 dark:border-gray-800 shadow-sm">
+                                <h4 class="text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                    <i data-lucide="pie-chart" class="w-3.5 h-3.5 text-teal-600 dark:text-teal-400"></i> Batting Run Share
+                                </h4>
+                                <div class="h-60 relative flex items-center justify-center">
+                                    <canvas id="runShareChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Top Performers -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                            <div class="bg-slate-50 dark:bg-dark-900/80 p-3.5 rounded-xl border border-slate-200 dark:border-gray-800">
+                                <h4 class="text-xs font-bold text-[#034b9d] dark:text-sky-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                                    <i data-lucide="zap" class="w-3.5 h-3.5"></i> Top Batsmen
+                                </h4>
+                                <div id="top-batsmen-list" class="space-y-1.5 text-xs"></div>
+                            </div>
+                            <div class="bg-slate-50 dark:bg-dark-900/80 p-3.5 rounded-xl border border-slate-200 dark:border-gray-800">
+                                <h4 class="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                                    <i data-lucide="target" class="w-3.5 h-3.5"></i> Top Bowlers
+                                </h4>
+                                <div id="top-bowlers-list" class="space-y-1.5 text-xs"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 6: SQUADS & LINEUP -->
+                    <div id="tab-squads" class="tab-pane hidden space-y-4">
+                        <div id="squads-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                    </div>
+
+                    <!-- TAB 7: MATCH INFO -->
+                    <div id="tab-info" class="tab-pane hidden space-y-3">
+                        <div id="match-info-content" class="bg-slate-50 dark:bg-dark-900/60 p-4 rounded-xl border border-slate-200 dark:border-gray-800 text-xs space-y-2.5"></div>
+                    </div>
+
+                </div>
+            </div>
+
+        </section>
+        </div> <!-- /#view-live -->
+
+        <!-- ======================================================== -->
+        <!-- PLATFORM VIEW 2: BREAKING CRICKET NEWS & FEATURES HUB -->
+        <!-- ======================================================== -->
+        <div id="view-news" class="platform-view hidden space-y-4">
+            <!-- News Header Banner -->
+            <div class="hud-glass-panel rounded-2xl p-4 border border-slate-200/80 dark:border-emerald-500/30 shadow-lg flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shadow-[0_0_15px_rgba(0,255,136,0.4)]">
+                        <i data-lucide="newspaper" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                            Cricket News & Editorial Hub
+                            <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-800 dark:text-[#00ff88] text-[10px] font-mono font-bold uppercase">Live Wire</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 dark:text-gray-400">Real-time match reports, player interviews, tactical features and tournament scoops</p>
+                    </div>
+                </div>
+
+                <!-- News Category Filters -->
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <button onclick="filterNewsCategory('all')" class="news-filter-btn px-3 py-1 rounded-lg text-xs font-bold bg-[#059669] text-white shadow-xs" data-ncat="all">All Stories</button>
+                    <button onclick="filterNewsCategory('Match Report')" class="news-filter-btn px-3 py-1 rounded-lg text-xs font-bold bg-slate-100 dark:bg-dark-800 text-slate-600 dark:text-gray-300 hover:text-[#059669] border border-slate-200 dark:border-gray-700" data-ncat="Match Report">Match Reports</button>
+                    <button onclick="filterNewsCategory('Interview')" class="news-filter-btn px-3 py-1 rounded-lg text-xs font-bold bg-slate-100 dark:bg-dark-800 text-slate-600 dark:text-gray-300 hover:text-[#059669] border border-slate-200 dark:border-gray-700" data-ncat="Interview">Interviews</button>
+                    <button onclick="filterNewsCategory('Features')" class="news-filter-btn px-3 py-1 rounded-lg text-xs font-bold bg-slate-100 dark:bg-dark-800 text-slate-600 dark:text-gray-300 hover:text-[#059669] border border-slate-200 dark:border-gray-700" data-ncat="Features">Features & Tactics</button>
+                </div>
+            </div>
+
+            <!-- Featured Breaking Story Hero -->
+            <div id="featured-news-hero" class="hidden"></div>
+
+            <!-- News Grid Container -->
+            <div id="news-grid-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                <div class="col-span-full text-center py-12 text-slate-400 text-xs">
+                    <div class="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                    Loading breaking cricket stories...
+                </div>
+            </div>
+        </div>
+
+        <!-- ======================================================== -->
+        <!-- PLATFORM VIEW 3: TOURNAMENTS & SERIES HUB -->
+        <!-- ======================================================== -->
+        <div id="view-series" class="platform-view hidden space-y-4">
+            <div class="hud-glass-panel rounded-2xl p-4 border border-slate-200/80 dark:border-emerald-500/30 shadow-lg flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-emerald-700 flex items-center justify-center text-white shadow-[0_0_15px_rgba(251,191,36,0.4)]">
+                        <i data-lucide="trophy" class="w-5 h-5 text-amber-300"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                            Featured Series & Tournament Hub
+                            <span class="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-600 dark:text-amber-300 text-[10px] font-mono font-bold uppercase">Standings</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 dark:text-gray-400">World Test Championship, ICC Champions Trophy, IPL & International Tournaments</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="series-hub-container" class="space-y-4">
+                <!-- Dynamically rendered Series & WTC points table -->
+            </div>
+        </div>
+
+        <!-- ======================================================== -->
+        <!-- PLATFORM VIEW 4: TEAMS & ROSTERS HUB -->
+        <!-- ======================================================== -->
+        <div id="view-teams" class="platform-view hidden space-y-4">
+            <div class="hud-glass-panel rounded-2xl p-4 border border-slate-200/80 dark:border-emerald-500/30 shadow-lg flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-emerald-700 flex items-center justify-center text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]">
+                        <i data-lucide="shield" class="w-5 h-5 text-indigo-200"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                            World Cricket Teams Directory
+                        </h2>
+                        <p class="text-xs text-slate-500 dark:text-gray-400">National and premier league cricket teams, captains, head coaches, and rankings</p>
+                    </div>
+                </div>
+                <div class="relative w-full sm:w-64">
+                    <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+                    <input id="teams-search-input" type="text" placeholder="Search team (e.g. India, Australia)..." 
+                           class="w-full bg-slate-100 dark:bg-dark-800 border border-slate-200 dark:border-gray-700 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+                           oninput="filterTeamsDirectory(this.value)" />
+                </div>
+            </div>
+
+            <div id="teams-grid-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
+                <!-- Dynamically rendered team cards -->
+            </div>
+        </div>
+
+        <!-- ======================================================== -->
+        <!-- PLATFORM VIEW 5: OFFICIAL ICC RANKINGS CENTER -->
+        <!-- ======================================================== -->
+        <div id="view-rankings" class="platform-view hidden space-y-4">
+            <div class="hud-glass-panel rounded-2xl p-4 border border-slate-200/80 dark:border-emerald-500/30 shadow-lg flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-rose-600 flex items-center justify-center text-white shadow-[0_0_15px_rgba(245,158,11,0.4)]">
+                        <i data-lucide="award" class="w-5 h-5 text-amber-200"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                            Official ICC Cricket Rankings
+                            <span class="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-600 dark:text-amber-300 text-[10px] font-mono font-bold uppercase">ICC Official</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 dark:text-gray-400">Men's Team, Batter, and Bowler rankings across Test, ODI, and T20I formats</p>
+                    </div>
+                </div>
+
+                <!-- Format & Category Selector -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    <!-- Format Pills -->
+                    <div class="flex items-center bg-slate-100 dark:bg-dark-800 p-0.5 rounded-xl border border-slate-200 dark:border-gray-700">
+                        <button onclick="switchRankingFormat('test')" class="rank-fmt-btn px-3 py-1 rounded-lg text-xs font-bold bg-[#059669] text-white shadow-xs" data-fmt="test">Test</button>
+                        <button onclick="switchRankingFormat('odi')" class="rank-fmt-btn px-3 py-1 rounded-lg text-xs font-bold text-slate-600 dark:text-gray-400 hover:text-[#059669]" data-fmt="odi">ODI</button>
+                        <button onclick="switchRankingFormat('t20i')" class="rank-fmt-btn px-3 py-1 rounded-lg text-xs font-bold text-slate-600 dark:text-gray-400 hover:text-[#059669]" data-fmt="t20i">T20I</button>
+                    </div>
+
+                    <!-- Category Pills -->
+                    <div class="flex items-center bg-slate-100 dark:bg-dark-800 p-0.5 rounded-xl border border-slate-200 dark:border-gray-700">
+                        <button onclick="switchRankingCategory('teams')" class="rank-cat-btn px-3 py-1 rounded-lg text-xs font-bold bg-[#059669] text-white shadow-xs" data-rcat="teams">Teams</button>
+                        <button onclick="switchRankingCategory('batters')" class="rank-cat-btn px-3 py-1 rounded-lg text-xs font-bold text-slate-600 dark:text-gray-400 hover:text-[#059669]" data-rcat="batters">Batters</button>
+                        <button onclick="switchRankingCategory('bowlers')" class="rank-cat-btn px-3 py-1 rounded-lg text-xs font-bold text-slate-600 dark:text-gray-400 hover:text-[#059669]" data-rcat="bowlers">Bowlers</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rankings Table Container -->
+            <div id="rankings-table-container" class="hud-glass-panel rounded-2xl p-4 border border-slate-200/80 dark:border-emerald-500/30 shadow-lg overflow-x-auto">
+                <!-- Dynamically rendered Rankings Table -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Mobile Bottom Navigation Bar (App Bar for Smartphone Users) -->
+    <div class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#064e3b]/95 dark:bg-[#062c22]/95 backdrop-blur-md border-t border-[#00ff88]/30 px-3 py-2 flex items-center justify-around text-[10px] font-bold text-white/80 shadow-2xl">
+        <button onclick="switchPlatformView('live')" class="mobile-nav-btn flex flex-col items-center gap-0.5 text-[#00ff88]" data-mview="live">
+            <i data-lucide="radio" class="w-4 h-4"></i>
+            <span>Live</span>
+        </button>
+        <button onclick="switchPlatformView('news')" class="mobile-nav-btn flex flex-col items-center gap-0.5" data-mview="news">
+            <i data-lucide="newspaper" class="w-4 h-4"></i>
+            <span>News</span>
+        </button>
+        <button onclick="switchPlatformView('series')" class="mobile-nav-btn flex flex-col items-center gap-0.5" data-mview="series">
+            <i data-lucide="trophy" class="w-4 h-4"></i>
+            <span>Series</span>
+        </button>
+        <button onclick="switchPlatformView('teams')" class="mobile-nav-btn flex flex-col items-center gap-0.5" data-mview="teams">
+            <i data-lucide="shield" class="w-4 h-4"></i>
+            <span>Teams</span>
+        </button>
+        <button onclick="switchPlatformView('rankings')" class="mobile-nav-btn flex flex-col items-center gap-0.5" data-mview="rankings">
+            <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+            <span>Rankings</span>
+        </button>
+        <button onclick="openPlayerSearchModal()" class="flex flex-col items-center gap-0.5 text-amber-300">
+            <i data-lucide="search" class="w-4 h-4"></i>
+            <span>Search</span>
+        </button>
+    </div>
+
+    <!-- Sports Dynasty Minimal Footer -->
+    <footer class="border-t border-slate-200 dark:border-gray-800 bg-white dark:bg-dark-800/80 py-3 mt-auto mb-14 lg:mb-0">
+        <div class="max-w-[1700px] mx-auto px-4 text-center text-xs text-slate-500 dark:text-gray-400 flex flex-wrap items-center justify-between gap-2">
+            <span class="font-bold text-slate-700 dark:text-gray-300 flex items-center gap-1.5"><i data-lucide="crown" class="w-3.5 h-3.5 text-amber-500"></i> Sports Dynasty • Live Match Center</span>
+            <span class="font-mono text-slate-500">Real-Time Data Streaming & Sync Connected</span>
+        </div>
+    </footer>
+
+    <!-- ========================================== -->
+    <!-- PLAYER PROFILE MODAL (Worldwide Player Bio & Stats) -->
+    <!-- ========================================== -->
+    <div id="player-profile-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md hidden opacity-0 transition-opacity duration-300 p-3 sm:p-4">
+        <div class="relative w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white dark:bg-dark-900 border border-slate-200 dark:border-emerald-900/50 rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300" id="player-profile-content">
+            <!-- Modal Header / Cover -->
+            <div class="relative h-28 sm:h-32 bg-gradient-to-r from-[#064e3b] via-[#047857] to-[#022c22] p-4 flex items-start justify-between border-b border-[#00ff88]/30">
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded-full bg-emerald-950/60 border border-[#00ff88]/40 text-[#00ff88] text-[10px] font-mono font-black uppercase tracking-wider flex items-center gap-1">
+                        <i data-lucide="user" class="w-3 h-3"></i> Player Profile
+                    </span>
+                </div>
+                <button onclick="closePlayerProfile()" class="w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition border border-white/20 shadow-md cursor-pointer" title="Close (ESC)">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Avatar & Main Player Info Header -->
+            <div class="px-5 pb-5 -mt-12 sm:-mt-14 relative">
+                <div class="flex flex-col sm:flex-row items-center sm:items-end gap-3 sm:gap-4 text-center sm:text-left">
+                    <div class="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-white dark:bg-dark-800 border-4 border-white dark:border-dark-900 shadow-xl overflow-hidden shrink-0 flex items-center justify-center group">
+                        <img id="player-modal-headshot" src="" alt="Player Avatar" class="w-full h-full object-cover object-top" onerror="this.src='https://a.espncdn.com/i/headshots/cricket/players/default-player-logo-500.png'"/>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition"></div>
+                    </div>
+                    <div class="flex-1 min-w-0 pb-1">
+                        <div class="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+                            <h2 id="player-modal-name" class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight"></h2>
+                            <img id="player-modal-team-logo" src="" class="w-5 h-5 object-contain shrink-0 hidden" alt="Team"/>
+                        </div>
+                        <p id="player-modal-fullname" class="text-xs text-slate-500 dark:text-gray-400 font-medium truncate"></p>
+                        <div class="flex items-center justify-center sm:justify-start gap-2 mt-1.5 flex-wrap">
+                            <span id="player-modal-role" class="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-700/60 text-emerald-700 dark:text-[#00ff88] text-[11px] font-bold"></span>
+                            <span id="player-modal-team" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-dark-800 text-slate-700 dark:text-gray-300 text-[11px] font-semibold border border-slate-200 dark:border-gray-700"></span>
+                            <span id="player-modal-age" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-dark-800 text-slate-600 dark:text-gray-400 text-[11px] font-mono border border-slate-200 dark:border-gray-700"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attributes Grid (Batting Style, Bowling Style, DOB, Relations) -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-5">
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-dark-800/80 border border-slate-200 dark:border-gray-800 text-center">
+                        <span class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-wider block">Batting Style</span>
+                        <span id="player-modal-bat-style" class="text-xs font-bold text-slate-800 dark:text-gray-200 mt-0.5 block truncate">-</span>
+                    </div>
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-dark-800/80 border border-slate-200 dark:border-gray-800 text-center">
+                        <span class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-wider block">Bowling Style</span>
+                        <span id="player-modal-bowl-style" class="text-xs font-bold text-slate-800 dark:text-gray-200 mt-0.5 block truncate">-</span>
+                    </div>
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-dark-800/80 border border-slate-200 dark:border-gray-800 text-center">
+                        <span class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-wider block">Born / DOB</span>
+                        <span id="player-modal-dob" class="text-xs font-mono font-bold text-slate-800 dark:text-gray-200 mt-0.5 block truncate">-</span>
+                    </div>
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-dark-800/80 border border-slate-200 dark:border-gray-800 text-center">
+                        <span class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase tracking-wider block">Gender</span>
+                        <span id="player-modal-gender" class="text-xs font-bold text-slate-800 dark:text-gray-200 mt-0.5 block">-</span>
+                    </div>
+                </div>
+
+                <!-- Live Match Performance Box (If player is currently playing in the active match) -->
+                <div id="player-modal-live-stats" class="mt-4 p-3.5 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/20 border border-emerald-300 dark:border-emerald-800/60 hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[11px] font-black text-emerald-800 dark:text-[#00ff88] uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                            <span class="w-2 h-2 rounded-full bg-[#00ff88] animate-ping inline-block"></span>
+                            Live Match Performance
+                        </span>
+                        <span id="player-modal-match-status" class="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300"></span>
+                    </div>
+                    <div id="player-modal-live-content" class="space-y-2 text-xs font-mono"></div>
+                </div>
+
+                <!-- Relations (if any) -->
+                <div id="player-modal-relations-box" class="mt-3 p-2.5 rounded-xl bg-slate-50 dark:bg-dark-800/60 border border-slate-200 dark:border-gray-800 hidden text-xs text-slate-600 dark:text-gray-300">
+                    <span class="font-bold text-slate-800 dark:text-gray-200">Cricket Family / Relations: </span>
+                    <span id="player-modal-relations"></span>
+                </div>
+
+                <!-- Action Footer -->
+                <div class="mt-5 flex items-center justify-between pt-3 border-t border-slate-200 dark:border-gray-800 gap-3">
+                    <span class="text-[11px] text-slate-400 dark:text-gray-500 font-mono">ID: <span id="player-modal-id"></span></span>
+                    <a id="player-modal-cricinfo-link" href="#" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#064e3b] hover:bg-[#047857] text-[#00ff88] font-bold text-xs shadow-md transition border border-[#00ff88]/40">
+                        <span>ESPN Cricinfo Full Stats</span>
+                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- GLOBAL PLAYER SEARCH MODAL -->
+    <!-- ========================================== -->
+    <div id="player-search-modal" class="fixed inset-0 z-50 flex items-start justify-center bg-black/70 backdrop-blur-md hidden opacity-0 transition-opacity duration-300 pt-16 sm:pt-20 p-3" onclick="if(event.target===this)closePlayerSearchModal()">
+        <div class="relative w-full max-w-lg bg-white dark:bg-dark-900 border border-slate-200 dark:border-emerald-900/50 rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300">
+            <!-- Search Header -->
+            <div class="p-3.5 bg-[#064e3b] dark:bg-[#062c22] border-b border-[#00ff88]/30 flex items-center gap-3">
+                <i data-lucide="search" class="w-5 h-5 text-[#00ff88] shrink-0"></i>
+                <input id="global-player-search-input" type="text" placeholder="Search any player worldwide (e.g. Kohli, Root, Bumrah, Brevis)..." 
+                       class="flex-1 bg-black/20 border border-white/20 rounded-lg px-3 py-1.5 text-sm text-white placeholder-emerald-200/60 focus:outline-none focus:border-[#00ff88] focus:ring-1 focus:ring-[#00ff88]"
+                       autocomplete="off" oninput="handleGlobalPlayerSearch(this.value)" />
+                <button onclick="closePlayerSearchModal()" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            
+            <!-- Search Results Container -->
+            <div id="player-search-results" class="max-h-80 overflow-y-auto p-2 divide-y divide-slate-100 dark:divide-gray-800">
+                <div class="p-6 text-center text-xs text-slate-400 dark:text-gray-500 font-medium">
+                    Type a player's name above to search through thousands of international and domestic cricketers worldwide.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom JavaScript -->
+    <script src="/static/js/dashboard.js?v=6.5.0"></script>
+</body>
+</html>

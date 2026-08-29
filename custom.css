@@ -1,0 +1,391 @@
+/* ============================================================
+   SPORTS DYNASTY - NEXT-GEN 3D STADIUM & BROADCAST ENGINE
+   ============================================================ */
+
+:root {
+    --brand-green: #059669;
+    --brand-darkgreen: #064e3b;
+    --brand-emerald: #10b981;
+    --neon-cyan: #00f0ff;
+    --neon-emerald: #00ff88;
+    --neon-lime: #a3e635;
+    --neon-gold: #ffb703;
+    --neon-amber: #fbbf24;
+    --neon-rose: #ff0055;
+    --neon-pink: #f72585;
+    --neon-purple: #b5179e;
+    --neon-blue: #4361ee;
+}
+
+/* Overall Page 5% Proportional Scaling */
+html {
+    zoom: 0.95;
+    -moz-transform: scale(0.95);
+    -moz-transform-origin: top center;
+}
+
+/* Custom Neon Smooth Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.08);
+    border-radius: 8px;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.6);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #00ff88, #059669);
+    border-radius: 8px;
+    box-shadow: 0 0 8px rgba(0, 255, 136, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #00f0ff, #00ff88);
+    box-shadow: 0 0 12px rgba(0, 240, 255, 0.9);
+}
+
+/* 3D Animations & Keyframes */
+@keyframes stadiumPulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 15px rgba(0, 255, 136, 0.35), inset 0 0 10px rgba(0, 255, 136, 0.15);
+    }
+    50% {
+        transform: scale(1.015);
+        box-shadow: 0 0 30px rgba(0, 255, 136, 0.7), inset 0 0 20px rgba(0, 255, 136, 0.3);
+    }
+}
+
+@keyframes liveBadgePulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 12px rgba(255, 0, 85, 0.8), 0 0 0 0 rgba(255, 0, 85, 0.6);
+    }
+    50% {
+        transform: scale(1.04);
+        box-shadow: 0 0 24px rgba(255, 0, 85, 1), 0 0 0 6px rgba(255, 0, 85, 0);
+    }
+}
+
+@keyframes neonGlowPulse {
+    0%, 100% {
+        filter: drop-shadow(0 0 6px rgba(0, 255, 136, 0.6));
+    }
+    50% {
+        filter: drop-shadow(0 0 14px rgba(0, 255, 136, 1)) drop-shadow(0 0 24px rgba(0, 240, 255, 0.8));
+    }
+}
+
+@keyframes strikerFlash {
+    0%, 100% { 
+        opacity: 1; 
+        transform: scale(1); 
+        box-shadow: 0 0 8px rgba(0, 255, 136, 0.9);
+    }
+    50% { 
+        opacity: 0.8; 
+        transform: scale(1.15); 
+        box-shadow: 0 0 16px rgba(0, 255, 136, 1), 0 0 24px rgba(0, 240, 255, 0.8);
+    }
+}
+
+@keyframes crownFloat {
+    0%, 100% { 
+        transform: translateY(0) rotate(0deg); 
+        filter: drop-shadow(0 0 8px rgba(255, 183, 3, 0.9)) drop-shadow(0 0 16px rgba(251, 191, 36, 0.5)); 
+    }
+    50% { 
+        transform: translateY(-2px) rotate(2deg); 
+        filter: drop-shadow(0 0 16px rgba(255, 183, 3, 1)) drop-shadow(0 0 28px rgba(255, 230, 0, 0.8)); 
+    }
+}
+
+.animate-broadcast-pulse {
+    animation: liveBadgePulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.animate-striker {
+    display: inline-block;
+    animation: strikerFlash 1.4s infinite ease-in-out;
+}
+
+.gold-crown-glow {
+    animation: crownFloat 3s infinite ease-in-out;
+}
+
+/* Neon Text Gradients & Dropshadows */
+.gradient-text-gold {
+    background: linear-gradient(135deg, #fffbeb 0%, #fbbf24 45%, #ffb703 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.5));
+}
+
+.gradient-text-emerald {
+    background: linear-gradient(135deg, #ffffff 0%, #00ff88 45%, #00f0ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 10px rgba(0, 255, 136, 0.6));
+}
+
+.gradient-text-neon-cyan {
+    background: linear-gradient(135deg, #e0f2fe 0%, #38bdf8 50%, #00f0ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.6));
+}
+
+/* Neon Glass HUD Panels */
+.hud-glass-panel {
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 0 15px rgba(0, 255, 136, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    transition: all 0.25s ease;
+}
+.dark .hud-glass-panel {
+    background: linear-gradient(145deg, rgba(13, 20, 34, 0.94), rgba(5, 33, 25, 0.96));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 255, 136, 0.3);
+    box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.7), 0 0 25px rgba(0, 255, 136, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.15), inset 0 0 20px rgba(0, 255, 136, 0.06);
+    transition: all 0.25s ease;
+}
+
+/* Neon Stadium Hero Banner */
+.stadium-hero-card {
+    background: radial-gradient(circle at 50% 0%, #ffffff 0%, #f0fdf4 55%, #e0f7eb 100%);
+    border: 1.5px solid rgba(16, 185, 129, 0.35);
+    box-shadow: 0 20px 45px -15px rgba(5, 150, 105, 0.2), 0 0 25px rgba(0, 255, 136, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.95);
+    position: relative;
+}
+.dark .stadium-hero-card {
+    background: radial-gradient(circle at 50% -10%, #064e3b 0%, #062c22 45%, #03140f 100%);
+    border: 1.5px solid rgba(0, 255, 136, 0.45);
+    box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.8), 0 0 35px rgba(0, 255, 136, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.25), inset 0 0 30px rgba(0, 255, 136, 0.08);
+}
+
+/* Neon Floating Match Carousel Card */
+.match-card {
+    min-width: 250px;
+    max-width: 280px;
+    flex-shrink: 0;
+    user-select: none;
+    transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+    background: linear-gradient(145deg, #ffffff, #f6fbf8);
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.dark .match-card {
+    background: linear-gradient(145deg, #111827, #0b1322);
+    border: 1px solid rgba(51, 65, 85, 0.8);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.match-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    border-color: #00ff88;
+    box-shadow: 0 12px 28px -4px rgba(0, 255, 136, 0.35), 0 0 20px rgba(0, 240, 255, 0.25);
+}
+.dark .match-card:hover {
+    border-color: #00ff88;
+    box-shadow: 0 14px 30px -4px rgba(0, 0, 0, 0.8), 0 0 25px rgba(0, 255, 136, 0.45);
+}
+.match-card.active-match {
+    border-color: #00ff88;
+    background: linear-gradient(145deg, #ecfdf5, #ffffff);
+    box-shadow: 0 0 0 2px #00ff88, 0 12px 28px rgba(0, 255, 136, 0.35), 0 0 20px rgba(0, 255, 136, 0.25), inset 0 1px 0 rgba(255, 255, 255, 1);
+    transform: translateY(-2px);
+}
+.dark .match-card.active-match {
+    border-color: #00ff88;
+    background: linear-gradient(145deg, #07382a, #041a13);
+    box-shadow: 0 0 0 2px #00ff88, 0 0 30px rgba(0, 255, 136, 0.55), 0 0 12px rgba(0, 240, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+}
+
+/* 3D Stadium Scoreboard Table & Neon Headers */
+.cricinfo-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 2px;
+}
+.cricinfo-table thead th {
+    background: linear-gradient(180deg, #f8fafc 0%, #edf2f7 100%);
+    color: #064e3b;
+    font-weight: 900;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    padding: 7px 12px;
+    border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #cbd5e1;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+.dark .cricinfo-table thead th {
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    color: #a7f3d0;
+    border-top: 1px solid rgba(0, 255, 136, 0.25);
+    border-bottom: 1px solid rgba(51, 65, 85, 0.9);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.cricinfo-table tbody tr {
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dark .cricinfo-table tbody tr {
+    background: rgba(15, 23, 42, 0.75);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+.cricinfo-table tbody tr:hover {
+    background: linear-gradient(90deg, #ecfdf5, #f0fdf4);
+    transform: scale(1.006);
+    box-shadow: 0 4px 14px rgba(0, 255, 136, 0.2), 0 0 10px rgba(0, 240, 255, 0.1);
+}
+.dark .cricinfo-table tbody tr:hover {
+    background: linear-gradient(90deg, rgba(6, 78, 59, 0.5), rgba(6, 44, 34, 0.4));
+    transform: scale(1.006);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6), inset 0 0 16px rgba(0, 255, 136, 0.2);
+}
+.cricinfo-table tbody td {
+    padding: 6.5px 12px;
+    font-size: 13.5px;
+}
+
+/* Neon Realistic Cricket Ball Spheres */
+.ball-dot { 
+    background: radial-gradient(circle at 35% 30%, #f1f5f9 0%, #cbd5e1 60%, #94a3b8 100%);
+    color: #334155; 
+    border: 1px solid #94a3b8;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+}
+.ball-1, .ball-2, .ball-3 { 
+    background: radial-gradient(circle at 35% 30%, #86efac 0%, #22c55e 60%, #15803d 100%);
+    color: #ffffff; 
+    border: 1px solid #4ade80;
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.ball-4 { 
+    background: radial-gradient(circle at 35% 30%, #38bdf8 0%, #0284c7 55%, #0369a1 100%);
+    color: #ffffff; 
+    font-weight: 900; 
+    border: 1.5px solid #7dd3fc;
+    box-shadow: 0 0 16px rgba(0, 240, 255, 0.9), 0 4px 12px rgba(2, 132, 199, 0.6), inset 0 2px 2px rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+.ball-6 { 
+    background: radial-gradient(circle at 35% 30%, #f472b6 0%, #db2777 55%, #9d174d 100%);
+    color: #ffffff; 
+    font-weight: 900; 
+    border: 1.5px solid #fbcfe8;
+    box-shadow: 0 0 20px rgba(247, 37, 133, 0.95), 0 4px 14px rgba(219, 39, 119, 0.7), inset 0 2px 2px rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+.ball-w { 
+    background: radial-gradient(circle at 35% 30%, #ff4d6d 0%, #ff0055 55%, #800f2f 100%);
+    color: #ffffff; 
+    font-weight: 900; 
+    border: 1.5px solid #ff758f;
+    box-shadow: 0 0 22px rgba(255, 0, 85, 1), 0 4px 16px rgba(255, 0, 85, 0.8), inset 0 2px 2px rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    animation: liveBadgePulse 1.5s infinite ease-in-out;
+}
+
+/* Dark mode 3D Spheres */
+.dark .ball-dot { 
+    background: radial-gradient(circle at 35% 30%, #475569 0%, #1e293b 70%, #0f172a 100%);
+    color: #cbd5e1; 
+    border: 1px solid #475569;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+
+/* Neon Cyber Metric Widget Box */
+.cyber-widget {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(240, 253, 244, 0.7));
+    border: 1px solid #a7f3d0;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 255, 136, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transition: all 0.2s ease;
+}
+.dark .cyber-widget {
+    background: linear-gradient(135deg, rgba(17, 24, 39, 0.9), rgba(6, 44, 34, 0.8));
+    border: 1px solid rgba(0, 255, 136, 0.35);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 0 20px rgba(0, 255, 136, 0.1);
+}
+.cyber-widget:hover {
+    transform: translateY(-2px);
+    border-color: #00ff88;
+    box-shadow: 0 8px 25px rgba(0, 255, 136, 0.3);
+}
+
+/* Neon Digital Score Text Glow */
+.digital-score-3d {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-weight: 900;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    letter-spacing: -0.02em;
+}
+.dark .digital-score-3d {
+    text-shadow: 0 2px 12px rgba(0, 255, 136, 0.6), 0 0 25px rgba(0, 240, 255, 0.4);
+}
+
+/* Neon Navigation Tab Buttons */
+.cricinfo-tab {
+    position: relative;
+    font-weight: 800;
+    font-size: 12.5px;
+    color: #64748b;
+    padding: 7px 16px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 10px;
+}
+.cricinfo-tab:hover {
+    color: #059669;
+    background: rgba(0, 255, 136, 0.12);
+    box-shadow: 0 0 12px rgba(0, 255, 136, 0.2);
+}
+.dark .cricinfo-tab:hover {
+    color: #00ff88;
+    background: rgba(0, 255, 136, 0.18);
+    box-shadow: 0 0 16px rgba(0, 255, 136, 0.35);
+}
+.cricinfo-tab.active {
+    color: #ffffff;
+    background: linear-gradient(135deg, #059669, #047857);
+    box-shadow: 0 0 18px rgba(0, 255, 136, 0.5), 0 4px 14px rgba(5, 150, 105, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.dark .cricinfo-tab.active {
+    color: #03140f;
+    background: linear-gradient(135deg, #00ff88, #00f0ff);
+    box-shadow: 0 0 25px rgba(0, 255, 136, 0.7), 0 0 10px rgba(0, 240, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    font-weight: 900;
+}
+
+/* Neon Player Avatar Ring */
+.player-avatar-3d {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), 0 0 10px rgba(0, 255, 136, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+    border: 1.5px solid #00ff88;
+}
+
+/* Neon Specific Glow Utility Classes */
+.neon-glow-emerald {
+    box-shadow: 0 0 15px rgba(0, 255, 136, 0.6), inset 0 0 10px rgba(0, 255, 136, 0.2);
+}
+.neon-glow-cyan {
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.6), inset 0 0 10px rgba(0, 240, 255, 0.2);
+}
+.neon-glow-gold {
+    box-shadow: 0 0 15px rgba(255, 183, 3, 0.6), inset 0 0 10px rgba(255, 183, 3, 0.2);
+}
+.neon-glow-rose {
+    box-shadow: 0 0 15px rgba(255, 0, 85, 0.7), inset 0 0 10px rgba(255, 0, 85, 0.2);
+}
+
+.neon-border-pulse {
+    animation: neonGlowPulse 2.5s infinite ease-in-out;
+}

@@ -2843,9 +2843,25 @@ if ('serviceWorker' in navigator) {
 // -------------------------------------------------------------
 // REAL-TIME VISITOR TRACKER & HIT ANALYTICS ENGINE
 // -------------------------------------------------------------
+function getOrCreateVisitorId() {
+    let vid = localStorage.getItem('sports_dynasty_vid');
+    if (!vid) {
+        vid = 'v_' + Math.random().toString(36).substring(2, 12) + '_' + Date.now().toString(36);
+        localStorage.setItem('sports_dynasty_vid', vid);
+    }
+    return vid;
+}
+
 async function updateVisitorAnalytics() {
     try {
-        const res = await fetch('/api/analytics/track', { method: 'POST' });
+        const vid = getOrCreateVisitorId();
+        const res = await fetch('/api/analytics/track', {
+            method: 'POST',
+            headers: {
+                'x-visitor-id': vid,
+                'Content-Type': 'application/json'
+            }
+        });
         if (res.ok) {
             const data = await res.json();
             const totalEl = document.getElementById('stat-total-visits');
@@ -2854,12 +2870,20 @@ async function updateVisitorAnalytics() {
             const onlineFooterEl = document.getElementById('stat-online-now-footer');
             
             const formattedTotal = Number(data.total_visits || 1420).toLocaleString();
-            const onlineCount = data.active_online || 6;
+            const onlineCount = data.active_online || 1;
             
-            if (totalEl) totalEl.textContent = formattedTotal;
-            if (totalFooterEl) totalFooterEl.textContent = formattedTotal;
-            if (onlineEl) onlineEl.textContent = onlineCount;
-            if (onlineFooterEl) onlineFooterEl.textContent = onlineCount;
+            if (totalEl) {
+                totalEl.textContent = formattedTotal;
+            }
+            if (totalFooterEl) {
+                totalFooterEl.textContent = formattedTotal;
+            }
+            if (onlineEl) {
+                onlineEl.textContent = onlineCount;
+            }
+            if (onlineFooterEl) {
+                onlineFooterEl.textContent = onlineCount;
+            }
         }
     } catch (e) {
         console.warn('Analytics tracking error:', e);
@@ -3055,6 +3079,21 @@ setTimeout(() => {
         }
     }
 }, 3000);
+
+// Initialize analytics and device view on startup
+document.addEventListener('DOMContentLoaded', () => {
+    initDeviceLayout();
+    updateVisitorAnalytics();
+    setInterval(updateVisitorAnalytics, 15000);
+});
+
+// Immediate execution
+setTimeout(() => {
+    initDeviceLayout();
+    updateVisitorAnalytics();
+    setInterval(updateVisitorAnalytics, 15000);
+}, 200);
+
 
 
 

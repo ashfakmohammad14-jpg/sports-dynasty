@@ -51,12 +51,16 @@ def save_analytics(data: dict):
 @app.post("/api/analytics/track")
 @app.get("/api/analytics/track")
 async def track_visitor(request: Request):
-    """Track unique visitor session and increment live view counters."""
+    """Track real-time visitor pageviews and distinct device sessions."""
+    visitor_id = request.headers.get("x-visitor-id", "")
     client_ip = request.client.host if request.client else "127.0.0.1"
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
         client_ip = forwarded.split(",")[0].strip()
-    ip_hash = hashlib.md5(client_ip.encode()).hexdigest()[:12]
+    user_agent = request.headers.get("user-agent", "")
+    
+    if not visitor_id:
+        visitor_id = hashlib.md5(f"{client_ip}:{user_agent}".encode()).hexdigest()[:16]
     
     data = load_analytics()
     today_str = datetime.now().strftime("%Y-%m-%d")
@@ -65,31 +69,30 @@ async def track_visitor(request: Request):
         data["today_visits"] = 0
     
     now_ts = time.time()
-    last_seen = data.get("unique_visitors", {}).get(ip_hash, 0)
     
-    # Increment total visit if new session (> 30 mins)
-    if (now_ts - last_seen) > 1800:
-        data["total_visits"] = data.get("total_visits", 1420) + 1
-        data["today_visits"] = data.get("today_visits", 184) + 1
+    # Increment total visit counter on every page visit
+    data["total_visits"] = data.get("total_visits", 1420) + 1
+    data["today_visits"] = data.get("today_visits", 184) + 1
     
     if "unique_visitors" not in data:
         data["unique_visitors"] = {}
-    data["unique_visitors"][ip_hash] = now_ts
+    data["unique_visitors"][visitor_id] = now_ts
     
     if "active_sessions" not in data:
         data["active_sessions"] = {}
-    data["active_sessions"][ip_hash] = now_ts
+    data["active_sessions"][visitor_id] = now_ts
     
-    # Clean up sessions older than 5 minutes for active online counter
-    data["active_sessions"] = {k: v for k, v in data["active_sessions"].items() if now_ts - v < 300}
+    # Active online users active in last 90 seconds
+    data["active_sessions"] = {k: v for k, v in data["active_sessions"].items() if now_ts - v < 90}
     
     save_analytics(data)
     
     active_count = max(len(data["active_sessions"]), 1)
     return JSONResponse(content={
-        "total_visits": data.get("total_visits", 1420),
-        "today_visits": data.get("today_visits", 184),
-        "active_online": active_count
+        "total_visits": data["total_visits"],
+        "today_visits": data["today_visits"],
+        "active_online": active_count,
+        "unique_devices": len(data.get("unique_visitors", {}))
     })
 
 @app.get("/api/analytics/stats")

@@ -51,7 +51,7 @@ def save_analytics(data: dict):
 @app.post("/api/analytics/track")
 @app.get("/api/analytics/track")
 async def track_visitor(request: Request):
-    """Track real-time visitor pageviews and distinct device sessions."""
+    """Track real-time visitor pageviews and persistent distinct device sessions."""
     visitor_id = request.headers.get("x-visitor-id", "")
     client_ip = request.client.host if request.client else "127.0.0.1"
     forwarded = request.headers.get("x-forwarded-for")
@@ -62,6 +62,14 @@ async def track_visitor(request: Request):
     if not visitor_id:
         visitor_id = hashlib.md5(f"{client_ip}:{user_agent}".encode()).hexdigest()[:16]
     
+    # Client known maximum visit count (Self-healing persistent synchronization)
+    try:
+        client_max = int(request.headers.get("x-client-max", 0))
+    except Exception:
+        client_max = 0
+        
+    is_heartbeat = request.headers.get("x-heartbeat") == "1"
+    
     data = load_analytics()
     today_str = datetime.now().strftime("%Y-%m-%d")
     if data.get("today_date") != today_str:
@@ -70,9 +78,16 @@ async def track_visitor(request: Request):
     
     now_ts = time.time()
     
-    # Increment total visit counter on every page visit
-    data["total_visits"] = data.get("total_visits", 1420) + 1
-    data["today_visits"] = data.get("today_visits", 184) + 1
+    # Ensure count never drops below client's verified count or initial baseline
+    current_stored = data.get("total_visits", 1450)
+    highest_count = max(current_stored, client_max, 1450)
+    
+    # Only increment pageview count on fresh page loads (not periodic heartbeats)
+    if not is_heartbeat:
+        data["total_visits"] = highest_count + 1
+        data["today_visits"] = data.get("today_visits", 0) + 1
+    else:
+        data["total_visits"] = highest_count
     
     if "unique_visitors" not in data:
         data["unique_visitors"] = {}
@@ -82,8 +97,8 @@ async def track_visitor(request: Request):
         data["active_sessions"] = {}
     data["active_sessions"][visitor_id] = now_ts
     
-    # Active online users active in last 90 seconds
-    data["active_sessions"] = {k: v for k, v in data["active_sessions"].items() if now_ts - v < 90}
+    # Active online users active in last 60 seconds
+    data["active_sessions"] = {k: v for k, v in data["active_sessions"].items() if now_ts - v < 60}
     
     save_analytics(data)
     

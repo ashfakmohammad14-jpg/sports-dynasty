@@ -2852,13 +2852,17 @@ function getOrCreateVisitorId() {
     return vid;
 }
 
-async function updateVisitorAnalytics() {
+async function updateVisitorAnalytics(isHeartbeat = false) {
     try {
         const vid = getOrCreateVisitorId();
+        const clientMax = localStorage.getItem('dynasty_max_visits') || '1450';
+        
         const res = await fetch('/api/analytics/track', {
             method: 'POST',
             headers: {
                 'x-visitor-id': vid,
+                'x-client-max': clientMax,
+                'x-heartbeat': isHeartbeat ? '1' : '0',
                 'Content-Type': 'application/json'
             }
         });
@@ -2869,7 +2873,10 @@ async function updateVisitorAnalytics() {
             const onlineEl = document.getElementById('stat-online-now');
             const onlineFooterEl = document.getElementById('stat-online-now-footer');
             
-            const formattedTotal = Number(data.total_visits || 1420).toLocaleString();
+            const totalNum = Number(data.total_visits || 1450);
+            localStorage.setItem('dynasty_max_visits', String(totalNum));
+            
+            const formattedTotal = totalNum.toLocaleString();
             const onlineCount = data.active_online || 1;
             
             if (totalEl) {
@@ -3083,16 +3090,16 @@ setTimeout(() => {
 // Initialize analytics and device view on startup
 document.addEventListener('DOMContentLoaded', () => {
     initDeviceLayout();
-    updateVisitorAnalytics();
-    setInterval(updateVisitorAnalytics, 15000);
+    updateVisitorAnalytics(false);
+    setInterval(() => updateVisitorAnalytics(true), 15000);
 });
 
-// Immediate execution
+// Immediate execution fallback
 setTimeout(() => {
     initDeviceLayout();
-    updateVisitorAnalytics();
-    setInterval(updateVisitorAnalytics, 15000);
+    updateVisitorAnalytics(false);
 }, 200);
+
 
 
 

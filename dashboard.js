@@ -2979,5 +2979,83 @@ function closePolicyModal() {
     }
 }
 
+// -------------------------------------------------------------
+// UNIVERSAL PWA APP INSTALL PROMPT ENGINE (For All Visitors)
+// -------------------------------------------------------------
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    
+    // Show header install button
+    const installBtn = document.getElementById('pwa-install-btn');
+    if (installBtn) installBtn.classList.remove('hidden');
+    
+    // Show floating banner after 2.5s if not dismissed in this session
+    if (!sessionStorage.getItem('sports_dynasty_pwa_dismissed')) {
+        setTimeout(() => {
+            const banner = document.getElementById('pwa-floating-banner');
+            if (banner) {
+                banner.classList.remove('translate-y-28', 'opacity-0');
+            }
+        }, 2500);
+    }
+});
+
+function triggerPwaInstall() {
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIos) {
+        const iosModal = document.getElementById('ios-install-modal');
+        if (iosModal) {
+            iosModal.classList.remove('hidden');
+            setTimeout(() => iosModal.classList.remove('opacity-0'), 10);
+            safeCreateIcons();
+        }
+        return;
+    }
+    
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+                console.log('User installed the Sports Dynasty PWA app!');
+                dismissPwaBanner();
+            }
+            deferredPrompt = null;
+        });
+    } else {
+        alert("To install Sports Dynasty:\n\n1. Tap your browser menu (3 dots).\n2. Tap 'Install app' or 'Add to Home screen'.");
+    }
+}
+
+function dismissPwaBanner() {
+    sessionStorage.setItem('sports_dynasty_pwa_dismissed', 'true');
+    const banner = document.getElementById('pwa-floating-banner');
+    if (banner) {
+        banner.classList.add('translate-y-28', 'opacity-0');
+    }
+}
+
+function closeIosInstallModal() {
+    const iosModal = document.getElementById('ios-install-modal');
+    if (iosModal) {
+        iosModal.classList.add('opacity-0');
+        setTimeout(() => iosModal.classList.add('hidden'), 300);
+    }
+}
+
+// Auto-show floating install prompt for mobile visitors after 3 seconds
+setTimeout(() => {
+    if (!sessionStorage.getItem('sports_dynasty_pwa_dismissed') && window.innerWidth < 768) {
+        const banner = document.getElementById('pwa-floating-banner');
+        if (banner) {
+            banner.classList.remove('translate-y-28', 'opacity-0');
+            safeCreateIcons();
+        }
+    }
+}, 3000);
+
+
 
 

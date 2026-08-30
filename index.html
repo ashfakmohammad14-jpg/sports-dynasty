@@ -128,20 +128,9 @@
                     <i data-lucide="sun" class="w-4 h-4 hidden dark:block text-yellow-300 drop-shadow-[0_0_6px_rgba(253,224,71,0.8)]"></i>
                 </button>
 
-                <!-- Live Auto-Sync Status Indicator -->
-                <div class="hidden sm:flex items-center space-x-2 bg-[#043d2e] dark:bg-dark-800 px-2 py-1 rounded text-xs border border-white/15 dark:border-gray-700 shadow-sm">
-                    <span class="relative flex h-2 w-2">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00ff88] opacity-80"></span>
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-[#00ff88] shadow-[0_0_8px_#00ff88]"></span>
-                    </span>
-                    <span id="countdown-timer" class="font-mono text-[#00ff88] font-black drop-shadow-[0_0_6px_rgba(0,255,136,0.6)]">10s</span>
-                </div>
-
-                <!-- Manual Refresh Button -->
-                <button id="manual-refresh-btn" class="flex items-center space-x-1 bg-[#00ff88] hover:bg-[#34d399] text-[#03140f] px-2.5 py-1 rounded text-xs font-black shadow-[0_0_15px_rgba(0,255,136,0.4)] transition active:scale-95">
-                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="refresh-icon"></i>
-                    <span class="hidden md:inline">Refresh</span>
-                </button>
+                <!-- Hidden silent elements for background sync engine -->
+                <span id="countdown-timer" class="hidden"></span>
+                <button id="manual-refresh-btn" class="hidden"></button>
             </div>
         </div>
     </header>

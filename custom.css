@@ -389,3 +389,42 @@ html {
 .neon-border-pulse {
     animation: neonGlowPulse 2.5s infinite ease-in-out;
 }
+
+/* ============================================================
+   DEVICE LAYOUT MODES (Desktop Version vs Phone Version vs Auto)
+   ============================================================ */
+body.layout-mode-mobile {
+    background: #021a14 !important;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 8px 0;
+    min-height: 100vh;
+}
+
+body.layout-mode-mobile #app-main-container {
+    max-width: 440px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    border-radius: 32px !important;
+    box-shadow: 0 25px 70px -15px rgba(0, 0, 0, 0.9), 0 0 35px rgba(0, 255, 136, 0.3) !important;
+    border: 3.5px solid rgba(0, 255, 136, 0.5) !important;
+    overflow: hidden !important;
+    background: #06231a !important;
+}
+
+body.layout-mode-mobile header {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+}
+
+body.layout-mode-mobile .hero-arena-grid {
+    grid-template-columns: 1fr !important;
+}
+
+body.layout-mode-desktop #app-main-container {
+    max-width: 1750px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+}
+

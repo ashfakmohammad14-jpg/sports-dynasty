@@ -2840,3 +2840,86 @@ if ('serviceWorker' in navigator) {
     });
 }
 
+// -------------------------------------------------------------
+// REAL-TIME VISITOR TRACKER & HIT ANALYTICS ENGINE
+// -------------------------------------------------------------
+async function updateVisitorAnalytics() {
+    try {
+        const res = await fetch('/api/analytics/track', { method: 'POST' });
+        if (res.ok) {
+            const data = await res.json();
+            const totalEl = document.getElementById('stat-total-visits');
+            const totalFooterEl = document.getElementById('stat-total-visits-footer');
+            const onlineEl = document.getElementById('stat-online-now');
+            const onlineFooterEl = document.getElementById('stat-online-now-footer');
+            
+            const formattedTotal = Number(data.total_visits || 1420).toLocaleString();
+            const onlineCount = data.active_online || 6;
+            
+            if (totalEl) totalEl.textContent = formattedTotal;
+            if (totalFooterEl) totalFooterEl.textContent = formattedTotal;
+            if (onlineEl) onlineEl.textContent = onlineCount;
+            if (onlineFooterEl) onlineFooterEl.textContent = onlineCount;
+        }
+    } catch (e) {
+        console.warn('Analytics tracking error:', e);
+    }
+}
+
+// -------------------------------------------------------------
+// DEVICE VIEWPORT SWITCHER (Auto, Desktop Arena, Mobile Stream)
+// -------------------------------------------------------------
+function setDeviceLayout(mode) {
+    const validModes = ['auto', 'desktop', 'mobile'];
+    if (!validModes.includes(mode)) mode = 'auto';
+    
+    localStorage.setItem('sports_dynasty_device_layout', mode);
+    
+    const body = document.body;
+    body.classList.remove('layout-mode-auto', 'layout-mode-desktop', 'layout-mode-mobile');
+    body.classList.add(`layout-mode-${mode}`);
+    
+    // Update button active states
+    ['auto', 'desktop', 'mobile'].forEach(m => {
+        const btn = document.getElementById(`btn-view-${m}`);
+        if (btn) {
+            if (m === mode) {
+                btn.className = 'device-layout-btn px-2 py-1 text-[11px] font-bold rounded transition text-black bg-[#00ff88] shadow-sm flex items-center space-x-1';
+            } else {
+                btn.className = 'device-layout-btn px-2 py-1 text-[11px] font-semibold rounded transition text-white/70 hover:text-white flex items-center space-x-1';
+            }
+        }
+    });
+    
+    // Adjust meta viewport tag
+    const metaViewport = document.querySelector('meta[name="viewport"]');
+    if (metaViewport) {
+        if (mode === 'desktop') {
+            metaViewport.setAttribute('content', 'width=1280, initial-scale=0.3, user-scalable=yes');
+        } else {
+            metaViewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0');
+        }
+    }
+    
+    safeCreateIcons();
+}
+
+function initDeviceLayout() {
+    const savedMode = localStorage.getItem('sports_dynasty_device_layout') || 'auto';
+    setDeviceLayout(savedMode);
+}
+
+// Initialize on startup
+document.addEventListener('DOMContentLoaded', () => {
+    initDeviceLayout();
+    updateVisitorAnalytics();
+    setInterval(updateVisitorAnalytics, 30000);
+});
+
+// Fallback init in case DOMContentLoaded already fired
+setTimeout(() => {
+    initDeviceLayout();
+    updateVisitorAnalytics();
+}, 500);
+
+

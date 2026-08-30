@@ -17,12 +17,42 @@
     --neon-blue: #4361ee;
 }
 
-/* Overall Page 5% Proportional Scaling */
-html {
-    zoom: 0.95;
-    -moz-transform: scale(0.95);
-    -moz-transform-origin: top center;
+/* Zero Horizontal Scroll & Pure Vertical Mobile Flow */
+html, body {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+    width: 100% !important;
+    margin: 0;
+    padding: 0;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
 }
+
+#app-main-container {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+@media (min-width: 1024px) {
+    html {
+        zoom: 0.95;
+        -moz-transform: scale(0.95);
+        -moz-transform-origin: top center;
+    }
+}
+
+@media (max-width: 1023px) {
+    html {
+        zoom: 1 !important;
+        -moz-transform: none !important;
+    }
+}
+
 
 /* Custom Neon Smooth Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
@@ -427,4 +457,33 @@ body.layout-mode-desktop #app-main-container {
     width: 100% !important;
     margin: 0 auto !important;
 }
+
+/* ============================================================
+   MOBILE ULTRA-CLEAN VERTICAL FLOW ENHANCEMENTS
+   ============================================================ */
+@media (max-width: 768px) {
+    main {
+        padding-left: 6px !important;
+        padding-right: 6px !important;
+        max-width: 100% !important;
+    }
+    
+    .stadium-hero-card {
+        padding: 10px 8px !important;
+    }
+    
+    /* Prevent any table or element from pushing the horizontal screen */
+    .table-container, .hud-glass-panel, .card {
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+    
+    /* Touch friendly tab bar */
+    .cricinfo-tab {
+        padding: 6px 10px !important;
+        font-size: 11px !important;
+        white-space: nowrap !important;
+    }
+}
+
 

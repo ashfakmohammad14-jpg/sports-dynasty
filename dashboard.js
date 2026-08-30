@@ -2909,17 +2909,75 @@ function initDeviceLayout() {
     setDeviceLayout(savedMode);
 }
 
-// Initialize on startup
-document.addEventListener('DOMContentLoaded', () => {
-    initDeviceLayout();
-    updateVisitorAnalytics();
-    setInterval(updateVisitorAnalytics, 30000);
-});
+// -------------------------------------------------------------
+// GOOGLE ADSENSE COMPLIANCE & LEGAL MODALS
+// -------------------------------------------------------------
+const policyContents = {
+    privacy: {
+        title: "Privacy Policy",
+        body: `
+            <p><strong>Effective Date:</strong> January 2026</p>
+            <p>Welcome to <strong>Sports Dynasty</strong> (accessible at <a href="https://sportsdynasty.in" class="text-emerald-500 underline">sportsdynasty.in</a>). We value your privacy and are committed to protecting personal information.</p>
+            <h4 class="font-bold text-slate-800 dark:text-white mt-2">1. Information We Collect</h4>
+            <p>Sports Dynasty does not require user registration to view live cricket scorecards, news, or rankings. We may automatically log non-personally identifiable diagnostic data including IP address, browser type, and anonymous interaction metrics for analytics and server optimization.</p>
+            <h4 class="font-bold text-slate-800 dark:text-white mt-2">2. Google AdSense & Cookies</h4>
+            <p>We use third-party advertising vendors such as Google AdSense to serve ads when you visit our website. Google uses cookies (including the DoubleClick cookie) to serve ads based on prior visits to this website or other sites on the Internet.</p>
+            <p>Users may opt out of personalized advertising by visiting <a href="https://www.google.com/settings/ads" target="_blank" class="text-emerald-500 underline">Google Ads Settings</a>.</p>
+            <h4 class="font-bold text-slate-800 dark:text-white mt-2">3. Contact Us</h4>
+            <p>If you have questions regarding this Privacy Policy, contact us at <strong>support@sportsdynasty.in</strong>.</p>
+        `
+    },
+    terms: {
+        title: "Terms of Service",
+        body: `
+            <p><strong>1. Acceptance of Terms:</strong> By accessing Sports Dynasty (sportsdynasty.in), you agree to comply with all applicable laws and terms.</p>
+            <p><strong>2. Fair Use & Cricket Data:</strong> All real-time scorecards, fixtures, and standings are aggregated for fan informational, non-commercial, and sports journalism purposes.</p>
+            <p><strong>3. Intellectual Property:</strong> Cricket team names and tournament marks are trademarks of their respective boards (e.g. BCCI, ICC, ECB, CA).</p>
+        `
+    },
+    about: {
+        title: "About Sports Dynasty",
+        body: `
+            <p><strong>Sports Dynasty</strong> is an ultra-fast, real-time cricket intelligence and live score platform designed for cricket enthusiasts across India and globally.</p>
+            <p>Our mission is to deliver ball-by-ball scorecards, interactive stadium pitch maps, worm charts, wagon wheels, ICC team rankings, and breaking cricket headlines with zero latency and high visual fidelity.</p>
+        `
+    },
+    contact: {
+        title: "Contact & Editorial Support",
+        body: `
+            <p>Have editorial feedback, partnership inquiries, or advertising questions?</p>
+            <div class="p-3 bg-slate-100 dark:bg-dark-800 rounded-lg space-y-1">
+                <p>📧 <strong>Email:</strong> support@sportsdynasty.in</p>
+                <p>🌐 <strong>Website:</strong> https://sportsdynasty.in</p>
+                <p>📍 <strong>Platform:</strong> Sports Dynasty Digital Cricket Network</p>
+            </div>
+        `
+    }
+};
 
-// Fallback init in case DOMContentLoaded already fired
-setTimeout(() => {
-    initDeviceLayout();
-    updateVisitorAnalytics();
-}, 500);
+function openPolicyModal(type) {
+    const data = policyContents[type] || policyContents.privacy;
+    const modal = document.getElementById('policy-modal');
+    const titleEl = document.getElementById('policy-title-text');
+    const bodyEl = document.getElementById('policy-modal-body');
+    
+    if (titleEl) titleEl.textContent = data.title;
+    if (bodyEl) bodyEl.innerHTML = data.body;
+    
+    if (modal) {
+        modal.classList.remove('hidden');
+        setTimeout(() => modal.classList.remove('opacity-0'), 10);
+    }
+    safeCreateIcons();
+}
+
+function closePolicyModal() {
+    const modal = document.getElementById('policy-modal');
+    if (modal) {
+        modal.classList.add('opacity-0');
+        setTimeout(() => modal.classList.add('hidden'), 300);
+    }
+}
+
 
 

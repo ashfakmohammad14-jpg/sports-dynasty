@@ -42,6 +42,10 @@
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="/custom.css">
+
+    <!-- Google AdSense Official Script -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9257478787714323"
+         crossorigin="anonymous"></script>
 </head>
 <body class="bg-[#f0f4f2] dark:bg-dark-900 text-slate-900 dark:text-gray-100 min-h-screen flex flex-col font-sans antialiased selection:bg-[#00ff88] selection:text-black transition-colors duration-200">
     <div id="app-main-container" class="w-full min-h-screen flex flex-col transition-all duration-300">
@@ -591,6 +595,16 @@
                     Total Visitors: <b id="stat-total-visits-footer" class="text-slate-800 dark:text-white">1,420</b>
                 </span>
             </div>
+            <!-- Google AdSense Required Compliance Links -->
+            <div class="flex items-center gap-2.5 text-[11px] font-medium text-slate-500 dark:text-gray-400">
+                <a href="#privacy" onclick="openPolicyModal('privacy')" class="hover:text-emerald-500 dark:hover:text-[#00ff88] transition">Privacy Policy</a>
+                <span>•</span>
+                <a href="#terms" onclick="openPolicyModal('terms')" class="hover:text-emerald-500 dark:hover:text-[#00ff88] transition">Terms</a>
+                <span>•</span>
+                <a href="#about" onclick="openPolicyModal('about')" class="hover:text-emerald-500 dark:hover:text-[#00ff88] transition">About Us</a>
+                <span>•</span>
+                <a href="#contact" onclick="openPolicyModal('contact')" class="hover:text-emerald-500 dark:hover:text-[#00ff88] transition">Contact</a>
+            </div>
             <div class="flex items-center gap-3">
                 <span class="font-mono text-slate-500 dark:text-gray-400 flex items-center gap-1">
                     <span class="w-2 h-2 rounded-full bg-[#00ff88] inline-block animate-ping"></span>
@@ -712,6 +726,34 @@
                 <div class="p-6 text-center text-xs text-slate-400 dark:text-gray-500 font-medium">
                     Type a player's name above to search through thousands of international and domestic cricketers worldwide.
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- GOOGLE ADSENSE COMPLIANCE & LEGAL MODAL -->
+    <!-- ========================================== -->
+    <div id="policy-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md hidden opacity-0 transition-opacity duration-300 p-3 sm:p-4">
+        <div class="relative w-full max-w-2xl max-h-[85vh] bg-white dark:bg-dark-900 border border-slate-200 dark:border-emerald-900/50 rounded-2xl shadow-2xl overflow-hidden flex flex-col transform scale-95 transition-transform duration-300">
+            <!-- Modal Header -->
+            <div class="p-4 bg-[#064e3b] dark:bg-[#062c22] border-b border-[#00ff88]/30 flex items-center justify-between">
+                <h3 id="policy-modal-title" class="text-base font-bold text-white flex items-center gap-2">
+                    <i data-lucide="shield-check" class="w-4 h-4 text-[#00ff88]"></i>
+                    <span id="policy-title-text">Privacy Policy</span>
+                </h3>
+                <button onclick="closePolicyModal()" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <!-- Modal Content Body -->
+            <div id="policy-modal-body" class="p-5 overflow-y-auto text-xs leading-relaxed text-slate-600 dark:text-gray-300 space-y-3">
+                <!-- Content injected dynamically -->
+            </div>
+            <!-- Modal Footer -->
+            <div class="p-3 bg-slate-50 dark:bg-dark-800/80 border-t border-slate-200 dark:border-gray-800 flex justify-end">
+                <button onclick="closePolicyModal()" class="px-4 py-1.5 rounded-lg bg-[#00ff88] text-slate-950 font-bold text-xs hover:bg-[#34d399] transition">
+                    Understood & Close
+                </button>
             </div>
         </div>
     </div>

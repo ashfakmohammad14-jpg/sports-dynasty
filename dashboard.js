@@ -1246,25 +1246,27 @@ function renderCricinfoLiveTab(data) {
                 <tr onclick="toggleStrike('${data.leagueId}', '${data.matchId}', '${b.name.replace(/'/g, "\\'")}')" 
                     title="Click to toggle active strike to ${b.name}" 
                     class="cursor-pointer transition ${isFacing ? 'bg-gradient-to-r from-emerald-500/25 via-[#00ff88]/15 to-transparent dark:from-[#00ff88]/20 dark:via-emerald-950/70 dark:to-transparent border-l-4 border-l-[#00ff88] shadow-[0_0_15px_rgba(0,255,136,0.25)] font-bold hover:from-emerald-500/30' : 'hover:bg-slate-50 dark:hover:bg-dark-900/60'}">
-                    <td class="py-1.5 px-2.5 font-bold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
-                        ${isFacing ? `
-                            <span class="relative flex h-2.5 w-2.5 shrink-0" title="Facing Bowling (On Strike)">
-                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00ff88] opacity-80"></span>
-                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#00ff88] shadow-[0_0_8px_#00ff88]"></span>
-                            </span>
-                        ` : '<span class="w-2.5 h-2.5 shrink-0"></span>'}
-                        <div onclick="event.stopPropagation(); openPlayerProfile('${b.id || ''}', '${b.name.replace(/'/g, "\\'")}')" 
-                             class="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition group/p" title="View Profile & Stats of ${b.name}">
-                            ${renderPlayerAvatar(b.name, b.headshot, 'w-5 h-5 sm:w-6 sm:h-6 group-hover/p:ring-2 group-hover/p:ring-[#00ff88]')}
-                            <span class="text-[#059669] dark:text-emerald-400 truncate group-hover/p:underline ${isFacing ? 'font-black text-emerald-700 dark:text-[#00ff88] drop-shadow-[0_0_6px_rgba(0,255,136,0.5)]' : 'font-medium'}">${b.name}</span>
+                    <td class="py-1 px-1.5 font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+                        <div class="flex items-center gap-1 min-w-0">
+                            ${isFacing ? `
+                                <span class="relative flex h-2 w-2 shrink-0" title="Facing Bowling (On Strike)">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00ff88] opacity-80"></span>
+                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-[#00ff88] shadow-[0_0_8px_#00ff88]"></span>
+                                </span>
+                            ` : ''}
+                            <div onclick="event.stopPropagation(); openPlayerProfile('${b.id || ''}', '${b.name.replace(/'/g, "\\'")}')" 
+                                 class="flex items-center gap-1 min-w-0 cursor-pointer hover:opacity-80 transition group/p" title="View Profile & Stats of ${b.name}">
+                                ${renderPlayerAvatar(b.name, b.headshot, 'w-4 h-4 sm:w-5 sm:h-5 group-hover/p:ring-2 group-hover/p:ring-[#00ff88] shrink-0')}
+                                <span class="text-[#059669] dark:text-emerald-400 truncate group-hover/p:underline text-[11px] sm:text-xs ${isFacing ? 'font-black text-emerald-700 dark:text-[#00ff88]' : 'font-semibold'}">${b.name}</span>
+                            </div>
+                            ${isFacing ? '<span class="text-[7px] font-black uppercase px-1 py-0.2 rounded bg-[#00ff88]/25 text-emerald-800 dark:text-[#00ff88] border border-[#00ff88]/60 shrink-0 font-mono hidden sm:inline">STRIKE</span>' : ''}
                         </div>
-                        ${isFacing ? '<span class="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-[#00ff88]/25 text-emerald-800 dark:text-[#00ff88] border border-[#00ff88]/60 shadow-[0_0_8px_rgba(0,255,136,0.6)] animate-striker tracking-wider shrink-0 font-mono">STRIKE</span>' : ''}
                     </td>
-                    <td class="py-1.5 px-2 text-right font-mono font-black text-sm ${isFacing ? 'text-emerald-700 dark:text-[#00ff88] drop-shadow-[0_0_6px_rgba(0,255,136,0.4)]' : 'text-slate-900 dark:text-white'}">${b.runs}</td>
-                    <td class="py-1.5 px-2 text-right font-mono font-bold text-xs ${isFacing ? 'text-emerald-800 dark:text-emerald-200' : 'text-slate-700 dark:text-gray-300'}">${b.balls}</td>
-                    <td class="py-1.5 px-2 text-right font-mono font-semibold text-xs ${isFacing ? 'text-emerald-800 dark:text-emerald-200' : 'text-slate-700 dark:text-gray-300'}">${b.fours || 0}</td>
-                    <td class="py-1.5 px-2 text-right font-mono font-semibold text-xs ${isFacing ? 'text-emerald-800 dark:text-emerald-200' : 'text-slate-700 dark:text-gray-300'}">${b.sixes || 0}</td>
-                    <td class="py-1.5 px-2 text-right font-mono font-black text-xs text-emerald-600 dark:text-emerald-400">${sr}</td>
+                    <td class="py-1 px-1 text-right font-mono font-black text-xs sm:text-sm ${isFacing ? 'text-emerald-700 dark:text-[#00ff88]' : 'text-slate-900 dark:text-white'}">${b.runs}</td>
+                    <td class="py-1 px-1 text-right font-mono font-bold text-[11px] sm:text-xs ${isFacing ? 'text-emerald-800 dark:text-emerald-200' : 'text-slate-700 dark:text-gray-300'}">${b.balls}</td>
+                    <td class="py-1 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs ${isFacing ? 'text-emerald-800 dark:text-emerald-200' : 'text-slate-700 dark:text-gray-300'}">${b.fours || 0}</td>
+                    <td class="py-1 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs ${isFacing ? 'text-emerald-800 dark:text-emerald-200' : 'text-slate-700 dark:text-gray-300'}">${b.sixes || 0}</td>
+                    <td class="py-1 px-1 text-right font-mono font-black text-[11px] sm:text-xs text-emerald-600 dark:text-emerald-400">${sr}</td>
                 </tr>
             `;
         }).join('');
@@ -1295,25 +1297,27 @@ function renderCricinfoLiveTab(data) {
 
             return `
                 <tr class="hover:bg-slate-50 dark:hover:bg-dark-900/60 transition ${isBowlingNow ? 'bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent dark:from-amber-950/50 dark:via-dark-900 border-l-4 border-l-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.2)]' : ''}">
-                    <td class="py-1 px-2.5 font-bold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
-                        ${isBowlingNow ? `
-                            <span class="relative flex h-2.5 w-2.5 shrink-0" title="Currently Bowling (Active Bowler)">
-                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-80"></span>
-                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,1)]"></span>
-                            </span>
-                        ` : '<span class="w-2.5 h-2.5 shrink-0"></span>'}
-                        <div onclick="event.stopPropagation(); openPlayerProfile('${b.id || ''}', '${b.name.replace(/'/g, "\\'")}')" 
-                             class="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition group/p" title="View Profile & Stats of ${b.name}">
-                            ${renderPlayerAvatar(b.name, b.headshot, 'w-5 h-5 sm:w-6 sm:h-6 group-hover/p:ring-2 group-hover/p:ring-amber-400')}
-                            <span class="text-[#059669] dark:text-emerald-400 truncate group-hover/p:underline ${isBowlingNow ? 'font-black text-amber-700 dark:text-amber-300 drop-shadow-[0_0_6px_rgba(251,191,36,0.5)]' : 'font-medium'}">${b.name}</span>
+                    <td class="py-1 px-1.5 font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+                        <div class="flex items-center gap-1 min-w-0">
+                            ${isBowlingNow ? `
+                                <span class="relative flex h-2 w-2 shrink-0" title="Currently Bowling (Active Bowler)">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-80"></span>
+                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,1)]"></span>
+                                </span>
+                            ` : ''}
+                            <div onclick="event.stopPropagation(); openPlayerProfile('${b.id || ''}', '${b.name.replace(/'/g, "\\'")}')" 
+                                 class="flex items-center gap-1 min-w-0 cursor-pointer hover:opacity-80 transition group/p" title="View Profile & Stats of ${b.name}">
+                                ${renderPlayerAvatar(b.name, b.headshot, 'w-4 h-4 sm:w-5 sm:h-5 group-hover/p:ring-2 group-hover/p:ring-amber-400 shrink-0')}
+                                <span class="text-[#059669] dark:text-emerald-400 truncate group-hover/p:underline text-[11px] sm:text-xs ${isBowlingNow ? 'font-black text-amber-700 dark:text-amber-300' : 'font-semibold'}">${b.name}</span>
+                            </div>
+                            ${isBowlingNow ? '<span class="text-[7px] font-black uppercase px-1 py-0.2 rounded bg-amber-400/25 text-amber-700 dark:text-amber-300 border border-amber-400/60 shrink-0 font-mono hidden sm:inline">BOWLING</span>' : ''}
                         </div>
-                        ${isBowlingNow ? '<span class="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-400/25 text-amber-700 dark:text-amber-300 border border-amber-400/60 shadow-[0_0_8px_rgba(251,191,36,0.6)] tracking-wider shrink-0 font-mono">BOWLING</span>' : ''}
                     </td>
-                    <td class="py-1 px-2 text-right font-mono font-bold text-xs ${isBowlingNow ? 'text-amber-600 dark:text-amber-300 font-black' : 'text-slate-900 dark:text-white'}">${b.overs}</td>
-                    <td class="py-1 px-2 text-right font-mono font-semibold text-xs text-slate-700 dark:text-gray-300">${b.maidens || 0}</td>
-                    <td class="py-1 px-2 text-right font-mono font-semibold text-xs text-slate-700 dark:text-gray-300">${b.runs}</td>
-                    <td class="py-1 px-2 text-right font-mono font-black text-sm text-rose-600 dark:text-rose-400">${b.wickets}</td>
-                    <td class="py-1 px-2 text-right font-mono font-black text-xs text-slate-900 dark:text-white">${econ}</td>
+                    <td class="py-1 px-1 text-right font-mono font-bold text-[11px] sm:text-xs ${isBowlingNow ? 'text-amber-600 dark:text-amber-300 font-black' : 'text-slate-900 dark:text-white'}">${b.overs}</td>
+                    <td class="py-1 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-700 dark:text-gray-300">${b.maidens || 0}</td>
+                    <td class="py-1 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-700 dark:text-gray-300">${b.runs}</td>
+                    <td class="py-1 px-1 text-right font-mono font-black text-xs sm:text-sm text-rose-600 dark:text-rose-400">${b.wickets}</td>
+                    <td class="py-1 px-1 text-right font-mono font-black text-[11px] sm:text-xs text-slate-900 dark:text-white">${econ}</td>
                 </tr>
             `;
         }).join('');
@@ -1782,20 +1786,22 @@ function renderActiveInningsScorecard(inn) {
                 const sr = (b.strikeRate && b.strikeRate !== '0.00') ? b.strikeRate : computeStrikeRate(b.runs, b.balls);
                 return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-dark-900/60 transition">
-                        <td class="py-1.5 px-3 font-bold text-sm sm:text-base text-slate-900 dark:text-white flex items-center gap-2">
-                            <div onclick="openPlayerProfile('${b.id || ''}', '${b.name.replace(/'/g, "\\'")}')" 
-                                 class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition group/p" title="View Profile & Stats of ${b.name}">
-                                ${renderPlayerAvatar(b.name, b.headshot, 'w-5 h-5 sm:w-6 sm:h-6 group-hover/p:ring-2 group-hover/p:ring-[#00ff88]')}
-                                <span class="truncate text-slate-900 dark:text-white group-hover/p:text-[#00ff88] group-hover/p:underline">${b.name}</span>
+                        <td class="py-1 px-1.5 font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+                            <div class="flex items-center gap-1.5 min-w-0">
+                                <div onclick="openPlayerProfile('${b.id || ''}', '${b.name.replace(/'/g, "\\'")}')" 
+                                     class="flex items-center gap-1 min-w-0 cursor-pointer hover:opacity-80 transition group/p" title="View Profile & Stats of ${b.name}">
+                                    ${renderPlayerAvatar(b.name, b.headshot, 'w-4 h-4 sm:w-5 sm:h-5 group-hover/p:ring-2 group-hover/p:ring-[#00ff88] shrink-0')}
+                                    <span class="truncate text-slate-900 dark:text-white group-hover/p:text-[#00ff88] group-hover/p:underline text-[11px] sm:text-xs">${b.name}</span>
+                                </div>
+                                ${b.isNotOut ? '<span class="text-rose-600 font-black text-xs shrink-0">*</span>' : ''}
                             </div>
-                            ${b.isNotOut ? '<span class="text-rose-600 font-black text-base">*</span>' : ''}
                         </td>
-                        <td class="py-1.5 px-3">${formatDismissalHTML(b.dismissal, b.isNotOut)}</td>
-                        <td class="py-1.5 px-3 text-right font-mono font-black text-base text-slate-900 dark:text-white">${b.runs}</td>
-                        <td class="py-1.5 px-3 text-right font-mono font-semibold text-xs sm:text-sm text-slate-700 dark:text-gray-300">${b.balls}</td>
-                        <td class="py-1.5 px-3 text-right font-mono font-semibold text-xs sm:text-sm text-slate-700 dark:text-gray-300">${b.fours || 0}</td>
-                        <td class="py-1.5 px-3 text-right font-mono font-semibold text-xs sm:text-sm text-slate-700 dark:text-gray-300">${b.sixes || 0}</td>
-                        <td class="py-1.5 px-3 text-right font-mono font-black text-xs sm:text-sm text-emerald-600 dark:text-emerald-400">${sr}</td>
+                        <td class="py-1 px-1 text-[10px] sm:text-xs">${formatDismissalHTML(b.dismissal, b.isNotOut)}</td>
+                        <td class="py-1 px-1 text-right font-mono font-black text-xs sm:text-sm text-slate-900 dark:text-white">${b.runs}</td>
+                        <td class="py-1 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-700 dark:text-gray-300">${b.balls}</td>
+                        <td class="py-1 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-700 dark:text-gray-300">${b.fours || 0}</td>
+                        <td class="py-1 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-700 dark:text-gray-300">${b.sixes || 0}</td>
+                        <td class="py-1 px-1 text-right font-mono font-black text-[11px] sm:text-xs text-emerald-600 dark:text-emerald-400">${sr}</td>
                     </tr>
                 `;
             }).join('');
@@ -1816,18 +1822,20 @@ function renderActiveInningsScorecard(inn) {
                 const econ = (bw.economy && bw.economy !== '0.00' && bw.economy !== '0') ? bw.economy : computeEconomy(bw.overs, bw.runs);
                 return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-dark-900/60 transition">
-                        <td class="py-1.5 px-3 font-bold text-sm sm:text-base text-slate-900 dark:text-white flex items-center gap-2">
-                            <div onclick="openPlayerProfile('${bw.id || ''}', '${bw.name.replace(/'/g, "\\'")}')" 
-                                 class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition group/p" title="View Profile & Stats of ${bw.name}">
-                                ${renderPlayerAvatar(bw.name, bw.headshot, 'w-5 h-5 sm:w-6 sm:h-6 group-hover/p:ring-2 group-hover/p:ring-amber-400')}
-                                <span class="truncate text-slate-900 dark:text-white group-hover/p:text-[#00ff88] group-hover/p:underline">${bw.name}</span>
+                        <td class="py-1 px-1.5 font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+                            <div class="flex items-center gap-1.5 min-w-0">
+                                <div onclick="openPlayerProfile('${bw.id || ''}', '${bw.name.replace(/'/g, "\\'")}')" 
+                                     class="flex items-center gap-1 min-w-0 cursor-pointer hover:opacity-80 transition group/p" title="View Profile & Stats of ${bw.name}">
+                                    ${renderPlayerAvatar(bw.name, bw.headshot, 'w-4 h-4 sm:w-5 sm:h-5 group-hover/p:ring-2 group-hover/p:ring-amber-400 shrink-0')}
+                                    <span class="truncate text-slate-900 dark:text-white group-hover/p:text-[#00ff88] group-hover/p:underline text-[11px] sm:text-xs">${bw.name}</span>
+                                </div>
                             </div>
                         </td>
-                        <td class="py-1.5 px-3 text-right font-mono font-semibold text-xs sm:text-sm text-slate-800 dark:text-gray-200">${bw.overs}</td>
-                        <td class="py-1.5 px-3 text-right font-mono font-semibold text-xs sm:text-sm text-slate-600 dark:text-gray-400">${bw.maidens || 0}</td>
-                        <td class="py-1.5 px-3 text-right font-mono font-semibold text-xs sm:text-sm text-slate-800 dark:text-gray-200">${bw.runs}</td>
-                        <td class="py-1.5 px-3 text-right font-mono font-black text-base text-rose-600 dark:text-rose-400">${bw.wickets}</td>
-                        <td class="py-1.5 px-3 text-right font-mono font-black text-xs sm:text-sm text-slate-900 dark:text-white">${econ}</td>
+                        <td class="py-1 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-800 dark:text-gray-200">${bw.overs}</td>
+                        <td class="py-1 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-700 dark:text-gray-300">${bw.maidens || 0}</td>
+                        <td class="py-1 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-700 dark:text-gray-300">${bw.runs}</td>
+                        <td class="py-1 px-1 text-right font-mono font-black text-xs sm:text-sm text-rose-600 dark:text-rose-400">${bw.wickets}</td>
+                        <td class="py-1 px-1 text-right font-mono font-black text-[11px] sm:text-xs text-slate-900 dark:text-white">${econ}</td>
                     </tr>
                 `;
             }).join('');

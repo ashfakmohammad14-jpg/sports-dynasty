@@ -102,12 +102,33 @@ async function fetchMatches(silent = false) {
         if (liveCountElem) liveCountElem.textContent = (appState.categories.live || []).length;
         
         const countBadge = document.getElementById('match-count-badge');
-        if (countBadge) countBadge.textContent = `${appState.matches.length} Matches`;
+        // Intelligent Persistent Match Selection on Page Refresh/Reload
+        let targetMatch = null;
+        const urlHash = window.location.hash || '';
+        const matchHashMatch = urlHash.match(/#match-([a-zA-Z0-9_\-]+)/);
+        
+        if (matchHashMatch) {
+            const hashEventId = matchHashMatch[1];
+            targetMatch = (appState.matches || []).find(m => String(m.id) === String(hashEventId));
+        }
+        
+        if (!targetMatch) {
+            try {
+                const savedMatchRaw = localStorage.getItem('sports_dynasty_selected_match');
+                if (savedMatchRaw) {
+                    const savedObj = JSON.parse(savedMatchRaw);
+                    targetMatch = (appState.matches || []).find(m => String(m.id) === String(savedObj.eventId));
+                }
+            } catch(e) {}
+        }
 
-        renderMatchList();
+        const isMobile = isMobileLayoutActive();
 
-        // Auto select first match if none selected or selected not present
-        if (appState.matches.length > 0 && !appState.selectedEventId) {
+        if (targetMatch) {
+            // Re-select the EXACT match the user was on before refresh
+            selectMatch(targetMatch.leagueId, targetMatch.id);
+        } else if (!isMobile && appState.matches.length > 0 && !appState.selectedEventId) {
+            // On Desktop, default to first live or top match
             const firstMatch = appState.categories.live.length > 0 ? appState.categories.live[0] : appState.matches[0];
             selectMatch(firstMatch.leagueId, firstMatch.id);
         } else if (appState.selectedLeagueId && appState.selectedEventId && silent) {
@@ -436,6 +457,12 @@ function isMobileLayoutActive() {
 function selectMatch(leagueId, eventId, autoScroll = false) {
     appState.selectedLeagueId = leagueId;
     appState.selectedEventId = eventId;
+
+    // Persist selected match to localStorage
+    try {
+        localStorage.setItem('sports_dynasty_selected_match', JSON.stringify({ leagueId: leagueId, eventId: eventId }));
+    } catch(e) {}
+
     renderMatchList();
     fetchMatchDetails(leagueId, eventId);
 
@@ -468,7 +495,9 @@ function selectMatch(leagueId, eventId, autoScroll = false) {
         safeCreateIcons();
 
         try {
-            history.pushState({ matchView: eventId }, '', `#match-${eventId}`);
+            if (window.location.hash !== `#match-${eventId}`) {
+                history.pushState({ matchView: eventId }, '', `#match-${eventId}`);
+            }
         } catch(e) {}
     } else {
         // Desktop View: Keep both carousel and details visible
@@ -478,6 +507,12 @@ function selectMatch(leagueId, eventId, autoScroll = false) {
             backBar.classList.add('hidden');
             backBar.classList.remove('flex');
         }
+
+        try {
+            if (window.location.hash !== `#match-${eventId}`) {
+                history.replaceState({ matchView: eventId }, '', `#match-${eventId}`);
+            }
+        } catch(e) {}
 
         // Center active card in horizontal strip
         setTimeout(() => {
@@ -496,6 +531,10 @@ function selectMatch(leagueId, eventId, autoScroll = false) {
 }
 
 function backToMatchList() {
+    try {
+        localStorage.removeItem('sports_dynasty_selected_match');
+    } catch(e) {}
+
     const carouselSec = document.getElementById('section-match-carousel');
     const detailSec = document.getElementById('section-match-detail');
     const backBar = document.getElementById('mobile-match-back-bar');
@@ -557,6 +596,13 @@ function renderAllMatchDetails(data) {
     try { renderCommentaryTab(data); } catch(e) { console.error("renderCommentaryTab err:", e); }
     try { renderSquadsTab(data); } catch(e) { console.error("renderSquadsTab err:", e); }
     try { renderMatchInfoTab(data); } catch(e) { console.error("renderMatchInfoTab err:", e); }
+    
+    // Restore persistent active tab (e.g. scorecard, live, commentary) on page refresh
+    try {
+        const savedTab = localStorage.getItem('sports_dynasty_active_tab') || appState.activeTab || 'live';
+        switchMainTab(savedTab);
+    } catch(e) {}
+
     safeCreateIcons();
 }
 
@@ -2233,28 +2279,41 @@ function renderMatchInfoTab(data) {
 // Interactive UI Handlers (Tabs, Search, Timers)
 // -------------------------------------------------------------
 
+function switchMainTab(targetTab) {
+    if (!targetTab) targetTab = 'live';
+    const tabButtons = document.querySelectorAll('.cricinfo-tab-btn, .main-tab-btn');
+    tabButtons.forEach(b => {
+        const tabAttr = b.getAttribute('data-tab');
+        if (tabAttr === targetTab) {
+            b.classList.add('active', 'border-[#059669]', 'text-[#059669]', 'dark:border-sky-400', 'dark:text-emerald-400');
+            b.classList.remove('border-transparent', 'text-slate-500', 'dark:text-gray-400');
+        } else {
+            b.classList.remove('active', 'border-[#059669]', 'text-[#059669]', 'dark:border-sky-400', 'dark:text-emerald-400');
+            b.classList.add('border-transparent', 'text-slate-500', 'dark:text-gray-400');
+        }
+    });
+
+    appState.activeTab = targetTab;
+    try {
+        localStorage.setItem('sports_dynasty_active_tab', targetTab);
+    } catch(e) {}
+
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.add('hidden'));
+    const activePane = document.getElementById(`tab-${targetTab}`);
+    if (activePane) activePane.classList.remove('hidden');
+
+    if (targetTab === 'analytics' && appState.currentMatchData) {
+        renderAnalyticsTab(appState.currentMatchData);
+    }
+    safeCreateIcons();
+}
+
 function setupTabs() {
     const tabButtons = document.querySelectorAll('.cricinfo-tab-btn, .main-tab-btn');
     tabButtons.forEach(btn => {
         btn.addEventListener('click', () => {
-            tabButtons.forEach(b => {
-                b.classList.remove('active', 'border-[#059669]', 'text-[#059669]', 'dark:border-sky-400', 'dark:text-emerald-400');
-                b.classList.add('border-transparent', 'text-slate-500', 'dark:text-gray-400');
-            });
-            btn.classList.add('active', 'border-[#059669]', 'text-[#059669]', 'dark:border-sky-400', 'dark:text-emerald-400');
-            btn.classList.remove('border-transparent', 'text-slate-500', 'dark:text-gray-400');
-
             const targetTab = btn.getAttribute('data-tab');
-            appState.activeTab = targetTab;
-
-            document.querySelectorAll('.tab-pane').forEach(p => p.classList.add('hidden'));
-            const activePane = document.getElementById(`tab-${targetTab}`);
-            if (activePane) activePane.classList.remove('hidden');
-
-            if (targetTab === 'analytics' && appState.currentMatchData) {
-                renderAnalyticsTab(appState.currentMatchData);
-            }
-            safeCreateIcons();
+            switchMainTab(targetTab);
         });
     });
 }

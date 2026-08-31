@@ -144,16 +144,19 @@ async function fetchMatches(silent = false) {
 }
 
 async function fetchMatchDetails(leagueId, eventId, silent = false, retryCount = 0) {
-    if (!silent) {
-        const heroContent = document.getElementById('match-hero-content');
-        if (heroContent) {
-            heroContent.innerHTML = `
-                <div class="text-center py-10 text-slate-400">
-                    <div class="animate-spin inline-block w-7 h-7 border-2 border-[#059669] border-t-transparent rounded-full mb-2"></div>
-                    <p class="text-xs font-medium">Loading live Cricinfo match details & scorecard...</p>
-                </div>
-            `;
-        }
+    const heroContent = document.getElementById('match-hero-content');
+    const matchObj = (appState.matches || []).find(m => String(m.id) === String(eventId));
+
+    // If we have match data in list, render hero immediately without showing spinner
+    if (matchObj && heroContent && (!heroContent.querySelector('.hud-glass-panel') || heroContent.innerHTML.includes('animate-spin'))) {
+        renderHeroBanner(matchObj);
+    } else if (!silent && heroContent && !heroContent.querySelector('.hud-glass-panel')) {
+        heroContent.innerHTML = `
+            <div class="text-center py-10 text-slate-400">
+                <div class="animate-spin inline-block w-7 h-7 border-2 border-[#059669] border-t-transparent rounded-full mb-2"></div>
+                <p class="text-xs font-medium">Loading live Cricinfo match details & scorecard...</p>
+            </div>
+        `;
     }
 
     try {
@@ -161,16 +164,29 @@ async function fetchMatchDetails(leagueId, eventId, silent = false, retryCount =
         if (!resp.ok) throw new Error('Failed to fetch match details');
         const data = await resp.json();
 
+        // Merge with matchObj to ensure competitors and metadata are always present
+        if (matchObj) {
+            if (!data.competitors || data.competitors.length === 0) {
+                data.competitors = matchObj.competitors;
+            }
+            if (!data.description) data.description = matchObj.description;
+            if (!data.location) data.location = matchObj.location;
+            if (!data.state) data.state = matchObj.state;
+            if (!data.statusDetail) data.statusDetail = matchObj.statusDetail || matchObj.statusText;
+            if (!data.title) data.title = matchObj.title;
+        }
+
         appState.currentMatchData = data;
         renderAllMatchDetails(data);
     } catch (err) {
         console.error('Error fetching match details:', err);
         if (retryCount < 2) {
-            setTimeout(() => fetchMatchDetails(leagueId, eventId, silent, retryCount + 1), 800);
+            setTimeout(() => fetchMatchDetails(leagueId, eventId, true, retryCount + 1), 800);
             return;
         }
-        const heroContent = document.getElementById('match-hero-content');
-        if (heroContent) {
+        if (matchObj) {
+            renderHeroBanner(matchObj);
+        } else if (heroContent) {
             heroContent.innerHTML = `
                 <div class="text-center py-8 text-rose-500 text-xs">
                     <i data-lucide="alert-circle" class="w-6 h-6 mx-auto mb-2"></i>
@@ -737,8 +753,16 @@ function renderHeroBanner(data) {
     if (!data) return;
 
     try {
-        const c1 = (data.competitors && data.competitors[0]) ? data.competitors[0] : { name: 'Team 1', score: '' };
-        const c2 = (data.competitors && data.competitors[1]) ? data.competitors[1] : { name: 'Team 2', score: '' };
+        let competitors = data.competitors;
+        if (!competitors || competitors.length === 0) {
+            const matchObj = (appState.matches || []).find(m => String(m.id) === String(data.matchId || data.id || appState.selectedEventId));
+            if (matchObj && matchObj.competitors && matchObj.competitors.length > 0) {
+                competitors = matchObj.competitors;
+            }
+        }
+
+        const c1 = (competitors && competitors[0]) ? competitors[0] : { name: 'Team 1', score: '' };
+        const c2 = (competitors && competitors[1]) ? competitors[1] : { name: 'Team 2', score: '' };
 
         const c1Name = String(c1.name || 'Team 1');
         const c2Name = String(c2.name || 'Team 2');

@@ -486,4 +486,40 @@ body.layout-mode-desktop #app-main-container {
     }
 }
 
+/* ============================================================
+   ONECARD PURE METAL CARD GRAPHICS & BROADCAST TIMED ENGINE
+   ============================================================ */
+.metal-card-realistic {
+    background: linear-gradient(135deg, #181d26 0%, #0b0e14 45%, #151a22 100%);
+    border: 1.5px solid rgba(251, 191, 36, 0.45);
+    box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.85), 0 0 25px rgba(251, 191, 36, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+    position: relative;
+    overflow: hidden;
+}
+
+.metal-card-realistic::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+    transform: skewX(-25deg);
+    animation: metalShimmer 4s infinite ease-in-out;
+}
+
+@keyframes metalShimmer {
+    0% { left: -150%; }
+    40%, 100% { left: 150%; }
+}
+
+.gold-emv-chip {
+    background: linear-gradient(135deg, #fbbf24 0%, #d97706 60%, #fef08a 100%);
+    border: 1px solid #78350f;
+    border-radius: 3px;
+    box-shadow: inset 0 1px 2px rgba(255,255,255,0.7), 0 2px 4px rgba(0,0,0,0.5);
+}
+
+
 

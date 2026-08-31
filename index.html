@@ -183,8 +183,8 @@
             </div>
         </div>
 
-        <!-- TOP SECTION: 3D FLOATING MATCH CAROUSEL STRIP -->
-        <section class="hud-glass-panel rounded-2xl p-3 border border-slate-200/80 dark:border-emerald-500/30 shadow-lg space-y-2.5">
+        <!-- TOP SECTION: 3D FLOATING MATCH CAROUSEL STRIP (Home Match List) -->
+        <section id="section-match-carousel" class="hud-glass-panel rounded-2xl p-3 border border-slate-200/80 dark:border-emerald-500/30 shadow-lg space-y-2.5">
             
             <!-- Controls & Category Header Bar -->
             <div class="flex flex-wrap items-center justify-between gap-2.5 pb-2 border-b border-slate-200/60 dark:border-gray-800/80">
@@ -233,8 +233,20 @@
             </div>
         </section>
 
-        <!-- BOTTOM SECTION: SELECTED MATCH FULL-WIDTH 3D DETAILS VIEW -->
-        <section class="space-y-3">
+        <!-- BOTTOM SECTION: SELECTED MATCH FULL-WIDTH 3D DETAILS VIEW (Single Match Focus View) -->
+        <section id="section-match-detail" class="space-y-3">
+
+            <!-- Cricbuzz-Style Sticky Mobile Back Navigation Bar (Shows only in dedicated single match mode) -->
+            <div id="mobile-match-back-bar" class="hidden items-center justify-between bg-gradient-to-r from-[#064e3b] to-[#042f24] dark:from-dark-900 dark:to-dark-950 border border-[#00ff88]/40 p-2.5 rounded-2xl shadow-lg">
+                <button onclick="backToMatchList()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-black text-xs transition active:scale-95 cursor-pointer shadow-sm">
+                    <i data-lucide="chevron-left" class="w-4 h-4 text-[#00ff88]"></i>
+                    <span>‹ All Matches</span>
+                </button>
+                <div class="text-right min-w-0 flex-1 px-2">
+                    <p id="mobile-back-match-title" class="text-xs font-black text-white truncate">Live Match Center</p>
+                    <p id="mobile-back-match-status" class="text-[10px] text-[#00ff88] truncate font-mono font-bold">⚡ Ball-by-Ball Live Arena</p>
+                </div>
+            </div>
 
             <!-- 3D Stadium Match Scorecard Banner -->
             <div id="match-hero-card" class="stadium-hero-card rounded-2xl p-4 shadow-xl relative overflow-hidden">

@@ -429,26 +429,104 @@ function renderMatchList() {
     safeCreateIcons();
 }
 
+function isMobileLayoutActive() {
+    return window.innerWidth < 1024 || document.body.classList.contains('layout-mode-mobile');
+}
+
 function selectMatch(leagueId, eventId, autoScroll = false) {
     appState.selectedLeagueId = leagueId;
     appState.selectedEventId = eventId;
     renderMatchList();
     fetchMatchDetails(leagueId, eventId);
 
-    // Center active card in horizontal strip
-    setTimeout(() => {
-        const activeCard = document.querySelector('.match-card.active-match');
-        if (activeCard) {
-            activeCard.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-        }
-        if (autoScroll) {
-            const heroElem = document.getElementById('match-hero-card');
-            if (heroElem) {
-                heroElem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const isMobile = isMobileLayoutActive();
+    const carouselSec = document.getElementById('section-match-carousel');
+    const detailSec = document.getElementById('section-match-detail');
+    const backBar = document.getElementById('mobile-match-back-bar');
+
+    if (isMobile) {
+        // Cricbuzz Mobile Focus View: Hide match list, show ONLY selected match
+        if (carouselSec) carouselSec.classList.add('hidden');
+        if (detailSec) detailSec.classList.remove('hidden');
+        if (backBar) {
+            backBar.classList.remove('hidden');
+            backBar.classList.add('flex');
+            
+            // Set dynamic title
+            const matchObj = (appState.matches || []).find(m => m.id === eventId);
+            if (matchObj) {
+                const titleEl = document.getElementById('mobile-back-match-title');
+                const statusEl = document.getElementById('mobile-back-match-status');
+                const c1 = matchObj.competitors?.[0]?.name || 'Team 1';
+                const c2 = matchObj.competitors?.[1]?.name || 'Team 2';
+                if (titleEl) titleEl.textContent = `${c1} vs ${c2}`;
+                if (statusEl) statusEl.textContent = matchObj.statusText || matchObj.statusDetail || '⚡ Live Match Arena';
             }
         }
-    }, 100);
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        safeCreateIcons();
+
+        try {
+            history.pushState({ matchView: eventId }, '', `#match-${eventId}`);
+        } catch(e) {}
+    } else {
+        // Desktop View: Keep both carousel and details visible
+        if (carouselSec) carouselSec.classList.remove('hidden');
+        if (detailSec) detailSec.classList.remove('hidden');
+        if (backBar) {
+            backBar.classList.add('hidden');
+            backBar.classList.remove('flex');
+        }
+
+        // Center active card in horizontal strip
+        setTimeout(() => {
+            const activeCard = document.querySelector('.match-card.active-match');
+            if (activeCard) {
+                activeCard.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            }
+            if (autoScroll) {
+                const heroElem = document.getElementById('match-hero-card');
+                if (heroElem) {
+                    heroElem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        }, 100);
+    }
 }
+
+function backToMatchList() {
+    const carouselSec = document.getElementById('section-match-carousel');
+    const detailSec = document.getElementById('section-match-detail');
+    const backBar = document.getElementById('mobile-match-back-bar');
+
+    if (carouselSec) carouselSec.classList.remove('hidden');
+    if (backBar) {
+        backBar.classList.add('hidden');
+        backBar.classList.remove('flex');
+    }
+
+    if (isMobileLayoutActive()) {
+        if (detailSec) detailSec.classList.add('hidden');
+    } else {
+        if (detailSec) detailSec.classList.remove('hidden');
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    safeCreateIcons();
+
+    try {
+        if (window.location.hash.startsWith('#match-')) {
+            history.pushState(null, '', window.location.pathname);
+        }
+    } catch(e) {}
+}
+
+window.addEventListener('popstate', (e) => {
+    if (isMobileLayoutActive() && (!e.state || !e.state.matchView)) {
+        backToMatchList();
+    }
+});
 
 function scrollMatchList(offset) {
     const container = document.getElementById('match-list-container');
@@ -638,6 +716,12 @@ function renderHeroBanner(data) {
 
         const isCompleted = data.state ? (data.state.toLowerCase() === 'post' || data.state.toLowerCase() === 'final' || data.state.toLowerCase() === 'completed') : false;
         let situationBanner = String(data.leadSummary || data.statusDetail || 'In Progress');
+
+        // Sync sticky mobile back bar details
+        const backTitle = document.getElementById('mobile-back-match-title');
+        const backStatus = document.getElementById('mobile-back-match-status');
+        if (backTitle) backTitle.textContent = `${c1Name} vs ${c2Name}`;
+        if (backStatus) backStatus.textContent = situationBanner || statusDetail || '⚡ Live Match';
 
         const c1Winner = String(c1.isWinner) === 'true';
         const c2Winner = String(c2.isWinner) === 'true';

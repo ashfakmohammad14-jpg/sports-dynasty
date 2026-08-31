@@ -478,14 +478,14 @@ body.layout-mode-desktop #app-main-container {
         width: 100% !important;
     }
     
-    /* Clean 100% Mobile Table Fit - Batter, R, B, 4s, 6s, SR 100% Visible Without Any Horizontal Scroll */
+    /* Clean 100% Mobile Scorecard Table Grid (Cricbuzz 2-Line Flow) */
     .cricinfo-table {
         width: 100% !important;
         table-layout: fixed !important;
         border-collapse: collapse !important;
     }
     .cricinfo-table thead th {
-        padding: 4px 2px !important;
+        padding: 6px 3px !important;
         font-size: 10px !important;
         letter-spacing: 0 !important;
         text-align: right !important;
@@ -493,26 +493,28 @@ body.layout-mode-desktop #app-main-container {
     }
     .cricinfo-table thead th:first-child {
         text-align: left !important;
-        width: 38% !important;
-        padding-left: 4px !important;
+        width: 44% !important;
+        padding-left: 6px !important;
     }
     .cricinfo-table tbody td {
-        padding: 4px 2px !important;
+        padding: 6px 3px !important;
         font-size: 11px !important;
         text-align: right !important;
-        white-space: nowrap !important;
     }
     .cricinfo-table tbody td:first-child {
         text-align: left !important;
-        width: 38% !important;
-        padding-left: 4px !important;
+        width: 44% !important;
+        padding-left: 6px !important;
+        word-break: break-word !important;
+        white-space: normal !important;
     }
     .cricinfo-table th:not(:first-child),
     .cricinfo-table td:not(:first-child) {
-        width: 12.4% !important;
+        width: 11.2% !important;
         text-align: right !important;
         font-family: monospace !important;
         font-weight: 700 !important;
+        white-space: nowrap !important;
     }
 
     /* Touch friendly tab bar */

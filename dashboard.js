@@ -1780,28 +1780,35 @@ function renderActiveInningsScorecard(inn) {
     const batBody = document.getElementById('batting-table-body');
     if (batBody) {
         if (!inn.batting || inn.batting.length === 0) {
-            batBody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-slate-400 text-sm font-medium">No batting records for this innings.</td></tr>`;
+            batBody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-400 text-sm font-medium">No batting records for this innings.</td></tr>`;
         } else {
             batBody.innerHTML = inn.batting.map(b => {
                 const sr = (b.strikeRate && b.strikeRate !== '0.00') ? b.strikeRate : computeStrikeRate(b.runs, b.balls);
+                const dismissalHtml = formatDismissalHTML(b.dismissal, b.isNotOut);
                 return `
-                    <tr class="hover:bg-slate-50 dark:hover:bg-dark-900/60 transition">
-                        <td class="py-1 px-1.5 font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
-                            <div class="flex items-center gap-1.5 min-w-0">
+                    <tr class="hover:bg-slate-50 dark:hover:bg-dark-900/60 transition border-b border-slate-100 dark:border-gray-800/80">
+                        <td class="py-2 px-2 text-left align-top" style="width: 44%;">
+                            <div class="flex items-start gap-1.5 min-w-0">
                                 <div onclick="openPlayerProfile('${b.id || ''}', '${b.name.replace(/'/g, "\\'")}')" 
-                                     class="flex items-center gap-1 min-w-0 cursor-pointer hover:opacity-80 transition group/p" title="View Profile & Stats of ${b.name}">
-                                    ${renderPlayerAvatar(b.name, b.headshot, 'w-4 h-4 sm:w-5 sm:h-5 group-hover/p:ring-2 group-hover/p:ring-[#00ff88] shrink-0')}
-                                    <span class="truncate text-slate-900 dark:text-white group-hover/p:text-[#00ff88] group-hover/p:underline text-[11px] sm:text-xs">${b.name}</span>
+                                     class="flex items-start gap-1.5 min-w-0 cursor-pointer hover:opacity-80 transition group/p w-full" title="View Profile & Stats of ${b.name}">
+                                    ${renderPlayerAvatar(b.name, b.headshot, 'w-4 h-4 sm:w-5 sm:h-5 group-hover/p:ring-2 group-hover/p:ring-[#00ff88] shrink-0 mt-0.5')}
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex items-center gap-1">
+                                            <span class="font-bold text-slate-900 dark:text-white group-hover/p:text-[#00ff88] group-hover/p:underline text-xs sm:text-sm truncate">${b.name}</span>
+                                            ${b.isNotOut ? '<span class="text-rose-600 font-black text-xs shrink-0">*</span>' : ''}
+                                        </div>
+                                        <div class="text-[10px] text-slate-500 dark:text-gray-400 mt-0.5 leading-snug break-words">
+                                            ${dismissalHtml}
+                                        </div>
+                                    </div>
                                 </div>
-                                ${b.isNotOut ? '<span class="text-rose-600 font-black text-xs shrink-0">*</span>' : ''}
                             </div>
                         </td>
-                        <td class="py-1 px-1 text-[10px] sm:text-xs">${formatDismissalHTML(b.dismissal, b.isNotOut)}</td>
-                        <td class="py-1 px-1 text-right font-mono font-black text-xs sm:text-sm text-slate-900 dark:text-white">${b.runs}</td>
-                        <td class="py-1 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-700 dark:text-gray-300">${b.balls}</td>
-                        <td class="py-1 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-700 dark:text-gray-300">${b.fours || 0}</td>
-                        <td class="py-1 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-700 dark:text-gray-300">${b.sixes || 0}</td>
-                        <td class="py-1 px-1 text-right font-mono font-black text-[11px] sm:text-xs text-emerald-600 dark:text-emerald-400">${sr}</td>
+                        <td class="py-2 px-1 text-right font-mono font-black text-xs sm:text-sm text-slate-900 dark:text-white align-top" style="width: 11%;">${b.runs}</td>
+                        <td class="py-2 px-1 text-right font-mono font-bold text-[11px] sm:text-xs text-slate-700 dark:text-gray-300 align-top" style="width: 11%;">${b.balls}</td>
+                        <td class="py-2 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-700 dark:text-gray-300 align-top" style="width: 11%;">${b.fours || 0}</td>
+                        <td class="py-2 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-700 dark:text-gray-300 align-top" style="width: 11%;">${b.sixes || 0}</td>
+                        <td class="py-2 px-1 text-right font-mono font-black text-[11px] sm:text-xs text-emerald-600 dark:text-emerald-400 align-top" style="width: 12%;">${sr}</td>
                     </tr>
                 `;
             }).join('');
@@ -1821,8 +1828,8 @@ function renderActiveInningsScorecard(inn) {
             bwlBody.innerHTML = inn.bowling.map(bw => {
                 const econ = (bw.economy && bw.economy !== '0.00' && bw.economy !== '0') ? bw.economy : computeEconomy(bw.overs, bw.runs);
                 return `
-                    <tr class="hover:bg-slate-50 dark:hover:bg-dark-900/60 transition">
-                        <td class="py-1 px-1.5 font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+                    <tr class="hover:bg-slate-50 dark:hover:bg-dark-900/60 transition border-b border-slate-100 dark:border-gray-800/80">
+                        <td class="py-1.5 px-2 text-left truncate font-bold text-xs sm:text-sm text-slate-900 dark:text-white" style="width: 44%;">
                             <div class="flex items-center gap-1.5 min-w-0">
                                 <div onclick="openPlayerProfile('${bw.id || ''}', '${bw.name.replace(/'/g, "\\'")}')" 
                                      class="flex items-center gap-1 min-w-0 cursor-pointer hover:opacity-80 transition group/p" title="View Profile & Stats of ${bw.name}">
@@ -1831,11 +1838,11 @@ function renderActiveInningsScorecard(inn) {
                                 </div>
                             </div>
                         </td>
-                        <td class="py-1 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-800 dark:text-gray-200">${bw.overs}</td>
-                        <td class="py-1 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-700 dark:text-gray-300">${bw.maidens || 0}</td>
-                        <td class="py-1 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-700 dark:text-gray-300">${bw.runs}</td>
-                        <td class="py-1 px-1 text-right font-mono font-black text-xs sm:text-sm text-rose-600 dark:text-rose-400">${bw.wickets}</td>
-                        <td class="py-1 px-1 text-right font-mono font-black text-[11px] sm:text-xs text-slate-900 dark:text-white">${econ}</td>
+                        <td class="py-1.5 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-800 dark:text-gray-200" style="width: 11%;">${bw.overs}</td>
+                        <td class="py-1.5 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-700 dark:text-gray-300" style="width: 11%;">${bw.maidens || 0}</td>
+                        <td class="py-1.5 px-1 text-right font-mono font-semibold text-[11px] sm:text-xs text-slate-700 dark:text-gray-300" style="width: 11%;">${bw.runs}</td>
+                        <td class="py-1.5 px-1 text-right font-mono font-black text-xs sm:text-sm text-rose-600 dark:text-rose-400" style="width: 11%;">${bw.wickets}</td>
+                        <td class="py-1.5 px-1 text-right font-mono font-black text-[11px] sm:text-xs text-slate-900 dark:text-white" style="width: 12%;">${econ}</td>
                     </tr>
                 `;
             }).join('');

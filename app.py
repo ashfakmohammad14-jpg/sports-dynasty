@@ -175,6 +175,15 @@ async def serve_sw():
     content, _ = get_file_content("sw.js", "static")
     return Response(content=content, media_type="application/javascript")
 
+@app.get("/ads.txt")
+async def serve_ads_txt():
+    """Official Google AdSense ads.txt authorization record."""
+    content, _ = get_file_content("ads.txt")
+    if not content:
+        content = "google.com, pub-9257478787714323, DIRECT, f08c47fec0942fa0\n"
+    return Response(content=content, media_type="text/plain")
+
+
 @app.get("/api/matches")
 async def get_matches():
     """Return all live, recent, and upcoming matches."""

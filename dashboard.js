@@ -1576,8 +1576,8 @@ function renderCricinfoLiveTab(data) {
                         </div>
                     </div>
 
-                    <!-- 4. Fall of Wickets (FOW) Section (3 items per row) -->
-                    <div class="pt-1.5 border-t border-emerald-500/20 flex-1 flex flex-col min-h-0">
+                    <!-- 4. Fall of Wickets (FOW) Section (Visible on Desktop Live view, on Mobile available under Scorecard tab) -->
+                    <div class="pt-1.5 border-t border-emerald-500/20 flex-1 flex-col min-h-0 hidden lg:flex">
                         <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 pb-1 mb-1 font-mono">
                             <span class="flex items-center gap-1">
                                 <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-rose-500 drop-shadow-[0_0_6px_rgba(255,0,85,0.8)]"></i> Fall of Wickets (FOW)

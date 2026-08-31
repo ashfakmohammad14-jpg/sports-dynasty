@@ -487,12 +487,12 @@ body.layout-mode-desktop #app-main-container {
 }
 
 /* ============================================================
-   ONECARD PURE METAL CARD GRAPHICS & BROADCAST TIMED ENGINE
+   ONECARD AUTHENTIC MATTE METAL & ELECTRIC BLUE GRAPHICS
    ============================================================ */
 .metal-card-realistic {
-    background: linear-gradient(135deg, #181d26 0%, #0b0e14 45%, #151a22 100%);
-    border: 1.5px solid rgba(251, 191, 36, 0.45);
-    box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.85), 0 0 25px rgba(251, 191, 36, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+    background: linear-gradient(135deg, #0a0d13 0%, #131822 50%, #080b10 100%);
+    border: 1.5px solid rgba(14, 165, 233, 0.5);
+    box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.9), 0 0 25px rgba(0, 240, 255, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.35);
     position: relative;
     overflow: hidden;
 }
@@ -504,9 +504,9 @@ body.layout-mode-desktop #app-main-container {
     left: -150%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+    background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.2), transparent);
     transform: skewX(-25deg);
-    animation: metalShimmer 4s infinite ease-in-out;
+    animation: metalShimmer 3.5s infinite ease-in-out;
 }
 
 @keyframes metalShimmer {
@@ -514,12 +514,13 @@ body.layout-mode-desktop #app-main-container {
     40%, 100% { left: 150%; }
 }
 
-.gold-emv-chip {
-    background: linear-gradient(135deg, #fbbf24 0%, #d97706 60%, #fef08a 100%);
-    border: 1px solid #78350f;
+.onecard-silver-chip {
+    background: linear-gradient(135deg, #e2e8f0 0%, #94a3b8 50%, #f8fafc 100%);
+    border: 1px solid #475569;
     border-radius: 3px;
-    box-shadow: inset 0 1px 2px rgba(255,255,255,0.7), 0 2px 4px rgba(0,0,0,0.5);
+    box-shadow: inset 0 1px 2px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.6);
 }
+
 
 
 

@@ -103,6 +103,11 @@ async function fetchMatches(silent = false) {
         if (liveCountElem) liveCountElem.textContent = (appState.categories.live || []).length;
         
         const countBadge = document.getElementById('match-count-badge');
+        if (countBadge) countBadge.textContent = `${appState.matches.length} Matches`;
+
+        // Always render match list immediately
+        renderMatchList();
+
         // Intelligent Persistent Match Selection on Page Refresh/Reload
         let targetMatch = null;
         const urlHash = window.location.hash || '';
@@ -126,12 +131,23 @@ async function fetchMatches(silent = false) {
         const isMobile = isMobileLayoutActive();
 
         if (targetMatch && !appState.selectedEventId) {
-            // Initial match selection on load/refresh
+            // Initial match selection on load/refresh if URL hash or stored match exists
             selectMatch(targetMatch.leagueId, targetMatch.id);
         } else if (!isMobile && appState.matches.length > 0 && !appState.selectedEventId) {
             // On Desktop, default to first live or top match if none selected
             const firstMatch = appState.categories.live.length > 0 ? appState.categories.live[0] : appState.matches[0];
             selectMatch(firstMatch.leagueId, firstMatch.id);
+        } else if (isMobile && !targetMatch && !appState.selectedEventId) {
+            // On Mobile home view, show carousel list and hide detail section until a match is clicked
+            const carouselSec = document.getElementById('section-match-carousel');
+            const detailSec = document.getElementById('section-match-detail');
+            const backBar = document.getElementById('mobile-match-back-bar');
+            if (carouselSec) carouselSec.classList.remove('hidden');
+            if (detailSec) detailSec.classList.add('hidden');
+            if (backBar) {
+                backBar.classList.add('hidden');
+                backBar.classList.remove('flex');
+            }
         } else if (appState.selectedLeagueId && appState.selectedEventId && silent) {
             fetchMatchDetails(appState.selectedLeagueId, appState.selectedEventId, true);
         }

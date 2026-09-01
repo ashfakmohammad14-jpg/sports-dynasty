@@ -3268,80 +3268,158 @@ class ESPNClient:
             return []
 
     def get_icc_rankings(self) -> Dict[str, Any]:
-        """Return official ICC Team and Player Rankings across Test, ODI, and T20I formats."""
+        """Return official ICC Team, Batter, Bowler, and All-Rounder Rankings across Test, ODI, and T20I formats."""
         return {
             "teams": {
                 "test": [
-                    {"rank": 1, "team": "Australia", "matches": 34, "points": 4180, "rating": 123, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/2.png"},
-                    {"rank": 2, "team": "India", "matches": 36, "points": 4280, "rating": 119, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png"},
-                    {"rank": 3, "team": "South Africa", "matches": 24, "points": 2688, "rating": 112, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/3.png"},
-                    {"rank": 4, "team": "England", "matches": 42, "points": 4536, "rating": 108, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1.png"},
-                    {"rank": 5, "team": "New Zealand", "matches": 28, "points": 2744, "rating": 98, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/5.png"},
+                    {"rank": 1, "team": "Australia", "matches": 34, "points": 4284, "rating": 126, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/2.png"},
+                    {"rank": 2, "team": "South Africa", "matches": 24, "points": 2856, "rating": 119, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/3.png"},
+                    {"rank": 3, "team": "New Zealand", "matches": 28, "points": 2968, "rating": 106, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/5.png"},
+                    {"rank": 4, "team": "India", "matches": 36, "points": 3780, "rating": 105, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png"},
+                    {"rank": 5, "team": "England", "matches": 42, "points": 4284, "rating": 102, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1.png"},
                     {"rank": 6, "team": "Sri Lanka", "matches": 26, "points": 2340, "rating": 90, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/8.png"},
                     {"rank": 7, "team": "Pakistan", "matches": 27, "points": 2322, "rating": 86, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/7.png"},
-                    {"rank": 8, "team": "West Indies", "matches": 29, "points": 2233, "rating": 77, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/4.png"}
+                    {"rank": 8, "team": "West Indies", "matches": 29, "points": 2233, "rating": 77, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/4.png"},
+                    {"rank": 9, "team": "Bangladesh", "matches": 25, "points": 1650, "rating": 66, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/25.png"},
+                    {"rank": 10, "team": "Zimbabwe", "matches": 12, "points": 384, "rating": 32, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/9.png"}
                 ],
                 "odi": [
-                    {"rank": 1, "team": "India", "matches": 45, "points": 5355, "rating": 119, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png"},
-                    {"rank": 2, "team": "Australia", "matches": 38, "points": 4408, "rating": 116, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/2.png"},
-                    {"rank": 3, "team": "South Africa", "matches": 32, "points": 3520, "rating": 110, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/3.png"},
-                    {"rank": 4, "team": "Pakistan", "matches": 34, "points": 3604, "rating": 106, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/7.png"},
-                    {"rank": 5, "team": "New Zealand", "matches": 36, "points": 3672, "rating": 102, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/5.png"},
-                    {"rank": 6, "team": "England", "matches": 35, "points": 3325, "rating": 95, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1.png"}
+                    {"rank": 1, "team": "India", "matches": 48, "points": 5568, "rating": 116, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png"},
+                    {"rank": 2, "team": "Australia", "matches": 40, "points": 4480, "rating": 112, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/2.png"},
+                    {"rank": 3, "team": "South Africa", "matches": 34, "points": 3468, "rating": 102, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/3.png"},
+                    {"rank": 4, "team": "Pakistan", "matches": 36, "points": 3636, "rating": 101, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/7.png"},
+                    {"rank": 5, "team": "New Zealand", "matches": 38, "points": 3800, "rating": 100, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/5.png"},
+                    {"rank": 6, "team": "England", "matches": 36, "points": 3420, "rating": 95, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1.png"},
+                    {"rank": 7, "team": "Sri Lanka", "matches": 42, "points": 3906, "rating": 93, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/8.png"},
+                    {"rank": 8, "team": "Afghanistan", "matches": 30, "points": 2520, "rating": 84, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/40.png"},
+                    {"rank": 9, "team": "Bangladesh", "matches": 38, "points": 2964, "rating": 78, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/25.png"},
+                    {"rank": 10, "team": "West Indies", "matches": 35, "points": 2590, "rating": 74, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/4.png"}
                 ],
                 "t20i": [
-                    {"rank": 1, "team": "India", "matches": 68, "points": 18224, "rating": 268, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png"},
-                    {"rank": 2, "team": "Australia", "matches": 46, "points": 11822, "rating": 257, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/2.png"},
-                    {"rank": 3, "team": "England", "matches": 48, "points": 12096, "rating": 252, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1.png"},
-                    {"rank": 4, "team": "West Indies", "matches": 52, "points": 12896, "rating": 248, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/4.png"},
-                    {"rank": 5, "team": "South Africa", "matches": 44, "points": 10736, "rating": 244, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/3.png"},
-                    {"rank": 6, "team": "New Zealand", "matches": 54, "points": 12960, "rating": 240, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/5.png"}
+                    {"rank": 1, "team": "India", "matches": 72, "points": 19296, "rating": 268, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png"},
+                    {"rank": 2, "team": "England", "matches": 52, "points": 13936, "rating": 268, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1.png"},
+                    {"rank": 3, "team": "Australia", "matches": 48, "points": 12480, "rating": 260, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/2.png"},
+                    {"rank": 4, "team": "West Indies", "matches": 56, "points": 14000, "rating": 250, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/4.png"},
+                    {"rank": 5, "team": "South Africa", "matches": 46, "points": 11316, "rating": 246, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/3.png"},
+                    {"rank": 6, "team": "New Zealand", "matches": 56, "points": 13440, "rating": 240, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/5.png"},
+                    {"rank": 7, "team": "Pakistan", "matches": 58, "points": 13572, "rating": 234, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/7.png"},
+                    {"rank": 8, "team": "Sri Lanka", "matches": 48, "points": 11040, "rating": 230, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/8.png"},
+                    {"rank": 9, "team": "Bangladesh", "matches": 50, "points": 11250, "rating": 225, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/25.png"},
+                    {"rank": 10, "team": "Afghanistan", "matches": 44, "points": 9680, "rating": 220, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/40.png"}
                 ]
             },
             "batters": {
                 "test": [
-                    {"rank": 1, "player": "Joe Root", "id": "303669", "team": "ENG", "rating": 903},
-                    {"rank": 2, "player": "Harry Brook", "id": "920807", "team": "ENG", "rating": 878},
-                    {"rank": 3, "player": "Kane Williamson", "id": "277906", "team": "NZ", "rating": 855},
-                    {"rank": 4, "player": "Yashasvi Jaiswal", "id": "1151278", "team": "IND", "rating": 832},
-                    {"rank": 5, "player": "Steve Smith", "id": "267192", "team": "AUS", "rating": 818},
-                    {"rank": 6, "player": "Virat Kohli", "id": "253802", "team": "IND", "rating": 790}
+                    {"rank": 1, "player": "Harry Brook", "id": "920807", "team": "ENG", "rating": 874},
+                    {"rank": 2, "player": "Joe Root", "id": "303669", "team": "ENG", "rating": 850},
+                    {"rank": 3, "player": "Kane Williamson", "id": "277906", "team": "NZ", "rating": 832},
+                    {"rank": 4, "player": "Travis Head", "id": "530011", "team": "AUS", "rating": 811},
+                    {"rank": 5, "player": "Yashasvi Jaiswal", "id": "1151278", "team": "IND", "rating": 792},
+                    {"rank": 6, "player": "Steve Smith", "id": "267192", "team": "AUS", "rating": 785},
+                    {"rank": 7, "player": "Marnus Labuschagne", "id": "787987", "team": "AUS", "rating": 752},
+                    {"rank": 8, "player": "Daryl Mitchell", "id": "381743", "team": "NZ", "rating": 742},
+                    {"rank": 9, "player": "Usman Khawaja", "id": "325827", "team": "AUS", "rating": 728},
+                    {"rank": 10, "player": "Babar Azam", "id": "348144", "team": "PAK", "rating": 709}
                 ],
                 "odi": [
-                    {"rank": 1, "player": "Babar Azam", "id": "348144", "team": "PAK", "rating": 824},
-                    {"rank": 2, "player": "Rohit Sharma", "id": "34102", "team": "IND", "rating": 765},
-                    {"rank": 3, "player": "Shubman Gill", "id": "1070173", "team": "IND", "rating": 763},
+                    {"rank": 1, "player": "Shubman Gill", "id": "1070173", "team": "IND", "rating": 801},
+                    {"rank": 2, "player": "Babar Azam", "id": "348144", "team": "PAK", "rating": 785},
+                    {"rank": 3, "player": "Rohit Sharma", "id": "34102", "team": "IND", "rating": 765},
                     {"rank": 4, "player": "Virat Kohli", "id": "253802", "team": "IND", "rating": 746},
-                    {"rank": 5, "player": "Harry Tector", "id": "931793", "team": "IRE", "rating": 737}
+                    {"rank": 5, "player": "Harry Tector", "id": "931793", "team": "IRE", "rating": 737},
+                    {"rank": 6, "player": "Daryl Mitchell", "id": "381743", "team": "NZ", "rating": 728},
+                    {"rank": 7, "player": "David Warner", "id": "219885", "team": "AUS", "rating": 712},
+                    {"rank": 8, "player": "Charith Asalanka", "id": "784367", "team": "SL", "rating": 705},
+                    {"rank": 9, "player": "Shreyas Iyer", "id": "642519", "team": "IND", "rating": 698},
+                    {"rank": 10, "player": "Heinrich Klaasen", "id": "438691", "team": "SA", "rating": 686}
                 ],
                 "t20i": [
                     {"rank": 1, "player": "Travis Head", "id": "530011", "team": "AUS", "rating": 855},
-                    {"rank": 2, "player": "Suryakumar Yadav", "id": "446507", "team": "IND", "rating": 805},
-                    {"rank": 3, "player": "Phil Salt", "id": "648835", "team": "ENG", "rating": 798},
-                    {"rank": 4, "player": "Babar Azam", "id": "348144", "team": "PAK", "rating": 755},
-                    {"rank": 5, "player": "Mohammad Rizwan", "id": "323389", "team": "PAK", "rating": 746}
+                    {"rank": 2, "player": "Phil Salt", "id": "648835", "team": "ENG", "rating": 816},
+                    {"rank": 3, "player": "Suryakumar Yadav", "id": "446507", "team": "IND", "rating": 805},
+                    {"rank": 4, "player": "Yashasvi Jaiswal", "id": "1151278", "team": "IND", "rating": 757},
+                    {"rank": 5, "player": "Babar Azam", "id": "348144", "team": "PAK", "rating": 755},
+                    {"rank": 6, "player": "Mohammad Rizwan", "id": "323389", "team": "PAK", "rating": 746},
+                    {"rank": 7, "player": "Jos Buttler", "id": "308967", "team": "ENG", "rating": 726},
+                    {"rank": 8, "player": "Ruturaj Gaikwad", "id": "1060380", "team": "IND", "rating": 696},
+                    {"rank": 9, "player": "Nicholas Pooran", "id": "604302", "team": "WI", "rating": 688},
+                    {"rank": 10, "player": "Rinku Singh", "id": "723105", "team": "IND", "rating": 664}
                 ]
             },
             "bowlers": {
                 "test": [
-                    {"rank": 1, "player": "Jasprit Bumrah", "id": "625383", "team": "IND", "rating": 870},
-                    {"rank": 2, "player": "Kagiso Rabada", "id": "550215", "team": "SA", "rating": 860},
-                    {"rank": 3, "player": "Josh Hazlewood", "id": "288284", "team": "AUS", "rating": 847},
-                    {"rank": 4, "player": "Pat Cummins", "id": "489889", "team": "AUS", "rating": 820},
-                    {"rank": 5, "player": "Ravichandran Ashwin", "id": "26421", "team": "IND", "rating": 805}
+                    {"rank": 1, "player": "Mitchell Starc", "id": "311592", "team": "AUS", "rating": 872},
+                    {"rank": 2, "player": "Jasprit Bumrah", "id": "625383", "team": "IND", "rating": 862},
+                    {"rank": 3, "player": "Kagiso Rabada", "id": "550215", "team": "SA", "rating": 851},
+                    {"rank": 4, "player": "Josh Hazlewood", "id": "288284", "team": "AUS", "rating": 847},
+                    {"rank": 5, "player": "Pat Cummins", "id": "489889", "team": "AUS", "rating": 820},
+                    {"rank": 6, "player": "Ravichandran Ashwin", "id": "26421", "team": "IND", "rating": 805},
+                    {"rank": 7, "player": "Prabath Jayasuriya", "id": "489889", "team": "SL", "rating": 792},
+                    {"rank": 8, "player": "Nathan Lyon", "id": "272279", "team": "AUS", "rating": 786},
+                    {"rank": 9, "player": "Shaheen Shah Afridi", "id": "1072461", "team": "PAK", "rating": 733},
+                    {"rank": 10, "player": "Ravindra Jadeja", "id": "234675", "team": "IND", "rating": 712}
                 ],
                 "odi": [
-                    {"rank": 1, "player": "Keshav Maharaj", "id": "267724", "team": "SA", "rating": 687},
+                    {"rank": 1, "player": "Keshav Maharaj", "id": "267724", "team": "SA", "rating": 695},
                     {"rank": 2, "player": "Rashid Khan", "id": "793463", "team": "AFG", "rating": 668},
                     {"rank": 3, "player": "Kuldeep Yadav", "id": "559241", "team": "IND", "rating": 665},
-                    {"rank": 4, "player": "Jasprit Bumrah", "id": "625383", "team": "IND", "rating": 645}
+                    {"rank": 4, "player": "Jasprit Bumrah", "id": "625383", "team": "IND", "rating": 652},
+                    {"rank": 5, "player": "Bernard Scholtz", "id": "315286", "team": "NAM", "rating": 642},
+                    {"rank": 6, "player": "Mohammed Siraj", "id": "940973", "team": "IND", "rating": 638},
+                    {"rank": 7, "player": "Shaheen Shah Afridi", "id": "1072461", "team": "PAK", "rating": 630},
+                    {"rank": 8, "player": "Adam Zampa", "id": "379504", "team": "AUS", "rating": 626},
+                    {"rank": 9, "player": "Trent Boult", "id": "277912", "team": "NZ", "rating": 622},
+                    {"rank": 10, "player": "Josh Hazlewood", "id": "288284", "team": "AUS", "rating": 618}
                 ],
                 "t20i": [
                     {"rank": 1, "player": "Adil Rashid", "id": "244497", "team": "ENG", "rating": 721},
                     {"rank": 2, "player": "Akeal Hosein", "id": "530812", "team": "WI", "rating": 695},
                     {"rank": 3, "player": "Rashid Khan", "id": "793463", "team": "AFG", "rating": 668},
                     {"rank": 4, "player": "Wanindu Hasaranga", "id": "784379", "team": "SL", "rating": 663},
-                    {"rank": 5, "player": "Arshdeep Singh", "id": "1125976", "team": "IND", "rating": 654}
+                    {"rank": 5, "player": "Arshdeep Singh", "id": "1125976", "team": "IND", "rating": 654},
+                    {"rank": 6, "player": "Anrich Nortje", "id": "481979", "team": "SA", "rating": 642},
+                    {"rank": 7, "player": "Ravi Bishnoi", "id": "1175441", "team": "IND", "rating": 639},
+                    {"rank": 8, "player": "Fazalhaq Farooqi", "id": "974175", "team": "AFG", "rating": 636},
+                    {"rank": 9, "player": "Axar Patel", "id": "554691", "team": "IND", "rating": 631},
+                    {"rank": 10, "player": "Maheesh Theekshana", "id": "1138316", "team": "SL", "rating": 625}
+                ]
+            },
+            "allrounders": {
+                "test": [
+                    {"rank": 1, "player": "Ravindra Jadeja", "id": "234675", "team": "IND", "rating": 420},
+                    {"rank": 2, "player": "Ravichandran Ashwin", "id": "26421", "team": "IND", "rating": 322},
+                    {"rank": 3, "player": "Shakib Al Hasan", "id": "56143", "team": "BAN", "rating": 290},
+                    {"rank": 4, "player": "Joe Root", "id": "303669", "team": "ENG", "rating": 275},
+                    {"rank": 5, "player": "Jason Holder", "id": "391485", "team": "WI", "rating": 260},
+                    {"rank": 6, "player": "Axar Patel", "id": "554691", "team": "IND", "rating": 252},
+                    {"rank": 7, "player": "Ben Stokes", "id": "311158", "team": "ENG", "rating": 240},
+                    {"rank": 8, "player": "Pat Cummins", "id": "489889", "team": "AUS", "rating": 235},
+                    {"rank": 9, "player": "Marco Jansen", "id": "696401", "team": "SA", "rating": 228},
+                    {"rank": 10, "player": "Mehidy Hasan Miraz", "id": "629063", "team": "BAN", "rating": 220}
+                ],
+                "odi": [
+                    {"rank": 1, "player": "Mohammad Nabi", "id": "25913", "team": "AFG", "rating": 316},
+                    {"rank": 2, "player": "Sikandar Raza", "id": "299572", "team": "ZIM", "rating": 288},
+                    {"rank": 3, "player": "Shakib Al Hasan", "id": "56143", "team": "BAN", "rating": 280},
+                    {"rank": 4, "player": "Rashid Khan", "id": "793463", "team": "AFG", "rating": 255},
+                    {"rank": 5, "player": "Glenn Maxwell", "id": "325026", "team": "AUS", "rating": 248},
+                    {"rank": 6, "player": "Ravindra Jadeja", "id": "234675", "team": "IND", "rating": 236},
+                    {"rank": 7, "player": "Mitchell Santner", "id": "502714", "team": "NZ", "rating": 230},
+                    {"rank": 8, "player": "Mehidy Hasan Miraz", "id": "629063", "team": "BAN", "rating": 225},
+                    {"rank": 9, "player": "Hardik Pandya", "id": "625371", "team": "IND", "rating": 218},
+                    {"rank": 10, "player": "Zeeshan Maqsood", "id": "662991", "team": "OMA", "rating": 212}
+                ],
+                "t20i": [
+                    {"rank": 1, "player": "Marcus Stoinis", "id": "325012", "team": "AUS", "rating": 231},
+                    {"rank": 2, "player": "Wanindu Hasaranga", "id": "784379", "team": "SL", "rating": 222},
+                    {"rank": 3, "player": "Hardik Pandya", "id": "625371", "team": "IND", "rating": 218},
+                    {"rank": 4, "player": "Mohammad Nabi", "id": "25913", "team": "AFG", "rating": 212},
+                    {"rank": 5, "player": "Liam Livingstone", "id": "403902", "team": "ENG", "rating": 205},
+                    {"rank": 6, "player": "Sikandar Raza", "id": "299572", "team": "ZIM", "rating": 198},
+                    {"rank": 7, "player": "Dipendra Singh Airee", "id": "934575", "team": "NEP", "rating": 194},
+                    {"rank": 8, "player": "Romario Shepherd", "id": "677077", "team": "WI", "rating": 188},
+                    {"rank": 9, "player": "Axar Patel", "id": "554691", "team": "IND", "rating": 182},
+                    {"rank": 10, "player": "Aiden Markram", "id": "600498", "team": "SA", "rating": 178}
                 ]
             }
         }

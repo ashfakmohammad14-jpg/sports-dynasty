@@ -237,6 +237,42 @@ html, body {
     transform: translateY(-2px);
 }
 
+/* Mobile Vertical Match Cards List (Zero Left-Right Scroll Needed) */
+@media (max-width: 1023px) {
+    #match-list-container {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+        overflow-x: hidden !important;
+        width: 100% !important;
+        padding-bottom: 8px !important;
+    }
+    .match-card {
+        min-width: 100% !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        flex-shrink: 1 !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+    }
+    .match-card:hover {
+        transform: translateY(-2px) scale(1.005) !important;
+    }
+}
+
+@media (min-width: 1024px) {
+    #match-list-container {
+        display: flex !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+    }
+    .match-card {
+        min-width: 260px !important;
+        max-width: 285px !important;
+        flex-shrink: 0 !important;
+    }
+}
+
 /* 3D Stadium Scoreboard Table & Neon Headers */
 .cricinfo-table {
     width: 100%;

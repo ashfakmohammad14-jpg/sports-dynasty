@@ -2052,6 +2052,8 @@ function renderScorecardTab(data) {
         selectorContainer.innerHTML = `<span class="text-xs text-gray-500">No innings data recorded yet.</span>`;
         document.getElementById('batting-table-body').innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-500">Scorecard will appear once play begins.</td></tr>`;
         document.getElementById('bowling-table-body').innerHTML = `<tr><td colspan="6" class="py-6 text-center text-gray-500">No bowling data.</td></tr>`;
+        const ytbC = document.getElementById('yet-to-bat-container');
+        if (ytbC) ytbC.innerHTML = '';
         const fowC = document.getElementById('fow-cards-container');
         if (fowC) fowC.innerHTML = '';
         const partC = document.getElementById('partnerships-cards-container');
@@ -2059,14 +2061,25 @@ function renderScorecardTab(data) {
         return;
     }
 
-    if (!inningsData[appState.activeInningsKey]) {
-        appState.activeInningsKey = innKeys[innKeys.length - 1];
+    const isMatchLive = Boolean(data.statusDetail && (
+        data.statusDetail.toLowerCase().includes('live') || 
+        data.statusDetail.toLowerCase().includes('in') || 
+        data.statusDetail.toLowerCase().includes('opt') || 
+        data.statusDetail.toLowerCase().includes('trail') || 
+        data.statusDetail.toLowerCase().includes('lead') || 
+        data.statusDetail.toLowerCase().includes('need') ||
+        (data.state && (data.state.toLowerCase() === 'in' || data.state.toLowerCase() === 'live'))
+    ));
+    const liveInnKey = String(data.currentInnings || innKeys[innKeys.length - 1]);
+
+    if (!appState.activeInningsKey || !inningsData[appState.activeInningsKey]) {
+        appState.activeInningsKey = liveInnKey;
     }
 
     selectorContainer.innerHTML = innKeys.map((k, idx) => {
         const inn = inningsData[k];
         const isActive = (k === appState.activeInningsKey);
-        const isCurrent = (idx === innKeys.length - 1 && data.state && (data.state.toLowerCase() === 'in' || data.state.toLowerCase() === 'live'));
+        const isLiveInning = (k === liveInnKey && isMatchLive);
         const ordinals = ["1st", "2nd", "3rd", "4th"];
         const kNum = parseInt(k, 10);
         const innOrd = (kNum >= 1 && kNum <= 4) ? ordinals[kNum - 1] : `${k}th`;
@@ -2081,15 +2094,28 @@ function renderScorecardTab(data) {
 
         return `
             <button onclick="switchInnings('${k}')" 
-                    class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${isActive ? 'bg-[#059669] text-white shadow-sm ring-1 ring-[#059669]' : 'bg-slate-100 dark:bg-dark-900 text-slate-600 dark:text-gray-400 hover:text-[#059669] dark:hover:text-white border border-slate-200 dark:border-gray-800'}">
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 relative ${
+                        isActive 
+                            ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md ring-2 ring-emerald-400 font-black' 
+                            : isLiveInning
+                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-2 border-emerald-500/60 hover:bg-emerald-500/20'
+                                : 'bg-slate-100 dark:bg-dark-900 text-slate-600 dark:text-gray-400 hover:text-[#059669] dark:hover:text-white border border-slate-200 dark:border-gray-800'
+                    }">
                 ${renderTeamLogo(inn.teamName || 'Team', compLogo, 'w-4 h-4')}
                 <span>${innTitle}</span>
-                ${isCurrent ? `<span class="text-[9px] px-1.5 py-0.2 rounded font-mono font-extrabold uppercase ${isActive ? 'bg-rose-600 text-white' : 'bg-rose-100 text-rose-600 border border-rose-200'}">LIVE</span>` : ''}
+                ${isLiveInning ? `
+                    <span class="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-mono font-black uppercase ${isActive ? 'bg-rose-600 text-white shadow-xs' : 'bg-rose-500/10 text-rose-500 border border-rose-500/30'}">
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
+                        LIVE
+                    </span>
+                ` : `
+                    <span class="text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase ${isActive ? 'bg-slate-700/80 text-white' : 'bg-slate-200/80 dark:bg-dark-800 text-slate-500 dark:text-gray-400'}">Done</span>
+                `}
             </button>
         `;
     }).join('');
 
-    renderActiveInningsScorecard(inningsData[appState.activeInningsKey]);
+    renderActiveInningsScorecard(inningsData[appState.activeInningsKey], data);
 }
 
 function switchInnings(innKey) {
@@ -2102,8 +2128,16 @@ function switchInnings(innKey) {
     }
 }
 
-function renderActiveInningsScorecard(inn) {
+function renderActiveInningsScorecard(inn, matchData) {
     if (!inn) return;
+    const isMatchLive = Boolean(matchData && matchData.statusDetail && (
+        matchData.statusDetail.toLowerCase().includes('live') || 
+        matchData.statusDetail.toLowerCase().includes('in') || 
+        matchData.statusDetail.toLowerCase().includes('opt') || 
+        matchData.statusDetail.toLowerCase().includes('trail') || 
+        matchData.statusDetail.toLowerCase().includes('lead') || 
+        matchData.statusDetail.toLowerCase().includes('need')
+    ));
 
     const batBody = document.getElementById('batting-table-body');
     if (batBody) {
@@ -2147,6 +2181,46 @@ function renderActiveInningsScorecard(inn) {
     const totalElem = document.getElementById('total-text');
     if (extrasElem) extrasElem.textContent = inn.extras || '0';
     if (totalElem) totalElem.textContent = formatScorecardTotalWithRR(inn.total, inn.runs);
+
+    // Render Yet to Bat / Did Not Bat (Complete Playing XI visibility)
+    const yetToBatContainer = document.getElementById('yet-to-bat-container');
+    if (yetToBatContainer) {
+        const ytbList = inn.yetToBat || [];
+        if (ytbList.length > 0) {
+            const isLiveInn = (inn.inningsNumber === String(appState.activeInningsKey) && isMatchLive);
+            const sectionTitle = isLiveInn ? 'Yet to Bat' : 'Did Not Bat';
+            const badgeColor = isLiveInn ? 'bg-emerald-500/10 text-emerald-600 dark:text-[#00ff88] border-emerald-500/30' : 'bg-slate-100 dark:bg-dark-800 text-slate-600 dark:text-gray-400 border-slate-200 dark:border-gray-700';
+
+            yetToBatContainer.innerHTML = `
+                <div class="p-3 rounded-xl bg-slate-50 dark:bg-dark-900/80 border border-slate-200/80 dark:border-gray-800/80 shadow-2xs">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <div class="text-[11px] font-mono uppercase font-black tracking-wider flex items-center gap-1.5 text-slate-700 dark:text-gray-200">
+                            <i data-lucide="users" class="w-3.5 h-3.5 text-emerald-500"></i>
+                            <span>${sectionTitle}</span>
+                            <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold border ${badgeColor}">
+                                ${ytbList.length} Players
+                            </span>
+                        </div>
+                        <span class="text-[10px] text-slate-400 font-mono">Playing 11</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        ${ytbList.map(p => `
+                            <div onclick="openPlayerProfile('${p.id || ''}', '${p.name.replace(/'/g, "\\'")}')" 
+                                 class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-dark-800 border border-slate-200/90 dark:border-gray-700/80 hover:border-emerald-500 hover:shadow-xs transition cursor-pointer group/ytb" 
+                                 title="View Profile & Stats of ${p.name}">
+                                ${renderPlayerAvatar(p.name, p.headshot, 'w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover object-top border border-emerald-500/30 shrink-0 group-hover/ytb:scale-105 transition')}
+                                <span class="text-xs font-bold text-slate-800 dark:text-gray-200 group-hover/ytb:text-emerald-500 transition">${p.name}</span>
+                                ${p.role && p.role !== 'Player' ? `<span class="text-[9px] text-slate-400 font-mono">(${p.role})</span>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            if (window.lucide) window.lucide.createIcons();
+        } else {
+            yetToBatContainer.innerHTML = '';
+        }
+    }
 
     const bwlBody = document.getElementById('bowling-table-body');
     if (bwlBody) {

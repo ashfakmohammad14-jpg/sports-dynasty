@@ -2068,6 +2068,89 @@ class ESPNClient:
             tot_extras = extras_w + extras_nb + extras_b + extras_lb
             extras_str = f"{tot_extras} (w {extras_w}, nb {extras_nb}, b {extras_b}, lb {extras_lb})" if tot_extras > 0 else "0"
 
+            # Reconstruct partnerships for this innings
+            pships_list = []
+            batters_in_order = [b.get("name", "") for b in batting_list if b.get("name")]
+            crease = batters_in_order[:2] if len(batters_in_order) >= 2 else []
+            next_bat_idx = 2
+            prev_runs = 0
+            wkt_ordinal = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"]
+
+            def match_player_tokens(n1, n2):
+                if not n1 or not n2: return False
+                t1 = set(re.sub(r'[^a-z0-9 ]', '', n1.lower()).split()) - {'c', 'wk', 'sub', 'captain'}
+                t2 = set(re.sub(r'[^a-z0-9 ]', '', n2.lower()).split()) - {'c', 'wk', 'sub', 'captain'}
+                return bool(t1 & t2)
+
+            for idx, f in enumerate(fow):
+                out_player = f.get("player", "")
+                runs_at_fall = int(f.get("runs", 0))
+                pship_runs_val = max(0, runs_at_fall - prev_runs)
+                w_num = f.get("wicketNumber", idx + 1)
+                w_label = wkt_ordinal[w_num - 1] if w_num <= len(wkt_ordinal) else f"{w_num}th"
+
+                partner = ""
+                if len(crease) == 2:
+                    if match_player_tokens(out_player, crease[0]):
+                        partner = crease[1]
+                        if next_bat_idx < len(batters_in_order):
+                            crease = [crease[1], batters_in_order[next_bat_idx]]
+                            next_bat_idx += 1
+                        else:
+                            crease = [crease[1]]
+                    elif match_player_tokens(out_player, crease[1]):
+                        partner = crease[0]
+                        if next_bat_idx < len(batters_in_order):
+                            crease = [crease[0], batters_in_order[next_bat_idx]]
+                            next_bat_idx += 1
+                        else:
+                            crease = [crease[0]]
+                    else:
+                        partner = crease[0]
+
+                pships_list.append({
+                    "wicket": w_label,
+                    "wicketNumber": w_num,
+                    "runs": str(pship_runs_val),
+                    "scoreAtFall": str(runs_at_fall),
+                    "overs": f.get("overs", ""),
+                    "player1": out_player,
+                    "player1Runs": "",
+                    "player2": partner,
+                    "player2Runs": "",
+                    "isCurrent": False,
+                    "summary": f"{pship_runs_val} runs for {w_label} wicket ({out_player} & {partner})" if partner else f"{pship_runs_val} runs for {w_label} wicket ({out_player})"
+                })
+                prev_runs = runs_at_fall
+
+            not_outs = [b for b in batting_list if b.get("isNotOut")]
+            if len(fow) < 10 and len(not_outs) >= 2 and total_formatted:
+                tot_m = re.search(r"(\d+)", str(tot_runs))
+                if tot_m:
+                    curr_tot = int(tot_m.group(1))
+                    current_pship_runs = max(0, curr_tot - prev_runs)
+                    curr_wkt_num = len(fow) + 1
+                    curr_wkt_label = wkt_ordinal[curr_wkt_num - 1] if curr_wkt_num <= len(wkt_ordinal) else f"{curr_wkt_num}th"
+
+                    p1_name = not_outs[0].get("name", "")
+                    p1_runs = not_outs[0].get("runs", "")
+                    p2_name = not_outs[1].get("name", "")
+                    p2_runs = not_outs[1].get("runs", "")
+
+                    pships_list.append({
+                        "wicket": f"{curr_wkt_label} (Current)",
+                        "wicketNumber": curr_wkt_num,
+                        "runs": str(current_pship_runs),
+                        "scoreAtFall": f"{curr_tot}*",
+                        "overs": "Current",
+                        "player1": p1_name,
+                        "player1Runs": p1_runs,
+                        "player2": p2_name,
+                        "player2Runs": p2_runs,
+                        "isCurrent": True,
+                        "summary": f"{current_pship_runs}* runs unbroken ({p1_name} & {p2_name})"
+                    })
+
             innings_data[inn_num] = {
                 "inningsNumber": inn_num,
                 "teamName": team_name,
@@ -2077,7 +2160,7 @@ class ESPNClient:
                 "batting": batting_list,
                 "bowling": bowling_list,
                 "fow": fow,
-                "partnerships": []
+                "partnerships": pships_list
             }
 
         # Extract Live Crease
@@ -2189,7 +2272,6 @@ class ESPNClient:
                 "thisSpell": f"{ov}-{m}-{r}-{w}"
             }
 
-        # Recent deliveries stream
         recent_deliveries = []
         current_over_num = None
         for it in latest_items[-30:]:
@@ -2216,21 +2298,35 @@ class ESPNClient:
                 else:
                     recent_deliveries.append(str(sc_val))
 
-        # Compute partnership
-        pship_runs = 0
-        pship_balls = 0
-        if live_batters:
-            for b in live_batters:
-                try:
-                    pship_runs += int(b.get("runs", 0))
-                    pship_balls += int(b.get("balls", 0))
-                except Exception:
-                    pass
-        pship_str = f"{pship_runs} runs ({pship_balls}b)" if pship_balls > 0 else f"{pship_runs} runs"
+        # Calculate True Live Crease Partnership from last FoW
+        active_fow = innings_data[latest_inn_num].get("fow", [])
+        last_fow_runs = 0
+        last_fow_balls = 0
+        if active_fow:
+            last_f = active_fow[-1]
+            last_fow_runs = int(last_f.get("runs", 0))
+            def ov_to_balls_hlp(ov_s):
+                m = re.search(r'(\d+)(?:\.(\d+))?', str(ov_s))
+                if not m: return 0
+                return int(m.group(1)) * 6 + (int(m.group(2)) if m.group(2) else 0)
+            last_fow_balls = ov_to_balls_hlp(last_f.get("overs", "0"))
+
+        tot_m = re.search(r"(\d+)", str(innings_data[latest_inn_num].get("runs", 0)))
+        curr_inn_tot = int(tot_m.group(1)) if tot_m else 0
+        tot_balls_curr = last_item.get("innings", {}).get("balls", 0)
+
+        pship_runs = max(0, curr_inn_tot - last_fow_runs)
+        pship_balls = max(0, tot_balls_curr - last_fow_balls)
+
+        batters_names = [b.get("name") for b in live_batters if b.get("name")]
+        if len(batters_names) >= 2:
+            pship_str = f"{pship_runs} runs ({pship_balls}b)" if pship_balls > 0 else f"{pship_runs} runs"
+        elif len(batters_names) == 1:
+            pship_str = f"{pship_runs} runs ({pship_balls}b)" if pship_balls > 0 else f"{pship_runs} runs"
+        else:
+            pship_str = f"{pship_runs} runs"
 
         crr_val = str(last_item.get("innings", {}).get("runRate", "0.00"))
-
-        active_fow = innings_data[latest_inn_num].get("fow", [])
         inn_batting = innings_data[latest_inn_num].get("batting", [])
         last_bat_str = ""
         
@@ -2811,7 +2907,7 @@ class ESPNClient:
         return innings_data
 
     def _parse_fow_and_partnerships(self, fow_raw_text: str, inn_total: str = "", batting_list: List[Dict[str, Any]] = None) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        """Compute structured Fall of Wickets list and accurate partnership stand runs."""
+        """Compute structured Fall of Wickets list and accurate partnership stand runs with both batters."""
         fow_list = []
         partnerships = []
         if batting_list is None:
@@ -2820,7 +2916,6 @@ class ESPNClient:
         matches = re.findall(r"([A-Za-z\s\.\'\-]+?)\s+(?:View[^\d]+)?(\d+[\-/]\d+)\s+(\d+\.?\d*)", fow_raw_text)
         wkt_ordinal = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"]
 
-        prev_runs = 0
         seen_wkts = set()
         for p_name, score_wkt, ov in matches:
             clean_name = p_name.replace("Fall of Wickets", "").replace("Score Over", "").replace("View match performance", "").replace("View profile", "").strip()
@@ -2846,51 +2941,87 @@ class ESPNClient:
                 "player": clean_name
             })
 
+        # Reconstruct full partnerships with both batters
+        batters_in_order = [b.get("name", "") for b in batting_list if b.get("name")]
+        crease = batters_in_order[:2] if len(batters_in_order) >= 2 else []
+        next_bat_idx = 2
+        prev_runs = 0
+
+        def match_player_tokens(n1, n2):
+            if not n1 or not n2: return False
+            t1 = set(re.sub(r'[^a-z0-9 ]', '', n1.lower()).split()) - {'c', 'wk', 'sub', 'captain'}
+            t2 = set(re.sub(r'[^a-z0-9 ]', '', n2.lower()).split()) - {'c', 'wk', 'sub', 'captain'}
+            return bool(t1 & t2)
+
+        for idx, f in enumerate(fow_list):
+            out_player = f.get("player", "")
+            runs_at_fall = f.get("runs", 0)
             pship_runs = max(0, runs_at_fall - prev_runs)
+            w_num = f.get("wicketNumber", idx + 1)
+            w_label = wkt_ordinal[w_num - 1] if w_num <= len(wkt_ordinal) else f"{w_num}th"
+
+            partner = ""
+            if len(crease) == 2:
+                if match_player_tokens(out_player, crease[0]):
+                    partner = crease[1]
+                    if next_bat_idx < len(batters_in_order):
+                        crease = [crease[1], batters_in_order[next_bat_idx]]
+                        next_bat_idx += 1
+                    else:
+                        crease = [crease[1]]
+                elif match_player_tokens(out_player, crease[1]):
+                    partner = crease[0]
+                    if next_bat_idx < len(batters_in_order):
+                        crease = [crease[0], batters_in_order[next_bat_idx]]
+                        next_bat_idx += 1
+                    else:
+                        crease = [crease[0]]
+                else:
+                    partner = crease[0]
+
             partnerships.append({
-                "wicket": wkt_label,
-                "wicketNumber": wkt_num,
+                "wicket": w_label,
+                "wicketNumber": w_num,
                 "runs": str(pship_runs),
                 "scoreAtFall": str(runs_at_fall),
-                "overs": ov,
-                "player1": clean_name,
+                "overs": f.get("overs", ""),
+                "player1": out_player,
                 "player1Runs": "",
-                "player2": "",
+                "player2": partner,
                 "player2Runs": "",
                 "isCurrent": False,
-                "summary": f"{pship_runs} runs for {wkt_label} wicket (ended at {score_wkt}, {ov} ov)"
+                "summary": f"{pship_runs} runs for {w_label} wicket ({out_player} & {partner})" if partner else f"{pship_runs} runs for {w_label} wicket ({out_player})"
             })
             prev_runs = runs_at_fall
 
-        # Unbroken partnership if active
-        if inn_total and batting_list:
+        # Unbroken partnership if active (only if less than 10 wickets fallen)
+        not_outs = [b for b in batting_list if b.get("isNotOut")]
+        if len(fow_list) < 10 and len(not_outs) >= 2 and inn_total:
             tot_m = re.search(r"(\d+)", str(inn_total))
             if tot_m:
                 curr_tot = int(tot_m.group(1))
                 current_pship_runs = max(0, curr_tot - prev_runs)
-                not_outs = [b for b in batting_list if b.get("isNotOut")]
-                if not_outs:
-                    curr_wkt_num = len(fow_list) + 1
-                    curr_wkt_label = wkt_ordinal[curr_wkt_num - 1] if curr_wkt_num <= len(wkt_ordinal) else f"{curr_wkt_num}th"
+                curr_wkt_num = len(fow_list) + 1
+                curr_wkt_label = wkt_ordinal[curr_wkt_num - 1] if curr_wkt_num <= len(wkt_ordinal) else f"{curr_wkt_num}th"
 
-                    p1_name = not_outs[0]["name"] if len(not_outs) > 0 else ""
-                    p1_runs = not_outs[0].get("runs", "") if len(not_outs) > 0 else ""
-                    p2_name = not_outs[1]["name"] if len(not_outs) > 1 else ""
-                    p2_runs = not_outs[1].get("runs", "") if len(not_outs) > 1 else ""
+                p1_name = not_outs[0].get("name", "")
+                p1_runs = not_outs[0].get("runs", "")
+                p2_name = not_outs[1].get("name", "")
+                p2_runs = not_outs[1].get("runs", "")
 
-                    partnerships.append({
-                        "wicket": f"{curr_wkt_label} (Current)",
-                        "wicketNumber": curr_wkt_num,
-                        "runs": str(current_pship_runs),
-                        "scoreAtFall": f"{curr_tot}*",
-                        "overs": "Current",
-                        "player1": p1_name,
-                        "player1Runs": p1_runs,
-                        "player2": p2_name,
-                        "player2Runs": p2_runs,
-                        "isCurrent": True,
-                        "summary": f"{current_pship_runs}* runs unbroken ({p1_name} & {p2_name})" if p2_name else f"{current_pship_runs}* runs unbroken"
-                    })
+                partnerships.append({
+                    "wicket": f"{curr_wkt_label} (Current)",
+                    "wicketNumber": curr_wkt_num,
+                    "runs": str(current_pship_runs),
+                    "scoreAtFall": f"{curr_tot}*",
+                    "overs": "Current",
+                    "player1": p1_name,
+                    "player1Runs": p1_runs,
+                    "player2": p2_name,
+                    "player2Runs": p2_runs,
+                    "isCurrent": True,
+                    "summary": f"{current_pship_runs}* runs unbroken ({p1_name} & {p2_name})"
+                })
 
         return fow_list, partnerships
 

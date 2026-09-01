@@ -620,7 +620,7 @@ def normalize_competitor_score_from_raw(comp_dict: Dict[str, Any], is_test_match
                 w = ls.get("wickets")
                 ov = ls.get("overs")
                 if r is not None and int(r) > 0:
-                    ov_s = str(ov).rstrip('.0') if str(ov).endswith('.0') else str(ov)
+                    ov_s = str(ov)[:-2] if str(ov).endswith('.0') else str(ov)
                     ov_str = f" ({ov_s} ov)" if ov else ""
                     if w == 10 or str(w) == "10":
                         parts.append(f"{r}{ov_str}")
@@ -635,7 +635,7 @@ def normalize_competitor_score_from_raw(comp_dict: Dict[str, Any], is_test_match
         bat_ls = next((ls for ls in linescores if ls.get("period") == 1 or (ls.get("runs") is not None and int(ls.get("runs", 0)) > 0)), linescores[0])
         ov = bat_ls.get("overs")
         if ov and str(ov) not in ["0", "0.0", ""]:
-            ov_s = str(ov).rstrip('.0') if str(ov).endswith('.0') else str(ov)
+            ov_s = str(ov)[:-2] if str(ov).endswith('.0') else str(ov)
             s = f"{s} ({ov_s} ov)"
     return s
 
@@ -1357,7 +1357,7 @@ class ESPNClient:
 
         # Enrich innings_data dismissals with detailed catch/bowler information from playbyplay
         try:
-            url_pbp = f"https://site.web.api.espn.com/apis/site/v2/sports/cricket/{league_id}/playbyplay?event={event_id}&limit=300"
+            url_pbp = f"https://site.web.api.espn.com/apis/site/v2/sports/cricket/{league_id}/playbyplay?event={event_id}&limit=500"
             r_pbp = self.session.get(url_pbp, timeout=5)
             if r_pbp.status_code == 200:
                 pbp_raw = r_pbp.json()
@@ -1750,7 +1750,7 @@ class ESPNClient:
         """Extract full scorecard, live crease, and commentary timeline from ESPN playbyplay feed."""
         items = []
         for period in [1, 2, 3, 4]:
-            url = f"https://site.web.api.espn.com/apis/site/v2/sports/cricket/{league_id}/playbyplay?event={event_id}&period={period}&limit=300"
+            url = f"https://site.web.api.espn.com/apis/site/v2/sports/cricket/{league_id}/playbyplay?event={event_id}&period={period}&limit=500"
             try:
                 r = self.session.get(url, timeout=6)
                 if r.status_code == 200:
@@ -1770,7 +1770,7 @@ class ESPNClient:
 
         if not items:
             try:
-                url = f"https://site.web.api.espn.com/apis/site/v2/sports/cricket/{league_id}/playbyplay?event={event_id}&limit=300"
+                url = f"https://site.web.api.espn.com/apis/site/v2/sports/cricket/{league_id}/playbyplay?event={event_id}&limit=500"
                 r = self.session.get(url, timeout=6)
                 if r.status_code == 200:
                     data = r.json()
@@ -1792,14 +1792,24 @@ class ESPNClient:
         innings_data = {}
         latest_inn_num = str(max([int(k) for k in innings_dict.keys()]))
 
+        # Sort competitors by order to correctly assign batting teams to innings
+        comps_by_order = []
+        if header:
+            comps_raw = header.get("competitions", [{}])[0].get("competitors", [])
+            comps_by_order = sorted(comps_raw, key=lambda c: int(c.get("order", 99)))
+
         for inn_num, p_items in innings_dict.items():
             last_item = p_items[-1]
             inn_info = last_item.get("innings", {})
-            team_name = last_item.get("team", {}).get("displayName", "")
-            if not team_name and header:
-                comps = header.get("competitions", [{}])[0].get("competitors", [])
-                if len(comps) >= int(inn_num):
-                    team_name = comps[int(inn_num) - 1].get("team", {}).get("displayName", "")
+            
+            team_name = ""
+            comp_for_inn = None
+            if comps_by_order and len(comps_by_order) >= int(inn_num):
+                comp_for_inn = comps_by_order[int(inn_num) - 1]
+                team_name = comp_for_inn.get("team", {}).get("displayName", "")
+            
+            if not team_name:
+                team_name = last_item.get("team", {}).get("displayName", "")
 
             batters_map = {}
             bowlers_map = {}
@@ -1953,23 +1963,25 @@ class ESPNClient:
             ov_str = f"{full_ovs}.{rem_balls}" if rem_balls else f"{full_ovs}"
             total_formatted = f"{tot_runs}/{tot_wkts} ({ov_str} ov)" if ov_str != "0" else f"{tot_runs}/{tot_wkts}"
 
-            # Check official competitor score for this team to ensure accurate totals
-            if header:
-                comps = header.get("competitions", [{}])[0].get("competitors", [])
-                for c in comps:
-                    c_name = c.get("team", {}).get("displayName", "")
-                    c_score = c.get("score", "")
-                    if c_name and team_name and (c_name.lower() in team_name.lower() or team_name.lower() in c_name.lower()):
-                        c_runs_m = re.search(r'^(\d+)', str(c_score))
-                        if c_runs_m:
-                            c_r = int(c_runs_m.group(1))
-                            try:
-                                cur_r = int(tot_runs)
-                            except Exception:
-                                cur_r = 0
-                            if c_r > cur_r:
-                                tot_runs = str(c_r)
-                                total_formatted = clean_event_competitor_score(c_score)
+            # Check official competitor score & linescore for this team to ensure accurate totals
+            if comp_for_inn:
+                linescores = comp_for_inn.get("linescores", [])
+                bat_ls = next((ls for ls in linescores if ls.get("period") == int(inn_num)), None)
+                if bat_ls:
+                    r_ls = bat_ls.get("runs")
+                    w_ls = bat_ls.get("wickets")
+                    ov_ls = bat_ls.get("overs")
+                    if r_ls is not None:
+                        tot_runs = str(r_ls)
+                    if w_ls is not None:
+                        tot_wkts = str(w_ls)
+                    if ov_ls is not None:
+                        ov_s = str(ov_ls)[:-2] if str(ov_ls).endswith('.0') else str(ov_ls)
+                        total_formatted = f"{tot_runs}/{tot_wkts} ({ov_s} ov)"
+                else:
+                    c_sc = comp_for_inn.get("score", "")
+                    if c_sc:
+                        total_formatted = clean_event_competitor_score(c_sc)
 
             extras_w = inn_info.get("wides", 0)
             extras_nb = inn_info.get("noBalls", 0)

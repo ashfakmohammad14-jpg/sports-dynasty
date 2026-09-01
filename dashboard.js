@@ -264,34 +264,65 @@ function renderTeamLogo(name, logoUrl, customClass = 'w-5 h-5') {
 
 function isTeamCurrentlyBatting(competitor, data) {
     if (!competitor) return false;
-    const isLive = data.state && (data.state.toLowerCase() === 'in' || data.state.toLowerCase() === 'live');
+    const isLive = Boolean(data.state && (data.state.toLowerCase() === 'in' || data.state.toLowerCase() === 'live'));
     if (!isLive) return false;
 
-    // Check if score string contains current overs e.g. '(34 ov)' or '(36.5 ov)'
-    const s = String(competitor.score || '');
-    if (s.includes('ov') && !s.toLowerCase().includes('all out')) {
+    const s = String(competitor.score || '').toLowerCase();
+    const compName = (competitor.name || '').toLowerCase();
+    const compAbbr = (competitor.abbr || '').toLowerCase();
+
+    // 1. If this competitor is chasing a target, they are batting in the 2nd Innings
+    if (s.includes('target') || s.includes('need')) {
         return true;
     }
 
-    // Check latest innings teamName vs competitor name / abbreviation
+    // 2. Check currentInnings object from summary API
+    if (data.currentInnings && data.currentInnings.teamName) {
+        const innTeam = data.currentInnings.teamName.toLowerCase();
+        if (compAbbr && innTeam.includes(compAbbr)) return true;
+        if (compName && (innTeam.includes(compName.split(' ')[0]) || compName.includes(innTeam.split(' ')[0]))) return true;
+        const innNum = String(data.currentInnings.inningsNumber || '');
+        if (innNum === '2' && competitor.order === 2) return true;
+        if (innNum === '1' && competitor.order === 1) return true;
+    }
+
+    // 3. In limited overs cricket, if competitor 1 completed 20 or 50 overs, they are NOT batting
+    const isComp1 = (competitor.order === 1 || (data.competitors && data.competitors[0] === competitor));
+    if (isComp1 && data.competitors && data.competitors.length > 1) {
+        const otherScore = String(data.competitors[1].score || '').toLowerCase();
+        if (otherScore.includes('target') || otherScore.includes('ov')) {
+            return false;
+        }
+    }
+
+    // 4. Fallback from latest innings in scorecard:
     if (data.innings) {
         const intKeys = Object.keys(data.innings).filter(k => /^\d+$/.test(k)).map(Number);
         if (intKeys.length > 0) {
-            const latestInn = data.innings[String(Math.max(...intKeys))];
+            const latestKey = String(Math.max(...intKeys));
+            const latestInn = data.innings[latestKey];
             if (latestInn && latestInn.teamName) {
-                const innTeam = latestInn.teamName.toUpperCase();
-                const compName = (competitor.name || '').toUpperCase();
-                const compAbbr = (competitor.abbr || '').toUpperCase();
+                const innTeam = latestInn.teamName.toLowerCase();
                 if (compAbbr && innTeam.includes(compAbbr)) return true;
                 if (compName && (innTeam.includes(compName.split(' ')[0]) || compName.includes(innTeam.split(' ')[0]))) return true;
+                if (latestKey === '2' && competitor.order === 2) return true;
+                if (latestKey === '1' && competitor.order === 1) return true;
             }
+        }
+    }
+
+    // 5. If overs in score and competitor 1 when competitor 2 has not started
+    if (s.includes('ov') && isComp1 && data.competitors && data.competitors.length > 1) {
+        const otherScore = String(data.competitors[1].score || '').trim();
+        if (!otherScore || otherScore === '-') {
+            return true;
         }
     }
 
     return false;
 }
 
-function renderMultiInningsScoreHTML(scoreStr, isTeamBattingNow = false, isLiveMatch = false, crrStr = "") {
+function renderMultiInningsScoreHTML(scoreStr, isTeamBattingNow = false, isLiveMatch = false, crrStr = "", isSecondInnings = false) {
     if (!scoreStr) {
         return `
             <div class="bg-slate-100/90 dark:bg-dark-900/90 border border-slate-200 dark:border-emerald-500/30 rounded-lg px-2.5 py-1 shadow-2xs text-right shrink-0">
@@ -357,16 +388,18 @@ function renderMultiInningsScoreHTML(scoreStr, isTeamBattingNow = false, isLiveM
         `;
     }
 
-    const inn1IsLive = isTeamBattingNow && isLiveMatch;
+    const is2nd = isSecondInnings || cleanStr.toLowerCase().includes('target') || cleanStr.toLowerCase().includes('need');
+    const innLabel = is2nd ? '2nd INN' : '1st INN';
+    const innIsLive = isTeamBattingNow && isLiveMatch;
 
     return `
-        <div class="${inn1IsLive ? 'bg-emerald-500/15 dark:bg-emerald-950/80 border-2 border-[#00ff88] shadow-[0_0_20px_rgba(0,255,136,0.5),inset_0_0_10px_rgba(0,255,136,0.2)] ring-1 ring-[#00ff88]/50' : 'bg-slate-100/90 dark:bg-dark-900/90 border border-slate-200/90 dark:border-emerald-500/30 shadow-2xs'} rounded-lg px-2.5 sm:px-3 py-1 sm:py-1.5 text-right shrink-0">
-            <div class="text-[8px] sm:text-[9px] font-black uppercase tracking-wider ${inn1IsLive ? 'text-emerald-800 dark:text-[#00ff88]' : 'text-slate-400 dark:text-gray-400'} flex items-center justify-end gap-1">
-                <span class="w-1.5 h-1.5 rounded-full ${inn1IsLive ? 'bg-[#00ff88] shadow-[0_0_8px_#00ff88] animate-ping' : 'bg-slate-400 dark:bg-slate-500'} shrink-0"></span>
-                <span class="${inn1IsLive ? 'font-black' : ''}">1st INN ${inn1IsLive ? '(LIVE)' : ''}</span>
-                ${inn1IsLive ? crrBadge : ''}
+        <div class="${innIsLive ? 'bg-emerald-500/15 dark:bg-emerald-950/80 border-2 border-[#00ff88] shadow-[0_0_20px_rgba(0,255,136,0.5),inset_0_0_10px_rgba(0,255,136,0.2)] ring-1 ring-[#00ff88]/50' : 'bg-slate-100/90 dark:bg-dark-900/90 border border-slate-200/90 dark:border-emerald-500/30 shadow-2xs'} rounded-lg px-2.5 sm:px-3 py-1 sm:py-1.5 text-right shrink-0">
+            <div class="text-[8px] sm:text-[9px] font-black uppercase tracking-wider ${innIsLive ? 'text-emerald-800 dark:text-[#00ff88]' : 'text-slate-400 dark:text-gray-400'} flex items-center justify-end gap-1">
+                <span class="w-1.5 h-1.5 rounded-full ${innIsLive ? 'bg-[#00ff88] shadow-[0_0_8px_#00ff88] animate-ping' : 'bg-slate-400 dark:bg-slate-500'} shrink-0"></span>
+                <span class="${innIsLive ? 'font-black' : ''}">${innLabel} ${innIsLive ? '(LIVE)' : ''}</span>
+                ${innIsLive ? crrBadge : ''}
             </div>
-            <div class="${inn1IsLive ? 'digital-score-3d text-emerald-800 dark:text-[#00ff88] drop-shadow-[0_0_12px_rgba(0,255,136,0.6)]' : 'text-slate-800 dark:text-gray-100 font-bold'} font-mono text-base sm:text-lg md:text-xl tracking-tight leading-tight">
+            <div class="${innIsLive ? 'digital-score-3d text-emerald-800 dark:text-[#00ff88] drop-shadow-[0_0_12px_rgba(0,255,136,0.6)]' : 'text-slate-800 dark:text-gray-100 font-bold'} font-mono text-base sm:text-lg md:text-xl tracking-tight leading-tight">
                 ${cleanStr}
             </div>
         </div>
@@ -608,6 +641,7 @@ function isMobileLayoutActive() {
 function selectMatch(leagueId, eventId, autoScroll = false) {
     appState.selectedLeagueId = leagueId;
     appState.selectedEventId = eventId;
+    appState.activeInningsKey = null;
 
     // Persist selected match to localStorage
     try {
@@ -1033,7 +1067,7 @@ function renderHeroBanner(data) {
                                 <span class="text-[9px] font-bold text-slate-400 dark:text-emerald-400/80 uppercase tracking-widest">${c1Abbr}</span>
                             </div>
                         </div>
-                        ${renderMultiInningsScoreHTML(c1Score, c1IsBatting, isLive, currentCRR)}
+                        ${renderMultiInningsScoreHTML(c1Score, c1IsBatting, isLive, currentCRR, false)}
                     </div>
 
                     <!-- Team 2 3D HUD Box -->
@@ -1045,7 +1079,7 @@ function renderHeroBanner(data) {
                                 <span class="text-[9px] font-bold text-slate-400 dark:text-emerald-400/80 uppercase tracking-widest">${c2Abbr}</span>
                             </div>
                         </div>
-                        ${renderMultiInningsScoreHTML(c2Score, c2IsBatting, isLive, currentCRR)}
+                        ${renderMultiInningsScoreHTML(c2Score, c2IsBatting, isLive, currentCRR, true)}
                     </div>
                 </div>
 
@@ -2070,7 +2104,14 @@ function renderScorecardTab(data) {
         data.statusDetail.toLowerCase().includes('need') ||
         (data.state && (data.state.toLowerCase() === 'in' || data.state.toLowerCase() === 'live'))
     ));
-    const liveInnKey = String(data.currentInnings || innKeys[innKeys.length - 1]);
+    let liveInnKey = innKeys[innKeys.length - 1];
+    if (data.currentInnings) {
+        if (typeof data.currentInnings === 'object' && data.currentInnings.inningsNumber) {
+            liveInnKey = String(data.currentInnings.inningsNumber);
+        } else if (typeof data.currentInnings === 'string' || typeof data.currentInnings === 'number') {
+            liveInnKey = String(data.currentInnings);
+        }
+    }
 
     if (!appState.activeInningsKey || !inningsData[appState.activeInningsKey]) {
         appState.activeInningsKey = liveInnKey;

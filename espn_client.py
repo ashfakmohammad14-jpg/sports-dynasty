@@ -1517,14 +1517,30 @@ class ESPNClient:
         # Enrich innings with yetToBat (Did Not Bat / Yet to Bat list for Playing 11 visibility)
         def clean_team_stem(name):
             s = str(name).lower()
-            s = re.sub(r'\b(women|men|xi|2nd|u19|u-19|a\b|team)\b', '', s).strip()
-            return re.sub(r'[^a-z0-9]', '', s)
+            s = re.sub(r'\b(1st|2nd|3rd|4th|innings|inning|women|men|xi|2nd|u19|u-19|a\b|team)\b', '', s).strip()
+            s_norm = re.sub(r'[^a-z0-9]', '', s)
+            abbr_map = {
+                'nzone': 'northzone', 'szone': 'southzone', 'czone': 'centralzone', 'ezone': 'eastzone', 'wzone': 'westzone',
+                'pak': 'pakistan', 'tha': 'thailand', 'ind': 'india', 'eng': 'england', 'ire': 'ireland', 'sa': 'southafrica',
+                'aus': 'australia', 'wi': 'westindies', 'sl': 'srilanka', 'ban': 'bangladesh', 'afg': 'afghanistan', 'zim': 'zimbabwe'
+            }
+            for k, v in abbr_map.items():
+                if k in s_norm:
+                    s_norm = s_norm.replace(k, v)
+            return s_norm
+
+        def is_same_player(n1, n2):
+            t1 = set(re.sub(r'[^a-z0-9 ]', '', n1.lower()).split()) - {'c', 'wk', 'sub', 'captain', 'wicketkeeper'}
+            t2 = set(re.sub(r'[^a-z0-9 ]', '', n2.lower()).split()) - {'c', 'wk', 'sub', 'captain', 'wicketkeeper'}
+            if not t1 or not t2:
+                return False
+            return bool(t1 & t2)
 
         if squads and innings_data:
             for inn_key, inn in innings_data.items():
                 inn_team = str(inn.get("teamName", ""))
                 stem_inn = clean_team_stem(inn_team)
-                batted_names = [b.get("name", "").lower() for b in inn.get("batting", [])]
+                batted_names = [b.get("name", "") for b in inn.get("batting", [])]
                 
                 matching_sq = None
                 for sq in squads:
@@ -1533,11 +1549,12 @@ class ESPNClient:
                         matching_sq = sq
                         break
                 
+                # Multi-day fallback by innings cycling (Innings 1 & 3 -> Squad 0; Innings 2 & 4 -> Squad 1)
                 if not matching_sq and squads:
                     try:
-                        sq_idx = int(inn_key) - 1
-                        if sq_idx < len(squads):
-                            matching_sq = squads[sq_idx]
+                        k_int = int(inn_key)
+                        sq_idx = (k_int - 1) % len(squads)
+                        matching_sq = squads[sq_idx]
                     except Exception:
                         pass
                 
@@ -1545,10 +1562,9 @@ class ESPNClient:
                     yet_to_bat = []
                     for pl in matching_sq.get("players", []):
                         pl_name = pl.get("name", "")
-                        pl_lower = pl_name.lower()
-                        if not any(b_name == pl_lower or (len(b_name) > 3 and b_name in pl_lower) or (len(pl_lower) > 3 and pl_lower in b_name) for b_name in batted_names):
+                        if not any(is_same_player(b_name, pl_name) for b_name in batted_names):
                             clean_n = re.sub(r'\s*\([^\)]*\)', '', pl_name).strip().lower()
-                            hshot = player_photo_map.get(clean_n) or player_photo_map.get(pl_lower, "") or pl.get("headshot", "")
+                            hshot = player_photo_map.get(clean_n) or player_photo_map.get(pl_name.lower(), "") or pl.get("headshot", "")
                             yet_to_bat.append({
                                 "id": str(pl.get("id", "")),
                                 "name": pl_name,

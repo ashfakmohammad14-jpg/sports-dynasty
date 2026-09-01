@@ -3757,19 +3757,3 @@ function startOneCardTimedAdEngine() {
         showAd();
     }, 20000);
 }
-
-// -------------------------------------------------------------
-// Real-Time Ad Click Tracking & Monetization Telemetry
-// -------------------------------------------------------------
-function trackAdClick(adId) {
-    try {
-        var targetAd = adId || 'onecard_banner';
-        var url = '/api/analytics/click-ad?ad=' + encodeURIComponent(targetAd);
-        if (navigator.sendBeacon) {
-            navigator.sendBeacon(url);
-        } else {
-            fetch(url, { method: 'POST', keepalive: true }).catch(function() {});
-        }
-    } catch(e) {}
-}
-window.trackAdClick = trackAdClick;

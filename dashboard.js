@@ -339,6 +339,96 @@ function renderMultiInningsScoreHTML(scoreStr, isTeamBattingNow = false, isLiveM
 // UI Rendering - Matches Sidebar List
 // -------------------------------------------------------------
 
+function renderSingleMatchCard(m) {
+    const isActive = (m.id === appState.selectedEventId);
+    const isLive = m.isLive;
+    const statusText = m.statusDetail || (isLive ? '● LIVE' : 'Scheduled');
+    const isStumps = statusText.toLowerCase().includes('stumps') || statusText.toLowerCase().includes('tea') || statusText.toLowerCase().includes('lunch');
+
+    let statusClass = 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40';
+    let displayStatus = statusText;
+
+    if (isStumps) {
+        statusClass = 'bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-400/60 dark:border-amber-600/70 shadow-xs font-black';
+        displayStatus = statusText;
+    } else if (isLive) {
+        statusClass = 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60';
+        displayStatus = '● LIVE';
+    } else if (m.state && (m.state.toLowerCase().includes('post') || m.state.toLowerCase().includes('final'))) {
+        statusClass = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-gray-700';
+        displayStatus = m.statusDetail || 'Final';
+    }
+
+    const c1 = m.competitors && m.competitors[0] ? m.competitors[0] : { name: 'Team 1', score: '' };
+    const c2 = m.competitors && m.competitors[1] ? m.competitors[1] : { name: 'Team 2', score: '' };
+
+    const isMatchDone = Boolean(m.state && ['post', 'final', 'completed'].includes(m.state.toLowerCase()));
+    let cardSummaryText = m.summary || m.statusDetail || '';
+    if (isMatchDone) {
+        if (m.statusDetail && !m.statusDetail.toLowerCase().includes('lead by') && !m.statusDetail.toLowerCase().includes('trail by')) {
+            cardSummaryText = m.statusDetail;
+        } else if (c1.isWinner) {
+            cardSummaryText = `${c1.name} won`;
+        } else if (c2.isWinner) {
+            cardSummaryText = `${c2.name} won`;
+        } else if (cardSummaryText.toLowerCase().includes('drawn') || (m.statusDetail && m.statusDetail.toLowerCase().includes('drawn'))) {
+            cardSummaryText = 'Match drawn';
+        } else {
+            cardSummaryText = 'Match Completed';
+        }
+    }
+
+    return `
+        <div onclick="selectMatch('${m.leagueId}', '${m.id}')" 
+             class="match-card p-3 rounded-xl border border-slate-200 dark:border-gray-800 bg-white dark:bg-dark-800 cursor-pointer ${isActive ? 'active-match' : ''}">
+            <div class="flex items-center justify-between gap-1.5 mb-1.5">
+                <div class="flex items-center gap-1.5 truncate max-w-[170px]">
+                    <span class="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider truncate" title="${m.leagueName}">
+                        ${m.leagueName}
+                    </span>
+                    ${m.inningsLabel ? `<span class="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold uppercase bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-emerald-300 border border-sky-200 dark:border-sky-800 shrink-0">${m.inningsLabel}</span>` : ''}
+                </div>
+                <span class="text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase shrink-0 ${statusClass}">
+                    ${displayStatus}
+                </span>
+            </div>
+
+            <div class="space-y-1 text-xs">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2 truncate">
+                        ${renderTeamLogo(c1.name, c1.logo, 'w-5 h-5')}
+                        <span class="font-bold text-slate-800 dark:text-gray-200 truncate ${c1.isWinner ? 'text-[#059669] dark:text-emerald-400' : ''}">${c1.name}</span>
+                    </div>
+                    <span class="font-mono font-bold text-slate-900 dark:text-white text-right">${cleanScoreString(c1.score)}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2 truncate">
+                        ${renderTeamLogo(c2.name, c2.logo, 'w-5 h-5')}
+                        <span class="font-bold text-slate-800 dark:text-gray-200 truncate ${c2.isWinner ? 'text-[#059669] dark:text-emerald-400' : ''}">${c2.name}</span>
+                    </div>
+                    <span class="font-mono font-bold text-slate-900 dark:text-white text-right">${cleanScoreString(c2.score)}</span>
+                </div>
+            </div>
+
+            ${m.winProbability && (isLive || m.winProbability.isLive) ? `
+                <div class="mt-2 pt-1.5 border-t border-slate-100 dark:border-gray-800/80 flex items-center justify-between text-[10px] font-mono font-bold">
+                    <span class="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                        <i data-lucide="trending-up" class="w-3 h-3 text-emerald-500"></i> ${m.winProbability.team1?.shortName} ${m.winProbability.team1?.probability}%
+                    </span>
+                    <span class="text-indigo-600 dark:text-indigo-400">
+                        ${m.winProbability.team2?.shortName} ${m.winProbability.team2?.probability}%
+                    </span>
+                </div>
+            ` : (cardSummaryText ? `
+                <div class="mt-2 pt-1.5 border-t border-slate-100 dark:border-gray-800/80 text-[11px] text-slate-600 dark:text-gray-300 font-semibold truncate flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#059669] dark:bg-sky-400 shrink-0"></span>
+                    <span>${cardSummaryText}</span>
+                </div>
+            ` : '')}
+        </div>
+    `;
+}
+
 function renderMatchList() {
     const container = document.getElementById('match-list-container');
     if (!container) return;
@@ -366,104 +456,67 @@ function renderMatchList() {
 
     if (filtered.length === 0) {
         container.innerHTML = `
-            <div class="text-center py-8 text-slate-400 text-xs">
+            <div class="text-center py-8 text-slate-400 text-xs w-full">
                 <i data-lucide="inbox" class="w-6 h-6 mx-auto mb-2 opacity-50"></i>
-                <p>No matches found.</p>
+                <p>No matches found in this category.</p>
             </div>
         `;
         safeCreateIcons();
         return;
     }
 
-    container.innerHTML = filtered.map(m => {
-        const isActive = (m.id === appState.selectedEventId);
-        const isLive = m.isLive;
-        const statusText = m.statusDetail || (isLive ? '● LIVE' : 'Scheduled');
-        const isStumps = statusText.toLowerCase().includes('stumps') || statusText.toLowerCase().includes('tea') || statusText.toLowerCase().includes('lunch');
-
-        let statusClass = 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40';
-        let displayStatus = statusText;
-
-        if (isStumps) {
-            statusClass = 'bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-400/60 dark:border-amber-600/70 shadow-xs font-black';
-            displayStatus = statusText;
-        } else if (isLive) {
-            statusClass = 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60';
-            displayStatus = '● LIVE';
-        } else if (m.state.toLowerCase().includes('post') || m.state.toLowerCase().includes('final')) {
-            statusClass = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-gray-700';
-            displayStatus = m.statusDetail || 'Final';
-        }
-
-        const c1 = m.competitors && m.competitors[0] ? m.competitors[0] : { name: 'Team 1', score: '' };
-        const c2 = m.competitors && m.competitors[1] ? m.competitors[1] : { name: 'Team 2', score: '' };
-
-        const isMatchDone = Boolean(m.state && ['post', 'final', 'completed'].includes(m.state.toLowerCase()));
-        let cardSummaryText = m.summary || m.statusDetail || '';
-        if (isMatchDone) {
-            if (m.statusDetail && !m.statusDetail.toLowerCase().includes('lead by') && !m.statusDetail.toLowerCase().includes('trail by')) {
-                cardSummaryText = m.statusDetail;
-            } else if (c1.isWinner) {
-                cardSummaryText = `${c1.name} won`;
-            } else if (c2.isWinner) {
-                cardSummaryText = `${c2.name} won`;
-            } else if (cardSummaryText.toLowerCase().includes('drawn') || (m.statusDetail && m.statusDetail.toLowerCase().includes('drawn'))) {
-                cardSummaryText = 'Match drawn';
-            } else {
-                cardSummaryText = 'Match Completed';
+    // Cricbuzz-Style Series View (Group matches by Series / Tournament)
+    if (appState.activeCategory === 'series') {
+        const seriesGroups = {};
+        filtered.forEach(m => {
+            const seriesName = m.leagueName || (m.description ? m.description.split(',')[0].trim() : '') || 'Tournaments & Bilateral Series';
+            if (!seriesGroups[seriesName]) {
+                seriesGroups[seriesName] = {
+                    name: seriesName,
+                    matches: [],
+                    hasLive: false
+                };
             }
-        }
+            seriesGroups[seriesName].matches.push(m);
+            if (m.isLive) seriesGroups[seriesName].hasLive = true;
+        });
 
-        return `
-            <div onclick="selectMatch('${m.leagueId}', '${m.id}')" 
-                 class="match-card p-3 rounded-xl border border-slate-200 dark:border-gray-800 bg-white dark:bg-dark-800 cursor-pointer ${isActive ? 'active-match' : ''}">
-                <div class="flex items-center justify-between gap-1.5 mb-1.5">
-                    <div class="flex items-center gap-1.5 truncate max-w-[170px]">
-                        <span class="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider truncate" title="${m.leagueName}">
-                            ${m.leagueName}
-                        </span>
-                        ${m.inningsLabel ? `<span class="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold uppercase bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-emerald-300 border border-sky-200 dark:border-sky-800 shrink-0">${m.inningsLabel}</span>` : ''}
-                    </div>
-                    <span class="text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase shrink-0 ${statusClass}">
-                        ${displayStatus}
-                    </span>
-                </div>
-
-                <div class="space-y-1 text-xs">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-2 truncate">
-                            ${renderTeamLogo(c1.name, c1.logo, 'w-5 h-5')}
-                            <span class="font-bold text-slate-800 dark:text-gray-200 truncate ${c1.isWinner ? 'text-[#059669] dark:text-emerald-400' : ''}">${c1.name}</span>
+        const seriesKeys = Object.keys(seriesGroups);
+        container.innerHTML = `
+            <div class="w-full flex flex-col space-y-3">
+                ${seriesKeys.map(k => {
+                    const grp = seriesGroups[k];
+                    return `
+                        <div class="rounded-2xl border border-slate-200/90 dark:border-emerald-500/30 bg-slate-50/80 dark:bg-dark-900/70 p-3 shadow-xs space-y-2.5">
+                            <div class="flex items-center justify-between border-b border-slate-200 dark:border-gray-800 pb-2">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <div class="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shrink-0 shadow-xs">
+                                        <i data-lucide="trophy" class="w-3.5 h-3.5"></i>
+                                    </div>
+                                    <h3 class="font-black text-xs sm:text-sm text-slate-900 dark:text-white truncate font-mono">
+                                        ${grp.name}
+                                    </h3>
+                                </div>
+                                <div class="flex items-center gap-1.5 shrink-0">
+                                    ${grp.hasLive ? '<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/40 animate-pulse font-mono">● LIVE</span>' : ''}
+                                    <span class="text-[10px] font-bold text-slate-500 dark:text-gray-400 bg-white dark:bg-dark-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-gray-700 font-mono">
+                                        ${grp.matches.length} ${grp.matches.length === 1 ? 'Match' : 'Matches'}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                                ${grp.matches.map(m => renderSingleMatchCard(m)).join('')}
+                            </div>
                         </div>
-                        <span class="font-mono font-bold text-slate-900 dark:text-white text-right">${cleanScoreString(c1.score)}</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-2 truncate">
-                            ${renderTeamLogo(c2.name, c2.logo, 'w-5 h-5')}
-                            <span class="font-bold text-slate-800 dark:text-gray-200 truncate ${c2.isWinner ? 'text-[#059669] dark:text-emerald-400' : ''}">${c2.name}</span>
-                        </div>
-                        <span class="font-mono font-bold text-slate-900 dark:text-white text-right">${cleanScoreString(c2.score)}</span>
-                    </div>
-                </div>
-
-                ${m.winProbability && (isLive || m.winProbability.isLive) ? `
-                    <div class="mt-2 pt-1.5 border-t border-slate-100 dark:border-gray-800/80 flex items-center justify-between text-[10px] font-mono font-bold">
-                        <span class="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                            <i data-lucide="trending-up" class="w-3 h-3 text-emerald-500"></i> ${m.winProbability.team1?.shortName} ${m.winProbability.team1?.probability}%
-                        </span>
-                        <span class="text-indigo-600 dark:text-indigo-400">
-                            ${m.winProbability.team2?.shortName} ${m.winProbability.team2?.probability}%
-                        </span>
-                    </div>
-                ` : (cardSummaryText ? `
-                    <div class="mt-2 pt-1.5 border-t border-slate-100 dark:border-gray-800/80 text-[11px] text-slate-600 dark:text-gray-300 font-semibold truncate flex items-center gap-1.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-[#059669] dark:bg-sky-400 shrink-0"></span>
-                        <span>${cardSummaryText}</span>
-                    </div>
-                ` : '')}
+                    `;
+                }).join('')}
             </div>
         `;
-    }).join('');
+        safeCreateIcons();
+        return;
+    }
+
+    container.innerHTML = filtered.map(m => renderSingleMatchCard(m)).join('');
 
     if (prevScrollLeft > 0) {
         container.scrollLeft = prevScrollLeft;

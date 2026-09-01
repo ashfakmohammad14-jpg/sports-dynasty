@@ -1739,6 +1739,35 @@ function renderCricinfoLiveTab(data) {
                             const ov = lastF.overs ? ` (${lastF.overs} ov)` : "";
                             lastOutText = `${pName}${dism}${sc}${ov}`.trim();
                         }
+
+                        // Enrich with catcher & bowler details from batting scorecard if missing
+                        if (data.innings) {
+                            const innKeys = Object.keys(data.innings).sort((a, b) => (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0));
+                            if (innKeys.length > 0) {
+                                let activeKey = innKeys[innKeys.length - 1];
+                                if (data.currentInnings && data.currentInnings.inningsKey && data.innings[data.currentInnings.inningsKey]) {
+                                    activeKey = String(data.currentInnings.inningsKey);
+                                }
+                                const activeInn = data.innings[activeKey];
+                                if (activeInn && Array.isArray(activeInn.batsmen)) {
+                                    const dismissed = activeInn.batsmen.filter(b => {
+                                        const dis = String(b.dismissal || b.out || '').toLowerCase().trim();
+                                        return dis && !dis.includes('not out') && !dis.includes('batting') && !dis.includes('yet to bat');
+                                    });
+                                    if (dismissed.length > 0) {
+                                        const lastDismissed = dismissed[dismissed.length - 1];
+                                        const bName = lastDismissed.name || lastDismissed.player || 'Batter';
+                                        const dism = lastDismissed.dismissal ? ` ${lastDismissed.dismissal}` : '';
+                                        const r = lastDismissed.runs !== undefined ? ` • ${lastDismissed.runs}` : '';
+                                        const b = lastDismissed.balls ? ` (${lastDismissed.balls}b)` : '';
+                                        if (!lastOutText || (!lastOutText.includes(' b ') && !lastOutText.includes('c ') && !lastOutText.includes('lbw') && !lastOutText.includes('run out'))) {
+                                            lastOutText = `${bName}${dism}${r}${b}`.trim();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         if (!lastOutText) {
                             lastOutText = "No wickets fallen in this innings yet";
                         }

@@ -1638,13 +1638,18 @@ class ESPNClient:
                         "wicketNumber": w_num,
                         "wicket": f"{w_num}th" if w_num > 3 else ["1st", "2nd", "3rd"][w_num - 1],
                         "player": b_name,
+                        "dismissal": d_text,
                         "runs": str(w_runs),
                         "score": f"{w_runs}/{w_num}",
                         "overs": w_ov
                     })
-                    if b_name and b_name in batters_map:
-                        batters_map[b_name]["dismissal"] = d_text
-                        batters_map[b_name]["isOut"] = True
+                    if b_name:
+                        if b_name in batters_map:
+                            batters_map[b_name]["dismissal"] = d_text
+                            batters_map[b_name]["isOut"] = True
+                        else:
+                            batters_map[b_name] = {"id": str(b_ath.get("id", "")), "headshot": "", "name": b_name, "runs": str(it.get("batsman", {}).get("totalRuns", "0")), "balls": str(it.get("batsman", {}).get("faced", "0")), "fours": "0", "sixes": "0", "dismissal": d_text, "isOut": True}
+                            batters_order.append(b_name)
 
                 b1 = it.get("batsman", {})
                 if b1 and b1.get("athlete", {}).get("displayName"):
@@ -1951,10 +1956,41 @@ class ESPNClient:
         crr_val = str(last_item.get("innings", {}).get("runRate", "0.00"))
 
         active_fow = innings_data[latest_inn_num].get("fow", [])
+        inn_batting = innings_data[latest_inn_num].get("batting", [])
         last_bat_str = ""
-        if active_fow:
+        
+        dismissed_batsmen = [b for b in inn_batting if b.get("dismissal") and str(b.get("dismissal")).lower().strip() not in ["not out", "batting", "yet to bat", "retired hurt"]]
+        if dismissed_batsmen:
+            last_out = dismissed_batsmen[-1]
+            p_name = last_out.get("name") or last_out.get("player") or "Batter"
+            dism = str(last_out.get("dismissal", "")).strip()
+            r_num = str(last_out.get("runs", "0"))
+            b_num = str(last_out.get("balls", ""))
+            balls_part = f" ({b_num}b)" if b_num else ""
+            ov_badge = ""
+            if active_fow:
+                last_f = active_fow[-1]
+                if last_f.get("overs"):
+                    ov_badge = f" ({last_f.get('overs')} ov)"
+            
+            if dism:
+                last_bat_str = f"{p_name} {dism} • {r_num}{balls_part}{ov_badge}"
+            else:
+                last_bat_str = f"{p_name} • {r_num}{balls_part}{ov_badge}"
+        elif active_fow:
             last_f = active_fow[-1]
-            last_bat_str = f"{last_f.get('player')} • {last_f.get('score')} ({last_f.get('overs')} ov)"
+            last_p_name = last_f.get("player", "").strip()
+            last_ov = last_f.get("overs", "").strip()
+            ov_badge = f" ({last_ov} ov)" if last_ov else ""
+            p_match = next((b for b in inn_batting if last_p_name and (last_p_name.lower() in b.get("name", "").lower() or b.get("name", "").lower() in last_p_name.lower())), None)
+            dism = str(p_match.get("dismissal", last_f.get("dismissal", ""))).strip() if p_match else str(last_f.get("dismissal", "")).strip()
+            r_num = str(p_match.get("runs", last_f.get("runs", "0"))).strip() if p_match else str(last_f.get("runs", "0")).strip()
+            b_num = str(p_match.get("balls", "")).strip() if p_match else ""
+            balls_part = f" ({b_num}b)" if b_num else ""
+            if dism and dism.lower() not in ["not out", "batting", "yet to bat"]:
+                last_bat_str = f"{last_p_name} {dism} • {r_num}{balls_part}{ov_badge}"
+            else:
+                last_bat_str = f"{last_p_name} • {last_f.get('score', '')}{ov_badge}"
 
         live_crease = {
             "hasLiveCrease": True,

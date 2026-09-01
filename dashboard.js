@@ -2203,11 +2203,12 @@ function renderActiveInningsScorecard(inn, matchData) {
             batBody.innerHTML = inn.batting.map(b => {
                 const sr = (b.strikeRate && b.strikeRate !== '0.00') ? b.strikeRate : computeStrikeRate(b.runs, b.balls);
                 const dismissalHtml = formatDismissalHTML(b.dismissal, b.isNotOut);
+                const safeName = escapeQuotes(b.name);
                 return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-dark-900/60 transition border-b border-slate-100 dark:border-gray-800/80">
                         <td class="py-2 px-2 text-left align-top" style="width: 44%;">
                             <div class="flex items-start gap-1.5 min-w-0">
-                                <div onclick="openPlayerProfile('${b.id || ''}', '${b.name.replace(/'/g, "\\'")}')" 
+                                <div onclick="openPlayerProfile('${b.id || ''}', '${safeName}')" 
                                      class="flex items-start gap-1.5 min-w-0 cursor-pointer hover:opacity-80 transition group/p w-full" title="View Profile & Stats of ${b.name}">
                                     ${renderPlayerAvatar(b.name, b.headshot, 'w-4 h-4 sm:w-5 sm:h-5 group-hover/p:ring-2 group-hover/p:ring-[#00ff88] shrink-0 mt-0.5')}
                                     <div class="min-w-0 flex-1">
@@ -2921,8 +2922,10 @@ function handleGlobalPlayerSearch(query) {
                 return;
             }
 
-            resultsContainer.innerHTML = players.map(p => `
-                <div onclick="closePlayerSearchModal(); openEspnPlayerPage('${p.id}', '${p.name.replace(/'/g, "\\'")}')" 
+            resultsContainer.innerHTML = players.map(p => {
+                const safeName = escapeQuotes(p.name);
+                return `
+                <div onclick="closePlayerSearchModal(); openEspnPlayerPage('${p.id}', '${safeName}')" 
                      class="p-2.5 hover:bg-slate-50 dark:hover:bg-dark-800 flex items-center justify-between cursor-pointer transition group rounded-xl">
                     <div class="flex items-center gap-3 min-w-0">
                         <img src="${p.headshot || 'https://a.espncdn.com/i/headshots/cricket/players/default-player-logo-500.png'}" 
@@ -3737,7 +3740,7 @@ function startOneCardTimedAdEngine() {
         clearInterval(countdownInterval);
         countdownInterval = setInterval(() => {
             remainingSeconds--;
-            if (countdownText) countdownText.textContent = ${Math.max(remainingSeconds, 0)}s;
+            if (countdownText) countdownText.textContent = Math.max(remainingSeconds, 0) + 's';
             if (remainingSeconds <= 0) {
                 clearInterval(countdownInterval);
                 hideAd();

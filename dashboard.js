@@ -3742,6 +3742,201 @@ function startOneCardTimedAdEngine() {
         banner.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
         
         // Wait 20 seconds cooldown, then show again
+        `
+    },
+    about: {
+        title: "About Sports Dynasty",
+        body: `
+            <p><strong>Sports Dynasty</strong> is an ultra-fast, real-time cricket intelligence and live score platform designed for cricket enthusiasts across India and globally.</p>
+            <p>Our mission is to deliver ball-by-ball scorecards, interactive stadium pitch maps, worm charts, wagon wheels, ICC team rankings, and breaking cricket headlines with zero latency and high visual fidelity.</p>
+        `
+    },
+    contact: {
+        title: "Contact & Editorial Support",
+        body: `
+            <p>Have editorial feedback, partnership inquiries, or advertising questions?</p>
+            <div class="p-3 bg-slate-100 dark:bg-dark-800 rounded-lg space-y-1">
+                <p>📧 <strong>Email:</strong> support@sportsdynasty.in</p>
+                <p>🌐 <strong>Website:</strong> https://sportsdynasty.in</p>
+                <p>📍 <strong>Platform:</strong> Sports Dynasty Digital Cricket Network</p>
+            </div>
+        `
+    }
+};
+
+function openPolicyModal(type) {
+    const data = policyContents[type] || policyContents.privacy;
+    const modal = document.getElementById('policy-modal');
+    const titleEl = document.getElementById('policy-title-text');
+    const bodyEl = document.getElementById('policy-modal-body');
+    
+    if (titleEl) titleEl.textContent = data.title;
+    if (bodyEl) bodyEl.innerHTML = data.body;
+    
+    if (modal) {
+        modal.classList.remove('hidden');
+        setTimeout(() => modal.classList.remove('opacity-0'), 10);
+    }
+    safeCreateIcons();
+}
+
+function closePolicyModal() {
+    const modal = document.getElementById('policy-modal');
+    if (modal) {
+        modal.classList.add('opacity-0');
+        setTimeout(() => modal.classList.add('hidden'), 300);
+    }
+}
+
+// -------------------------------------------------------------
+// UNIVERSAL PWA APP INSTALL PROMPT ENGINE (For All Visitors)
+// -------------------------------------------------------------
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    
+    // Show header install button
+    const installBtn = document.getElementById('pwa-install-btn');
+    if (installBtn) installBtn.classList.remove('hidden');
+    
+    // Show floating banner after 2.5s if not dismissed in this session
+    if (!sessionStorage.getItem('sports_dynasty_pwa_dismissed')) {
+        setTimeout(() => {
+            const banner = document.getElementById('pwa-floating-banner');
+            if (banner) {
+                banner.classList.remove('translate-y-28', 'opacity-0');
+            }
+        }, 2500);
+    }
+});
+
+function triggerPwaInstall() {
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIos) {
+        const iosModal = document.getElementById('ios-install-modal');
+        if (iosModal) {
+            iosModal.classList.remove('hidden');
+            setTimeout(() => iosModal.classList.remove('opacity-0'), 10);
+            safeCreateIcons();
+        }
+        return;
+    }
+    
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+                console.log('User installed the Sports Dynasty PWA app!');
+                dismissPwaBanner();
+            }
+            deferredPrompt = null;
+        });
+    } else {
+        alert("To install Sports Dynasty:\n\n1. Tap your browser menu (3 dots).\n2. Tap 'Install app' or 'Add to Home screen'.");
+    }
+}
+
+function dismissPwaBanner() {
+    sessionStorage.setItem('sports_dynasty_pwa_dismissed', 'true');
+    const banner = document.getElementById('pwa-floating-banner');
+    if (banner) {
+        banner.classList.add('translate-y-28', 'opacity-0');
+    }
+}
+
+function closeIosInstallModal() {
+    const iosModal = document.getElementById('ios-install-modal');
+    if (iosModal) {
+        iosModal.classList.add('opacity-0');
+        setTimeout(() => iosModal.classList.add('hidden'), 300);
+    }
+}
+
+// Auto-show floating install prompt for mobile visitors after 3 seconds
+setTimeout(() => {
+    if (!sessionStorage.getItem('sports_dynasty_pwa_dismissed') && window.innerWidth < 768) {
+        const banner = document.getElementById('pwa-floating-banner');
+        if (banner) {
+            banner.classList.remove('translate-y-28', 'opacity-0');
+            safeCreateIcons();
+        }
+    }
+}, 3000);
+
+// Initialize analytics and device view on startup
+document.addEventListener('DOMContentLoaded', () => {
+    initDeviceLayout();
+    updateVisitorAnalytics(false);
+    setInterval(() => updateVisitorAnalytics(true), 15000);
+    startOneCardTimedAdEngine();
+});
+
+// Immediate execution fallback
+setTimeout(() => {
+    initDeviceLayout();
+    updateVisitorAnalytics(false);
+    startOneCardTimedAdEngine();
+}, 200);
+
+// -------------------------------------------------------------
+// BROADCAST TIMED ONECARD SPONSOR ENGINE (20s Off / 30s On Loop)
+// -------------------------------------------------------------
+let oneCardEngineStarted = false;
+
+function startOneCardTimedAdEngine() {
+    if (oneCardEngineStarted) return;
+    const banner = document.getElementById('onecard-timed-banner');
+    const progressBar = document.getElementById('onecard-ad-progress');
+    const countdownText = document.getElementById('onecard-countdown-text');
+    if (!banner) return;
+    oneCardEngineStarted = true;
+    
+    let isShowing = false;
+    let countdownInterval = null;
+    let remainingSeconds = 30;
+    
+    function showAd() {
+        if (isShowing) return;
+        isShowing = true;
+        remainingSeconds = 30;
+        
+        banner.classList.remove('translate-y-48', 'opacity-0', 'pointer-events-none');
+        banner.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
+        
+        if (progressBar) {
+            progressBar.style.transition = 'none';
+            progressBar.style.width = '100%';
+            setTimeout(() => {
+                progressBar.style.transition = 'width 30s linear';
+                progressBar.style.width = '0%';
+            }, 50);
+        }
+        
+        if (countdownText) countdownText.textContent = '30s';
+        clearInterval(countdownInterval);
+        countdownInterval = setInterval(() => {
+            remainingSeconds--;
+            if (countdownText) countdownText.textContent = `${Math.max(remainingSeconds, 0)}s`;
+            if (remainingSeconds <= 0) {
+                clearInterval(countdownInterval);
+                hideAd();
+            }
+        }, 1000);
+        
+        safeCreateIcons();
+    }
+    
+    function hideAd() {
+        if (!isShowing) return;
+        isShowing = false;
+        clearInterval(countdownInterval);
+        
+        banner.classList.add('translate-y-48', 'opacity-0', 'pointer-events-none');
+        banner.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
+        
+        // Wait 20 seconds cooldown, then show again
         setTimeout(() => {
             showAd();
         }, 20000);
@@ -3757,9 +3952,17 @@ function startOneCardTimedAdEngine() {
     }, 20000);
 }
 
-
-
-
-
-
-
+// -------------------------------------------------------------
+// Real-Time Ad Click Tracking & Monetization Telemetry
+// -------------------------------------------------------------
+function trackAdClick(adId = 'onecard_banner') {
+    try {
+        const url = `/api/analytics/click-ad?ad=${encodeURIComponent(adId)}`;
+        if (navigator.sendBeacon) {
+            navigator.sendBeacon(url);
+        } else {
+            fetch(url, { method: 'POST', keepalive: true }).catch(() => {});
+        }
+    } catch(e) {}
+}
+window.trackAdClick = trackAdClick;

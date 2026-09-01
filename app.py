@@ -110,17 +110,53 @@ async def track_visitor(request: Request):
         "unique_devices": len(data.get("unique_visitors", {}))
     })
 
+@app.post("/api/analytics/click-ad")
+@app.get("/api/analytics/click-ad")
+async def track_ad_click(request: Request):
+    """Track clicks on sponsor and affiliate ads in real-time."""
+    ad_id = request.query_params.get("ad", "onecard_banner")
+    data = load_analytics()
+    today_str = datetime.now().strftime("%Y-%m-%d")
+
+    if data.get("today_date") != today_str:
+        data["today_date"] = today_str
+        data["today_visits"] = 1
+        data["today_ad_clicks"] = 0
+
+    data["total_ad_clicks"] = data.get("total_ad_clicks", 0) + 1
+    data["today_ad_clicks"] = data.get("today_ad_clicks", 0) + 1
+
+    ad_breakdown = data.get("ad_clicks_breakdown", {})
+    ad_breakdown[ad_id] = ad_breakdown.get(ad_id, 0) + 1
+    data["ad_clicks_breakdown"] = ad_breakdown
+
+    save_analytics(data)
+    return JSONResponse(content={
+        "status": "ok",
+        "ad": ad_id,
+        "total_ad_clicks": data["total_ad_clicks"],
+        "today_ad_clicks": data["today_ad_clicks"]
+    })
+
 @app.get("/api/analytics/stats")
 async def get_analytics_stats():
-    """Return visitor counts and live active user count."""
+    """Return visitor counts, live active user count, and ad click statistics."""
     data = load_analytics()
     now_ts = time.time()
     active_sessions = {k: v for k, v in data.get("active_sessions", {}).items() if now_ts - v < 300}
     active_count = max(len(active_sessions), 1)
+    tot_visits = data.get("total_visits", 1420)
+    tot_clicks = data.get("total_ad_clicks", 0)
+    ctr = f"{(tot_clicks / max(tot_visits, 1) * 100):.2f}%"
+
     return JSONResponse(content={
-        "total_visits": data.get("total_visits", 1420),
+        "total_visits": tot_visits,
         "today_visits": data.get("today_visits", 184),
-        "active_online": active_count
+        "active_online": active_count,
+        "total_ad_clicks": tot_clicks,
+        "today_ad_clicks": data.get("today_ad_clicks", 0),
+        "ad_ctr": ctr,
+        "ad_breakdown": data.get("ad_clicks_breakdown", {})
     })
 
 def get_file_content(filename: str, subfolder: str = "") -> tuple[str, str]:

@@ -1126,8 +1126,19 @@ class ESPNClient:
             # Use longSummary or summary if available (contains lead / trail info)
             long_summary = full_status.get("longSummary") or full_status.get("summary") or event.get("summary", "")
 
-            # Sort competitors so the team batting first (order: 1) is always on TOP (at index 0)
-            competitors_raw = sorted(competitors_raw, key=lambda c: int(c.get("order", 99)))
+            # Sort competitors so the team batting first (1st Innings) is ALWAYS on TOP (index 0),
+            # and the team batting second / chasing target (2nd Innings) is at index 1
+            def comp_sort_key(c):
+                sc = str(c.get("score", "")).lower()
+                ord_val = int(c.get("order", 99))
+                if "target" in sc or "need" in sc:
+                    return (2, ord_val)
+                for ls in c.get("linescores", []):
+                    if ls.get("target") or ls.get("period") == 2:
+                        return (2, ord_val)
+                return (1, ord_val)
+
+            competitors_raw = sorted(competitors_raw, key=comp_sort_key)
             competitors = []
             for comp in competitors_raw:
                 c_id = str(comp.get("id", ""))
@@ -1297,8 +1308,19 @@ class ESPNClient:
         
         competitors = []
         raw_comps = competitions.get("competitors", [])
-        # Sort competitors so the team batting first (order: 1) is always on TOP (at index 0)
-        raw_comps = sorted(raw_comps, key=lambda c: int(c.get("order", 99)))
+        # Sort competitors so the team batting first (1st Innings) is ALWAYS on TOP (index 0),
+        # and the team batting second / chasing target (2nd Innings) is at index 1
+        def comp_sort_key(c):
+            sc = str(c.get("score", "")).lower()
+            ord_val = int(c.get("order", 99))
+            if "target" in sc or "need" in sc:
+                return (2, ord_val)
+            for ls in c.get("linescores", []):
+                if ls.get("target") or ls.get("period") == 2:
+                    return (2, ord_val)
+            return (1, ord_val)
+
+        raw_comps = sorted(raw_comps, key=comp_sort_key)
         for c in raw_comps:
             team_info = c.get("team", {})
             team_id = str(team_info.get("id", c.get("id", "")))

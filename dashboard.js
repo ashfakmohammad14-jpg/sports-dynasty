@@ -124,11 +124,11 @@ async function fetchMatches(silent = false) {
 
         const isMobile = isMobileLayoutActive();
 
-        if (targetMatch) {
-            // Re-select the EXACT match the user was on before refresh
+        if (targetMatch && !appState.selectedEventId) {
+            // Initial match selection on load/refresh
             selectMatch(targetMatch.leagueId, targetMatch.id);
         } else if (!isMobile && appState.matches.length > 0 && !appState.selectedEventId) {
-            // On Desktop, default to first live or top match
+            // On Desktop, default to first live or top match if none selected
             const firstMatch = appState.categories.live.length > 0 ? appState.categories.live[0] : appState.matches[0];
             selectMatch(firstMatch.leagueId, firstMatch.id);
         } else if (appState.selectedLeagueId && appState.selectedEventId && silent) {
@@ -343,6 +343,8 @@ function renderMatchList() {
     const container = document.getElementById('match-list-container');
     if (!container) return;
 
+    const prevScrollLeft = container.scrollLeft;
+
     let filtered = appState.matches;
 
     if (appState.activeCategory === 'live') {
@@ -463,6 +465,10 @@ function renderMatchList() {
         `;
     }).join('');
 
+    if (prevScrollLeft > 0) {
+        container.scrollLeft = prevScrollLeft;
+    }
+
     safeCreateIcons();
 }
 
@@ -480,7 +486,6 @@ function selectMatch(leagueId, eventId, autoScroll = false) {
     } catch(e) {}
 
     renderMatchList();
-    fetchMatchDetails(leagueId, eventId);
 
     const isMobile = isMobileLayoutActive();
     const carouselSec = document.getElementById('section-match-carousel');
@@ -507,7 +512,6 @@ function selectMatch(leagueId, eventId, autoScroll = false) {
             }
         }
         
-        window.scrollTo({ top: 0, behavior: 'smooth' });
         safeCreateIcons();
 
         try {
@@ -530,20 +534,25 @@ function selectMatch(leagueId, eventId, autoScroll = false) {
             }
         } catch(e) {}
 
-        // Center active card in horizontal strip
-        setTimeout(() => {
-            const activeCard = document.querySelector('.match-card.active-match');
-            if (activeCard) {
-                activeCard.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-            }
-            if (autoScroll) {
-                const heroElem = document.getElementById('match-hero-card');
-                if (heroElem) {
-                    heroElem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Scroll ONLY the carousel container horizontally if user explicitly clicked next/prev
+        if (autoScroll) {
+            setTimeout(() => {
+                const listContainer = document.getElementById('match-list-container');
+                const activeCard = document.querySelector('.match-card.active-match');
+                if (listContainer && activeCard) {
+                    const cardLeft = activeCard.offsetLeft;
+                    const cardWidth = activeCard.offsetWidth;
+                    const containerWidth = listContainer.offsetWidth;
+                    listContainer.scrollTo({
+                        left: cardLeft - (containerWidth / 2) + (cardWidth / 2),
+                        behavior: 'smooth'
+                    });
                 }
-            }
-        }, 100);
+            }, 100);
+        }
     }
+
+    fetchMatchDetails(leagueId, eventId, true);
 }
 
 function backToMatchList() {

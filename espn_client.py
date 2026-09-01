@@ -159,14 +159,57 @@ def compute_lead_trail_summary(
         wkts_in_hand = max(0, 10 - w2)
         wkt_txt = f" ({wkts_in_hand} wkts in hand)" if wkts_in_hand > 0 else ""
 
-        is_limited_overs = any(k in str(clean_raw).lower() for k in ["opt to", "toss", "t20", "odi"]) and not session_text
-        if is_limited_overs:
+        is_test_match = bool(
+            session_text or
+            any(k in str(clean_raw).lower() for k in ["day 1", "day 2", "day 3", "day 4", "day 5", "stumps", "tea", "lunch", "test", "4-day", "5-day", "ranji", "trophy", "shield", "championship", "first-class", "fc"]) or
+            any(k in str(clean_detail).lower() for k in ["day 1", "day 2", "day 3", "day 4", "day 5", "stumps", "tea", "lunch", "test", "4-day", "5-day"])
+        )
+
+        if not is_test_match:
+            # Limited Overs Match (T20, ODI, T10, List A) -> 2nd Innings is ALWAYS a target chase!
             target = r1 + 1
             runs_needed = target - r2
             if runs_needed <= 0:
                 return f"{batting_2nd} won by {wkts_in_hand} wickets"
+            
+            # Determine format overs (T20 = 20 ov, ODI = 50 ov, T10 = 10 ov)
+            max_overs = 20
+            tot1_str = str(inn1.get("total", "")).lower()
+            tot2_str = str(inn2.get("total", "")).lower()
+            all_text_format = f"{clean_raw} {clean_detail} {tot1_str} {tot2_str}".lower()
+            
+            if "t10" in all_text_format or "/10 ov" in all_text_format:
+                max_overs = 10
+            elif "odi" in all_text_format or "50 over" in all_text_format or "/50" in all_text_format:
+                max_overs = 50
+            elif "100" in all_text_format or "hundred" in all_text_format:
+                max_overs = 16.4
             else:
-                return f"Target {target} • {batting_2nd} need {runs_needed} runs to win"
+                ov1_m = re.search(r'\((\d+(?:\.\d+)?)\s*ov', tot1_str)
+                if ov1_m and float(ov1_m.group(1)) > 20:
+                    max_overs = 50
+                else:
+                    max_overs = 20
+
+            # Extract balls bowled in 2nd innings from all available score strings
+            balls_bowled = 0
+            c2_score_str = competitors[1].get("score", "") if (competitors and len(competitors) > 1) else ""
+            tot2_scan = f"{tot2_str} {c2_score_str} {clean_detail}"
+            ov2_m = re.search(r'\((\d+(?:\.\d+)?)(?:/\d+)?\s*ov', tot2_scan, re.I)
+            if ov2_m:
+                ov2_val = float(ov2_m.group(1))
+                full_ov = int(ov2_val)
+                rem_b = int(round((ov2_val - full_ov) * 10))
+                balls_bowled = full_ov * 6 + rem_b
+            
+            total_match_balls = int(max_overs * 6)
+            balls_left = max(0, total_match_balls - balls_bowled)
+            
+            if balls_left > 0:
+                rrr = (runs_needed / (balls_left / 6.0))
+                return f"{batting_2nd} need {runs_needed} runs from {balls_left} balls (RRR: {rrr:.2f})"
+            else:
+                return f"{batting_2nd} need {runs_needed} runs"
         else:
             if diff > 0:
                 sit = f"{batting_2nd} lead by {diff} runs{wkt_txt}"
@@ -174,7 +217,7 @@ def compute_lead_trail_summary(
                 sit = f"{batting_2nd} trail by {abs(diff)} runs{wkt_txt}"
             else:
                 sit = "Scores Level"
-        return f"{session_text} • {sit}" if session_text else sit
+            return f"{session_text} • {sit}" if session_text else sit
 
     return clean_raw or session_text or clean_detail or "In Progress"
 
@@ -562,14 +605,14 @@ def compute_team_multiscore(team_name: str, innings_data: Dict[str, Any], raw_c_
         return clean_raw
     return calculated_multi
 
-def normalize_competitor_score_from_raw(comp_dict: Dict[str, Any]) -> str:
-    """Normalize competitor score string and resolve missing runs from linescores if needed."""
+def normalize_competitor_score_from_raw(comp_dict: Dict[str, Any], is_test_match: bool = False) -> str:
+    """Normalize competitor score string and resolve missing runs/overs from linescores if needed."""
     raw_score = comp_dict.get("score", "")
-    s = clean_event_competitor_score(raw_score)
+    s = clean_event_competitor_score(raw_score, is_test_match)
+    linescores = comp_dict.get("linescores", [])
     
     # If score is missing runs or starts with "(" e.g. "(5 wkts; 16.3 ovs)" or "(all out; 9.5 ovs)"
     if s.startswith("(") or (s and not re.match(r'^\d', s)):
-        linescores = comp_dict.get("linescores", [])
         if linescores:
             parts = []
             for ls in linescores:
@@ -580,16 +623,23 @@ def normalize_competitor_score_from_raw(comp_dict: Dict[str, Any]) -> str:
                     ov_s = str(ov).rstrip('.0') if str(ov).endswith('.0') else str(ov)
                     ov_str = f" ({ov_s} ov)" if ov else ""
                     if w == 10 or str(w) == "10":
-                        parts.append(f"{r}")
+                        parts.append(f"{r}{ov_str}")
                     elif w is not None:
                         parts.append(f"{r}/{w}{ov_str}")
                     else:
                         parts.append(f"{r}{ov_str}")
             if parts:
                 return " & ".join(parts)
+    elif linescores and not is_test_match and "(" not in s and "ov" not in s.lower():
+        # Find the batting linescore for this team (period 1 for team 1, period 2 for team 2)
+        bat_ls = next((ls for ls in linescores if ls.get("period") == 1 or (ls.get("runs") is not None and int(ls.get("runs", 0)) > 0)), linescores[0])
+        ov = bat_ls.get("overs")
+        if ov and str(ov) not in ["0", "0.0", ""]:
+            ov_s = str(ov).rstrip('.0') if str(ov).endswith('.0') else str(ov)
+            s = f"{s} ({ov_s} ov)"
     return s
 
-def clean_event_competitor_score(s: str) -> str:
+def clean_event_competitor_score(s: str, is_test_match: bool = False) -> str:
     if not s:
         return ""
     s = re.sub(r',\s*RR:\s*[\d\.]+', '', str(s), flags=re.I).strip()
@@ -598,7 +648,7 @@ def clean_event_competitor_score(s: str) -> str:
     for idx, p in enumerate(parts):
         is_last = (idx == len(parts) - 1)
         p_str = p.strip()
-        if not is_last or "/10" in p_str or "-10" in p_str or "10 wkts" in p_str.lower():
+        if not is_last and is_test_match:
             p_str = re.sub(r'\s*\([^\)]*\)', '', p_str).strip()
             p_str = re.sub(r'[/\\-]10', '', p_str).strip()
         else:
@@ -1308,6 +1358,25 @@ class ESPNClient:
                                     b["isNotOut"] = False
         except Exception:
             pass
+
+        is_test_match = bool(
+            session_text or
+            any(k in str(raw_status_summary).lower() for k in ["day 1", "day 2", "day 3", "day 4", "day 5", "stumps", "tea", "lunch", "test", "4-day", "5-day", "ranji", "trophy", "shield", "championship", "first-class", "fc"]) or
+            any(k in str(raw_status_detail).lower() for k in ["day 1", "day 2", "day 3", "day 4", "day 5", "stumps", "tea", "lunch", "test", "4-day", "5-day"])
+        )
+
+        # Ensure competitor scores accurately reflect completed innings overs from innings_data
+        for idx, comp_obj in enumerate(competitors):
+            inn_k = str(idx + 1)
+            if inn_k in innings_data and not is_test_match:
+                inn_tot = str(innings_data[inn_k].get("total", ""))
+                ov_m = re.search(r'\((\d+(?:\.\d+)?\s*ov)\)', inn_tot, re.I)
+                if ov_m:
+                    cur_sc = comp_obj.get("score", "")
+                    if "(" not in cur_sc:
+                        comp_obj["score"] = f"{cur_sc} {ov_m.group(0)}"
+                    elif "target" not in cur_sc:
+                        comp_obj["score"] = re.sub(r'\(\d+(?:\.\d+)?\s*ov\)', ov_m.group(0), cur_sc)
 
         if match_state.lower() in ["post", "final", "completed"]:
             if raw_status_summary and raw_status_summary.lower() not in ["final", "live", "scheduled"]:

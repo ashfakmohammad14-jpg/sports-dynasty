@@ -2139,6 +2139,17 @@ class ESPNClient:
                                 else:
                                     last_bat = f"{last_p_name} • {last_f.get('score', '')}{ov_badge}"
 
+                        if not last_bat and innings_data and latest_inn_key and latest_inn_key in innings_data:
+                            inn_batting = innings_data[latest_inn_key].get("batting", [])
+                            dismissed = [b for b in inn_batting if b.get("dismissal") and b.get("dismissal").lower() not in ["not out", "batting", "yet to bat"]]
+                            if dismissed:
+                                last_out = dismissed[-1]
+                                d = last_out.get("dismissal", "").strip()
+                                r = str(last_out.get("runs", "0"))
+                                b_cnt = str(last_out.get("balls", ""))
+                                b_part = f" ({b_cnt}b)" if b_cnt else ""
+                                last_bat = f"{last_out.get('name', 'Batter')} {d} {r}{b_part}"
+
                         if pship:
                             p_balls = compute_partnership_balls(innings_data, latest_inn_key)
                             if p_balls > 0 and 'b' not in pship.lower():
@@ -2150,7 +2161,7 @@ class ESPNClient:
                             "activeBowler": bowlers[0] if bowlers else None,
                             "partnerBowler": bowlers[1] if len(bowlers) > 1 else None,
                             "partnership": pship,
-                            "lastWicket": (last_bat or fow) if active_fow else "",
+                            "lastWicket": last_bat or fow or "",
                             "fowList": active_fow,
                             "recentDeliveries": recent_deliveries,
                             "recentText": recent_raw,

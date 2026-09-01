@@ -1496,6 +1496,22 @@ function renderCricinfoLiveTab(data) {
                 if (Array.isArray(activeInn.fow) && activeInn.fow.length > 0) {
                     fowList = activeInn.fow;
                 }
+                // Fallback: If fow array is missing, reconstruct from dismissed batsmen
+                if (fowList.length === 0 && Array.isArray(activeInn.batsmen)) {
+                    const dismissed = activeInn.batsmen.filter(b => {
+                        const dis = String(b.dismissal || b.out || '').toLowerCase().trim();
+                        return dis && !dis.includes('not out') && !dis.includes('batting') && !dis.includes('yet to bat');
+                    });
+                    if (dismissed.length > 0) {
+                        fowList = dismissed.map((b, idx) => ({
+                            player: b.name || b.player || 'Batter',
+                            score: b.runs !== undefined ? `${b.runs} (${b.balls || 0}b)` : '',
+                            runs: b.runs || 0,
+                            dismissal: b.dismissal || '',
+                            wicketNumber: idx + 1
+                        }));
+                    }
+                }
             }
         }
     }
@@ -1711,15 +1727,33 @@ function renderCricinfoLiveTab(data) {
                     </div>
 
                     <!-- 2. Last Batter Out Micro-Bar -->
-                    <div class="py-1.5 px-2.5 rounded-lg border border-rose-500/30 dark:border-rose-500/40 bg-gradient-to-r from-rose-500/10 via-rose-500/5 to-transparent dark:from-rose-950/40 dark:via-dark-900 flex items-center justify-between gap-2 shadow-[0_0_10px_rgba(255,0,85,0.1)]">
-                        <div class="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-rose-700 dark:text-[#ff4d6d] shrink-0 font-mono">
-                            <i data-lucide="user-x" class="w-3.5 h-3.5 text-rose-500 drop-shadow-[0_0_6px_rgba(255,0,85,0.8)]"></i>
-                            <span>Last Out</span>
-                        </div>
-                        <div class="font-semibold text-xs text-slate-800 dark:text-gray-200 truncate text-right font-sans" title="${fowList.length > 0 ? (crease.lastWicket || 'Wicket') : 'No wickets fallen in this innings yet'}">
-                            ${fowList.length > 0 ? (crease.lastWicket ? crease.lastWicket : (fowList[fowList.length - 1].player + ' (' + (fowList[fowList.length - 1].score || '') + ')')) : 'No wickets fallen in this innings yet'}
-                        </div>
-                    </div>
+                    ${(() => {
+                        let lastOutText = "";
+                        if (crease && crease.lastWicket && String(crease.lastWicket).trim() !== "") {
+                            lastOutText = String(crease.lastWicket).trim();
+                        } else if (fowList && fowList.length > 0) {
+                            const lastF = fowList[fowList.length - 1];
+                            const pName = lastF.player || lastF.name || "Wicket";
+                            const dism = lastF.dismissal ? ` ${lastF.dismissal}` : "";
+                            const sc = lastF.score ? ` • ${lastF.score}` : (lastF.runs !== undefined ? ` • ${lastF.runs}` : "");
+                            const ov = lastF.overs ? ` (${lastF.overs} ov)` : "";
+                            lastOutText = `${pName}${dism}${sc}${ov}`.trim();
+                        }
+                        if (!lastOutText) {
+                            lastOutText = "No wickets fallen in this innings yet";
+                        }
+                        return `
+                            <div class="py-1.5 px-2.5 rounded-lg border border-rose-500/30 dark:border-rose-500/40 bg-gradient-to-r from-rose-500/10 via-rose-500/5 to-transparent dark:from-rose-950/40 dark:via-dark-900 flex items-center justify-between gap-2 shadow-[0_0_10px_rgba(255,0,85,0.1)]">
+                                <div class="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-rose-700 dark:text-[#ff4d6d] shrink-0 font-mono">
+                                    <i data-lucide="user-x" class="w-3.5 h-3.5 text-rose-500 drop-shadow-[0_0_6px_rgba(255,0,85,0.8)]"></i>
+                                    <span>Last Out</span>
+                                </div>
+                                <div class="font-semibold text-xs text-slate-800 dark:text-gray-200 truncate text-right font-sans" title="${lastOutText}">
+                                    ${lastOutText}
+                                </div>
+                            </div>
+                        `;
+                    })()}
 
                     <!-- 3. Current Partnership Micro-Bar -->
                     <div class="py-1.5 px-2.5 rounded-lg border-2 border-[#00ff88]/60 border-l-4 border-l-[#00ff88] bg-gradient-to-r from-[#00ff88]/15 via-emerald-500/10 to-transparent dark:from-emerald-950/70 dark:via-dark-900 flex items-center justify-between gap-2 shadow-[0_0_20px_rgba(0,255,136,0.25)]">

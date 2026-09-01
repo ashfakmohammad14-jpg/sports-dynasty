@@ -213,6 +213,70 @@ def compute_strike_rate(runs_val: Any, balls_val: Any) -> float:
         pass
     return 0.0
 
+def extract_dismissal_map_from_items(items: List[Dict[str, Any]]) -> Dict[str, str]:
+    """Extract full dismissal string (c Fielder b Bowler, b Bowler, lbw b Bowler, run out) from playbyplay items."""
+    dism_map: Dict[str, str] = {}
+    for it in items:
+        d = it.get("dismissal", {})
+        if d and d.get("dismissal"):
+            b_ath = d.get("batsman", {}).get("athlete", {})
+            b_name = b_ath.get("displayName") or b_ath.get("name") or ""
+            bwl_ath = d.get("bowler", {}).get("athlete", {})
+            bowler_name = bwl_ath.get("displayName") or bwl_ath.get("name") or bwl_ath.get("shortName") or ""
+            fld_ath = d.get("fielder", {}).get("athlete", {})
+            fielder_name = fld_ath.get("displayName") or fld_ath.get("name") or fld_ath.get("shortName") or ""
+            w_type = str(d.get("type", "")).lower()
+            d_text = str(d.get("text", "")).strip()
+
+            dism_str = ""
+            if w_type == "caught" or "c " in d_text:
+                if fielder_name and bowler_name:
+                    if fielder_name.lower() == bowler_name.lower():
+                        dism_str = f"c & b {bowler_name}"
+                    else:
+                        dism_str = f"c {fielder_name} b {bowler_name}"
+                elif bowler_name:
+                    dism_str = f"c & b {bowler_name}" if ("c & b" in d_text or "c and b" in d_text) else f"c sub b {bowler_name}"
+            elif w_type == "bowled" or " b " in d_text:
+                dism_str = f"b {bowler_name}" if bowler_name else "bowled"
+            elif w_type == "lbw" or "lbw" in d_text:
+                dism_str = f"lbw b {bowler_name}" if bowler_name else "lbw"
+            elif w_type == "stumped":
+                dism_str = f"st {fielder_name} b {bowler_name}" if fielder_name else f"st (wk) b {bowler_name}"
+            elif w_type == "run out" or "run out" in d_text:
+                dism_str = f"run out ({fielder_name})" if fielder_name else "run out"
+            elif w_type == "hit wicket":
+                dism_str = f"hit wicket b {bowler_name}" if bowler_name else "hit wicket"
+
+            if not dism_str:
+                dism_str = d_text or w_type or "out"
+
+            if b_name:
+                dism_map[b_name.lower().strip()] = dism_str
+    return dism_map
+
+def match_player_dismissal(p_name: str, dism_map: Dict[str, str]) -> Optional[str]:
+    """Fuzzy-match player name (e.g. 'J Hermann' -> 'jordan hermann') to retrieve accurate dismissal."""
+    if not p_name or not dism_map:
+        return None
+    p_clean = p_name.lower().strip()
+    if p_clean in dism_map:
+        return dism_map[p_clean]
+    # Try exact initial + surname (e.g. "J Hermann" -> "jordan hermann", "RA Hermann" -> "rubin hermann")
+    parts = p_clean.split()
+    if len(parts) >= 2:
+        init = parts[0]
+        surname = parts[-1]
+        for k, v in dism_map.items():
+            k_parts = k.split()
+            if len(k_parts) >= 2 and k_parts[-1] == surname:
+                if k_parts[0][0] == init[0]:
+                    return v
+    for k, v in dism_map.items():
+        if k in p_clean or p_clean in k:
+            return v
+    return None
+
 def compute_crr_from_score(score_txt: str) -> str:
     """Extract runs and overs from cricket score strings and compute CRR accurately."""
     try:
@@ -1202,6 +1266,27 @@ class ESPNClient:
         else:
             innings_data = espn_innings
 
+        # Enrich innings_data dismissals with detailed catch/bowler information from playbyplay
+        try:
+            url_pbp = f"https://site.web.api.espn.com/apis/site/v2/sports/cricket/{league_id}/playbyplay?event={event_id}&limit=300"
+            r_pbp = self.session.get(url_pbp, timeout=5)
+            if r_pbp.status_code == 200:
+                pbp_raw = r_pbp.json()
+                p_items = pbp_raw.get("commentary", {}).get("items", [])
+                pbp_dism_map = extract_dismissal_map_from_items(p_items)
+                if pbp_dism_map and innings_data:
+                    for inn in innings_data.values():
+                        for b in inn.get("batting", []):
+                            p_name = b.get("name", "")
+                            cur_dism = str(b.get("dismissal", "")).strip().lower()
+                            if cur_dism not in ["not out", "batting", "yet to bat", "retired hurt"] or cur_dism in ["caught", "bowled", "lbw", "out", "run out", "stumped", ""]:
+                                enriched = match_player_dismissal(p_name, pbp_dism_map)
+                                if enriched:
+                                    b["dismissal"] = enriched
+                                    b["isNotOut"] = False
+        except Exception:
+            pass
+
         # 2.5 Check if playbyplay has scorecard & live crease when matchcards/cricbuzz are empty
         pbp_innings, pbp_crease, pbp_commentary = None, None, None
         has_batting = any(len(inn.get("batting", [])) > 0 for inn in innings_data.values()) if innings_data else False
@@ -1565,7 +1650,7 @@ class ESPNClient:
         """Extract full scorecard, live crease, and commentary timeline from ESPN playbyplay feed."""
         items = []
         for period in [1, 2, 3, 4]:
-            url = f"https://site.web.api.espn.com/apis/site/v2/sports/cricket/{league_id}/playbyplay?event={event_id}&period={period}"
+            url = f"https://site.web.api.espn.com/apis/site/v2/sports/cricket/{league_id}/playbyplay?event={event_id}&period={period}&limit=300"
             try:
                 r = self.session.get(url, timeout=6)
                 if r.status_code == 200:
@@ -1585,7 +1670,7 @@ class ESPNClient:
 
         if not items:
             try:
-                url = f"https://site.web.api.espn.com/apis/site/v2/sports/cricket/{league_id}/playbyplay?event={event_id}"
+                url = f"https://site.web.api.espn.com/apis/site/v2/sports/cricket/{league_id}/playbyplay?event={event_id}&limit=300"
                 r = self.session.get(url, timeout=6)
                 if r.status_code == 200:
                     data = r.json()

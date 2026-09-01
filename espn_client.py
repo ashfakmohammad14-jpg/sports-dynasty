@@ -1266,6 +1266,28 @@ class ESPNClient:
         else:
             innings_data = espn_innings
 
+        # 2.5 Always fetch playbyplay for live timeline, full scorecards, and all innings
+        pbp_innings, pbp_crease, pbp_commentary = self._fetch_playbyplay_data(league_id, event_id, header)
+        if pbp_innings:
+            pbp_inn_count = len(pbp_innings)
+            cur_inn_count = len(innings_data) if innings_data else 0
+            
+            pbp_fow_count = sum(len(inn.get("fow", [])) for inn in pbp_innings.values())
+            cur_fow_count = sum(len(inn.get("fow", [])) for inn in innings_data.values()) if innings_data else 0
+            
+            pbp_bat_count = sum(len(inn.get("batting", [])) for inn in pbp_innings.values())
+            cur_bat_count = sum(len(inn.get("batting", [])) for inn in innings_data.values()) if innings_data else 0
+
+            # If playbyplay has more innings (e.g. 2nd innings started) or more wickets or fresher batting:
+            if not innings_data or pbp_inn_count > cur_inn_count or pbp_fow_count > cur_fow_count or (pbp_bat_count > 0 and cur_bat_count == 0):
+                innings_data = pbp_innings
+            else:
+                for inn_k, inn_v in pbp_innings.items():
+                    if inn_k not in innings_data or len(innings_data[inn_k].get("batting", [])) == 0:
+                        innings_data[inn_k] = inn_v
+                    elif len(inn_v.get("fow", [])) > len(innings_data[inn_k].get("fow", [])):
+                        innings_data[inn_k] = inn_v
+
         # Enrich innings_data dismissals with detailed catch/bowler information from playbyplay
         try:
             url_pbp = f"https://site.web.api.espn.com/apis/site/v2/sports/cricket/{league_id}/playbyplay?event={event_id}&limit=300"
@@ -1286,14 +1308,6 @@ class ESPNClient:
                                     b["isNotOut"] = False
         except Exception:
             pass
-
-        # 2.5 Check if playbyplay has scorecard & live crease when matchcards/cricbuzz are empty
-        pbp_innings, pbp_crease, pbp_commentary = None, None, None
-        has_batting = any(len(inn.get("batting", [])) > 0 for inn in innings_data.values()) if innings_data else False
-        if not has_batting:
-            pbp_innings, pbp_crease, pbp_commentary = self._fetch_playbyplay_data(league_id, event_id, header)
-            if pbp_innings and any(len(inn.get("batting", [])) > 0 for inn in pbp_innings.values()):
-                innings_data = pbp_innings
 
         if match_state.lower() in ["post", "final", "completed"]:
             if raw_status_summary and raw_status_summary.lower() not in ["final", "live", "scheduled"]:

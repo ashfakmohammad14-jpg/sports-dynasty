@@ -86,6 +86,23 @@ function initApp() {
 // API Data Fetching
 // -------------------------------------------------------------
 
+function isSecondXIMatch(m) {
+    if (!m) return false;
+    const l = String(m.leagueName || '').toLowerCase();
+    const d = String(m.description || '').toLowerCase();
+    const n = String(m.name || '').toLowerCase();
+    const c1 = m.competitors && m.competitors[0] ? String(m.competitors[0].name || '').toLowerCase() : '';
+    const c2 = m.competitors && m.competitors[1] ? String(m.competitors[1].name || '').toLowerCase() : '';
+    const txt = `${l} ${d} ${n} ${c1} ${c2}`;
+    return (
+        txt.includes('second eleven') || 
+        txt.includes('2nd eleven') || 
+        txt.includes('second xi') || 
+        txt.includes('2nd xi') || 
+        txt.includes('county 2nd')
+    );
+}
+
 async function fetchMatches(silent = false) {
     const refreshIcon = document.getElementById('refresh-icon');
     if (refreshIcon) refreshIcon.classList.add('animate-spin');
@@ -95,8 +112,12 @@ async function fetchMatches(silent = false) {
         if (!resp.ok) throw new Error('Network error fetching matches');
         const data = await resp.json();
 
-        appState.matches = data.matches || [];
-        appState.categories = data.categories || { live: [], recent: [], upcoming: [] };
+        appState.matches = (data.matches || []).filter(m => !isSecondXIMatch(m));
+        appState.categories = {
+            live: ((data.categories && data.categories.live) || []).filter(m => !isSecondXIMatch(m)),
+            recent: ((data.categories && data.categories.recent) || []).filter(m => !isSecondXIMatch(m)),
+            upcoming: ((data.categories && data.categories.upcoming) || []).filter(m => !isSecondXIMatch(m))
+        };
 
         // Update counts
         const liveCountElem = document.getElementById('live-count');

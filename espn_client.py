@@ -1087,6 +1087,19 @@ class ESPNClient:
         self._set_cached(cache_key, result)
         return result
 
+    def _is_second_xi_match(self, league_name: str, name: str, desc: str, competitors: List[Dict[str, Any]]) -> bool:
+        check_text = f"{league_name} {name} {desc}".lower()
+        if any(k in check_text for k in [
+            "second eleven", "2nd eleven", "second xi", "2nd xi", 
+            "county 2nd", "2nd-xi", "second-xi", "2ndxi"
+        ]):
+            return True
+        for c in competitors:
+            c_name = str(c.get("displayName") or c.get("name") or "").lower()
+            if any(k in c_name for k in ["2nd xi", "second xi", "2nd eleven", "second eleven"]):
+                return True
+        return False
+
     def _parse_event(self, event: Dict[str, Any], league_id: str, league_name: str) -> Optional[Dict[str, Any]]:
         try:
             event_id = event.get("id")
@@ -1099,6 +1112,11 @@ class ESPNClient:
             location = event.get("location", "")
             date_str = event.get("date", "")
             event_type = event.get("eventType", "Match")
+
+            competitors_raw = event.get("competitors", [])
+            # Filter out County Second XI / 2nd XI matches
+            if self._is_second_xi_match(league_name, name, description, competitors_raw):
+                return None
             
             full_status = event.get("fullStatus", {})
             status_type = full_status.get("type", {})
@@ -1108,7 +1126,6 @@ class ESPNClient:
             # Use longSummary or summary if available (contains lead / trail info)
             long_summary = full_status.get("longSummary") or full_status.get("summary") or event.get("summary", "")
 
-            competitors_raw = event.get("competitors", [])
             # Sort competitors so the team batting first (order: 1) is always on TOP (at index 0)
             competitors_raw = sorted(competitors_raw, key=lambda c: int(c.get("order", 99)))
             competitors = []

@@ -3687,89 +3687,14 @@ setTimeout(() => {
 }, 3000);
 
 // Initialize analytics and device view on startup
-document.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        initDeviceLayout();
+        updateVisitorAnalytics(false);
+        setInterval(() => updateVisitorAnalytics(true), 15000);
+    });
+} else {
     initDeviceLayout();
     updateVisitorAnalytics(false);
     setInterval(() => updateVisitorAnalytics(true), 15000);
-    startOneCardTimedAdEngine();
-});
-
-// Immediate execution fallback
-setTimeout(() => {
-    initDeviceLayout();
-    updateVisitorAnalytics(false);
-    startOneCardTimedAdEngine();
-}, 200);
-
-// -------------------------------------------------------------
-// -------------------------------------------------------------
-// BROADCAST TIMED ONECARD SPONSOR ENGINE (20s Off / 30s On Loop)
-// -------------------------------------------------------------
-let oneCardEngineStarted = false;
-
-function startOneCardTimedAdEngine() {
-    if (oneCardEngineStarted) return;
-    const banner = document.getElementById('onecard-timed-banner');
-    const progressBar = document.getElementById('onecard-ad-progress');
-    const countdownText = document.getElementById('onecard-countdown-text');
-    if (!banner) return;
-    oneCardEngineStarted = true;
-    
-    let isShowing = false;
-    let countdownInterval = null;
-    let remainingSeconds = 30;
-    
-    function showAd() {
-        if (isShowing) return;
-        isShowing = true;
-        remainingSeconds = 30;
-        
-        banner.classList.remove('translate-y-48', 'opacity-0', 'pointer-events-none');
-        banner.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
-        
-        if (progressBar) {
-            progressBar.style.transition = 'none';
-            progressBar.style.width = '100%';
-            setTimeout(() => {
-                progressBar.style.transition = 'width 30s linear';
-                progressBar.style.width = '0%';
-            }, 50);
-        }
-        
-        if (countdownText) countdownText.textContent = '30s';
-        clearInterval(countdownInterval);
-        countdownInterval = setInterval(() => {
-            remainingSeconds--;
-            if (countdownText) countdownText.textContent = Math.max(remainingSeconds, 0) + 's';
-            if (remainingSeconds <= 0) {
-                clearInterval(countdownInterval);
-                hideAd();
-            }
-        }, 1000);
-        
-        safeCreateIcons();
-    }
-    
-    function hideAd() {
-        if (!isShowing) return;
-        isShowing = false;
-        clearInterval(countdownInterval);
-        
-        banner.classList.add('translate-y-48', 'opacity-0', 'pointer-events-none');
-        banner.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
-        
-        // Wait 20 seconds cooldown, then show again
-        setTimeout(() => {
-            showAd();
-        }, 20000);
-    }
-    
-    window.dismissOneCardAd = function() {
-        hideAd();
-    };
-    
-    // First display starts after 20 seconds of visitor browsing
-    setTimeout(() => {
-        showAd();
-    }, 20000);
 }

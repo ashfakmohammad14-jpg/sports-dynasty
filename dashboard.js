@@ -3761,13 +3761,14 @@ function startOneCardTimedAdEngine() {
 // -------------------------------------------------------------
 // Real-Time Ad Click Tracking & Monetization Telemetry
 // -------------------------------------------------------------
-function trackAdClick(adId = 'onecard_banner') {
+function trackAdClick(adId) {
     try {
-        const url = /api/analytics/click-ad?ad=;
+        var targetAd = adId || 'onecard_banner';
+        var url = '/api/analytics/click-ad?ad=' + encodeURIComponent(targetAd);
         if (navigator.sendBeacon) {
             navigator.sendBeacon(url);
         } else {
-            fetch(url, { method: 'POST', keepalive: true }).catch(() => {});
+            fetch(url, { method: 'POST', keepalive: true }).catch(function() {});
         }
     } catch(e) {}
 }

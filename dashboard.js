@@ -2185,20 +2185,44 @@ function renderActiveInningsScorecard(inn, matchData) {
     // Render Yet to Bat / Did Not Bat (Complete Playing XI visibility)
     const yetToBatContainer = document.getElementById('yet-to-bat-container');
     if (yetToBatContainer) {
-        const ytbList = inn.yetToBat || [];
-        if (ytbList.length > 0) {
+        let ytbList = (inn && inn.yetToBat) ? inn.yetToBat : [];
+
+        // Fallback: Compute yetToBat directly from matchData.squads if not in inn
+        if ((!ytbList || ytbList.length === 0) && matchData && matchData.squads && inn && inn.batting) {
+            const innTeam = (inn.teamName || '').toLowerCase().replace(/\b(women|men|xi|2nd|u19|u-19|a\b|team)\b/g, '').replace(/[^a-z0-9]/g, '');
+            const battedNames = (inn.batting || []).map(b => (b.name || '').toLowerCase().trim());
+            
+            const matchingSquad = (matchData.squads || []).find(sq => {
+                const sqTeam = (sq.teamName || '').toLowerCase().replace(/\b(women|men|xi|2nd|u19|u-19|a\b|team)\b/g, '').replace(/[^a-z0-9]/g, '');
+                return sqTeam && innTeam && (sqTeam === innTeam || sqTeam.includes(innTeam) || innTeam.includes(sqTeam));
+            });
+            
+            if (matchingSquad && matchingSquad.players) {
+                ytbList = matchingSquad.players.filter(p => {
+                    const pName = (p.name || '').toLowerCase().trim();
+                    return !battedNames.some(b => b === pName || (b.length > 3 && pName.includes(b)) || (pName.length > 3 && b.includes(pName)));
+                }).map(p => ({
+                    id: p.id || '',
+                    name: p.name || 'Player',
+                    role: p.role || 'Player',
+                    headshot: p.headshot || ''
+                }));
+            }
+        }
+
+        if (ytbList && ytbList.length > 0) {
             const isLiveInn = (inn.inningsNumber === String(appState.activeInningsKey) && isMatchLive);
             const sectionTitle = isLiveInn ? 'Yet to Bat' : 'Did Not Bat';
             const badgeColor = isLiveInn ? 'bg-emerald-500/10 text-emerald-600 dark:text-[#00ff88] border-emerald-500/30' : 'bg-slate-100 dark:bg-dark-800 text-slate-600 dark:text-gray-400 border-slate-200 dark:border-gray-700';
 
             yetToBatContainer.innerHTML = `
-                <div class="p-3 rounded-xl bg-slate-50 dark:bg-dark-900/80 border border-slate-200/80 dark:border-gray-800/80 shadow-2xs">
-                    <div class="flex items-center justify-between gap-2 mb-2">
+                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-dark-900/80 border border-slate-200/90 dark:border-gray-800 shadow-2xs">
+                    <div class="flex items-center justify-between gap-2 mb-2.5">
                         <div class="text-[11px] font-mono uppercase font-black tracking-wider flex items-center gap-1.5 text-slate-700 dark:text-gray-200">
                             <i data-lucide="users" class="w-3.5 h-3.5 text-emerald-500"></i>
                             <span>${sectionTitle}</span>
-                            <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold border ${badgeColor}">
-                                ${ytbList.length} Players
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${badgeColor}">
+                                ${ytbList.length} Players (Playing XI)
                             </span>
                         </div>
                         <span class="text-[10px] text-slate-400 font-mono">Playing 11</span>
@@ -2208,7 +2232,7 @@ function renderActiveInningsScorecard(inn, matchData) {
                             <div onclick="openPlayerProfile('${p.id || ''}', '${p.name.replace(/'/g, "\\'")}')" 
                                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-dark-800 border border-slate-200/90 dark:border-gray-700/80 hover:border-emerald-500 hover:shadow-xs transition cursor-pointer group/ytb" 
                                  title="View Profile & Stats of ${p.name}">
-                                ${renderPlayerAvatar(p.name, p.headshot, 'w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover object-top border border-emerald-500/30 shrink-0 group-hover/ytb:scale-105 transition')}
+                                ${renderPlayerAvatar(p.name, p.headshot, 'w-5 h-5 rounded-full object-cover object-top border border-emerald-500/30 shrink-0 group-hover/ytb:scale-105 transition')}
                                 <span class="text-xs font-bold text-slate-800 dark:text-gray-200 group-hover/ytb:text-emerald-500 transition">${p.name}</span>
                                 ${p.role && p.role !== 'Player' ? `<span class="text-[9px] text-slate-400 font-mono">(${p.role})</span>` : ''}
                             </div>
@@ -2660,6 +2684,8 @@ function switchMainTab(targetTab) {
 
     if (targetTab === 'analytics' && appState.currentMatchData) {
         renderAnalyticsTab(appState.currentMatchData);
+    } else if (targetTab === 'scorecard' && appState.currentMatchData) {
+        renderScorecardTab(appState.currentMatchData);
     }
     safeCreateIcons();
 }

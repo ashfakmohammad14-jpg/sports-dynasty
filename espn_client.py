@@ -1492,6 +1492,49 @@ class ESPNClient:
                 clean_n = re.sub(r'\s*\([^\)]*\)', '', bw.get("name", "")).strip().lower()
                 bw["headshot"] = player_photo_map.get(clean_n) or player_photo_map.get(bw.get("name", "").strip().lower(), "")
 
+        # Enrich innings with yetToBat (Did Not Bat / Yet to Bat list for Playing 11 visibility)
+        def clean_team_stem(name):
+            s = str(name).lower()
+            s = re.sub(r'\b(women|men|xi|2nd|u19|u-19|a\b|team)\b', '', s).strip()
+            return re.sub(r'[^a-z0-9]', '', s)
+
+        if squads and innings_data:
+            for inn_key, inn in innings_data.items():
+                inn_team = str(inn.get("teamName", ""))
+                stem_inn = clean_team_stem(inn_team)
+                batted_names = [b.get("name", "").lower() for b in inn.get("batting", [])]
+                
+                matching_sq = None
+                for sq in squads:
+                    stem_sq = clean_team_stem(sq.get("teamName", ""))
+                    if stem_sq and stem_inn and (stem_sq == stem_inn or stem_sq in stem_inn or stem_inn in stem_sq):
+                        matching_sq = sq
+                        break
+                
+                if not matching_sq and squads:
+                    try:
+                        sq_idx = int(inn_key) - 1
+                        if sq_idx < len(squads):
+                            matching_sq = squads[sq_idx]
+                    except Exception:
+                        pass
+                
+                if matching_sq:
+                    yet_to_bat = []
+                    for pl in matching_sq.get("players", []):
+                        pl_name = pl.get("name", "")
+                        pl_lower = pl_name.lower()
+                        if not any(b_name == pl_lower or (len(b_name) > 3 and b_name in pl_lower) or (len(pl_lower) > 3 and pl_lower in b_name) for b_name in batted_names):
+                            clean_n = re.sub(r'\s*\([^\)]*\)', '', pl_name).strip().lower()
+                            hshot = player_photo_map.get(clean_n) or player_photo_map.get(pl_lower, "") or pl.get("headshot", "")
+                            yet_to_bat.append({
+                                "id": str(pl.get("id", "")),
+                                "name": pl_name,
+                                "role": pl.get("role", "Player"),
+                                "headshot": hshot
+                            })
+                    inn["yetToBat"] = yet_to_bat
+
         # Process News & Match Coverage
         news_raw = raw.get("news", {})
         articles = []

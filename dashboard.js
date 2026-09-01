@@ -16,6 +16,7 @@ let appState = {
     categories: { live: [], recent: [], upcoming: [] },
     selectedLeagueId: null,
     selectedEventId: null,
+    selectedSeriesFilter: null,
     currentMatchData: null,
     activeCategory: 'all',
     activeTab: 'live',
@@ -339,6 +340,22 @@ function renderMultiInningsScoreHTML(scoreStr, isTeamBattingNow = false, isLiveM
 // UI Rendering - Matches Sidebar List
 // -------------------------------------------------------------
 
+function escapeQuotes(str) {
+    if (!str) return '';
+    return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+function filterBySpecificSeries(seriesName) {
+    if (!seriesName) return;
+    appState.selectedSeriesFilter = seriesName;
+    renderMatchList();
+}
+
+function clearSeriesFilter() {
+    appState.selectedSeriesFilter = null;
+    renderMatchList();
+}
+
 function renderSingleMatchCard(m) {
     const isActive = (m.id === appState.selectedEventId);
     const isLive = m.isLive;
@@ -378,14 +395,20 @@ function renderSingleMatchCard(m) {
         }
     }
 
+    const seriesTitle = m.leagueName || (m.description ? m.description.split(',')[0].trim() : 'Series');
+    const safeSeries = escapeQuotes(seriesTitle);
+
     return `
         <div onclick="selectMatch('${m.leagueId}', '${m.id}')" 
              class="match-card p-3 rounded-xl border border-slate-200 dark:border-gray-800 bg-white dark:bg-dark-800 cursor-pointer ${isActive ? 'active-match' : ''}">
             <div class="flex items-center justify-between gap-1.5 mb-1.5">
-                <div class="flex items-center gap-1.5 truncate max-w-[170px]">
-                    <span class="text-[10px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider truncate" title="${m.leagueName}">
-                        ${m.leagueName}
+                <div onclick="event.stopPropagation(); filterBySpecificSeries('${safeSeries}')" 
+                     class="flex items-center gap-1 truncate max-w-[190px] cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400 transition group/ser" 
+                     title="View all ${seriesTitle} matches">
+                    <span class="text-[10px] font-extrabold text-slate-600 dark:text-gray-300 group-hover/ser:text-emerald-600 dark:group-hover/ser:text-emerald-400 uppercase tracking-wider truncate group-hover/ser:underline">
+                        ${seriesTitle}
                     </span>
+                    <i data-lucide="chevron-right" class="w-3 h-3 text-slate-400 group-hover/ser:text-emerald-500 shrink-0 transition group-hover/ser:translate-x-0.5"></i>
                     ${m.inningsLabel ? `<span class="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold uppercase bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-emerald-300 border border-sky-200 dark:border-sky-800 shrink-0">${m.inningsLabel}</span>` : ''}
                 </div>
                 <span class="text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase shrink-0 ${statusClass}">
@@ -437,7 +460,14 @@ function renderMatchList() {
 
     let filtered = appState.matches;
 
-    if (appState.activeCategory === 'live') {
+    // Series Grouping Mode: When user tapped the Series Name on top of any match card
+    if (appState.selectedSeriesFilter) {
+        const sFilter = appState.selectedSeriesFilter.toLowerCase();
+        filtered = filtered.filter(m => 
+            (m.leagueName && m.leagueName.toLowerCase().includes(sFilter)) ||
+            (m.description && m.description.toLowerCase().includes(sFilter))
+        );
+    } else if (appState.activeCategory === 'live') {
         filtered = appState.categories.live;
     } else if (appState.activeCategory === 'recent') {
         filtered = appState.categories.recent;
@@ -454,62 +484,40 @@ function renderMatchList() {
         );
     }
 
-    if (filtered.length === 0) {
+    if (appState.selectedSeriesFilter) {
         container.innerHTML = `
-            <div class="text-center py-8 text-slate-400 text-xs w-full">
-                <i data-lucide="inbox" class="w-6 h-6 mx-auto mb-2 opacity-50"></i>
-                <p>No matches found in this category.</p>
+            <div class="w-full flex flex-col space-y-3">
+                <div class="flex items-center justify-between bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-transparent border border-emerald-500/40 px-3.5 py-2.5 rounded-2xl shadow-xs">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <button onclick="clearSeriesFilter()" class="flex items-center gap-1.5 text-xs font-black text-emerald-800 dark:text-emerald-300 bg-white dark:bg-dark-800 hover:bg-emerald-50 dark:hover:bg-dark-700 border border-emerald-500/40 px-3 py-1.5 rounded-xl transition active:scale-95 cursor-pointer shadow-sm">
+                            <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> All Matches
+                        </button>
+                        <span class="text-slate-400 font-bold">/</span>
+                        <div class="flex items-center gap-1.5 truncate">
+                            <div class="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shrink-0 shadow-2xs">
+                                <i data-lucide="trophy" class="w-3.5 h-3.5"></i>
+                            </div>
+                            <span class="font-black text-xs sm:text-sm text-slate-900 dark:text-white truncate font-mono">${appState.selectedSeriesFilter}</span>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-mono font-black px-2.5 py-1 rounded-lg bg-emerald-600 text-white shadow-2xs shrink-0">
+                        ${filtered.length} ${filtered.length === 1 ? 'Match' : 'Matches'}
+                    </span>
+                </div>
+                <div class="flex flex-col lg:flex-row space-y-2.5 lg:space-y-0 lg:space-x-3 overflow-x-hidden lg:overflow-x-auto pb-1.5">
+                    ${filtered.length > 0 ? filtered.map(m => renderSingleMatchCard(m)).join('') : '<div class="text-center py-6 text-slate-400 text-xs w-full">No matches found for this tournament.</div>'}
+                </div>
             </div>
         `;
         safeCreateIcons();
         return;
     }
 
-    // Cricbuzz-Style Series View (Group matches by Series / Tournament)
-    if (appState.activeCategory === 'series') {
-        const seriesGroups = {};
-        filtered.forEach(m => {
-            const seriesName = m.leagueName || (m.description ? m.description.split(',')[0].trim() : '') || 'Tournaments & Bilateral Series';
-            if (!seriesGroups[seriesName]) {
-                seriesGroups[seriesName] = {
-                    name: seriesName,
-                    matches: [],
-                    hasLive: false
-                };
-            }
-            seriesGroups[seriesName].matches.push(m);
-            if (m.isLive) seriesGroups[seriesName].hasLive = true;
-        });
-
-        const seriesKeys = Object.keys(seriesGroups);
+    if (filtered.length === 0) {
         container.innerHTML = `
-            <div class="w-full flex flex-col space-y-3">
-                ${seriesKeys.map(k => {
-                    const grp = seriesGroups[k];
-                    return `
-                        <div class="rounded-2xl border border-slate-200/90 dark:border-emerald-500/30 bg-slate-50/80 dark:bg-dark-900/70 p-3 shadow-xs space-y-2.5">
-                            <div class="flex items-center justify-between border-b border-slate-200 dark:border-gray-800 pb-2">
-                                <div class="flex items-center gap-2 min-w-0">
-                                    <div class="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shrink-0 shadow-xs">
-                                        <i data-lucide="trophy" class="w-3.5 h-3.5"></i>
-                                    </div>
-                                    <h3 class="font-black text-xs sm:text-sm text-slate-900 dark:text-white truncate font-mono">
-                                        ${grp.name}
-                                    </h3>
-                                </div>
-                                <div class="flex items-center gap-1.5 shrink-0">
-                                    ${grp.hasLive ? '<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/40 animate-pulse font-mono">● LIVE</span>' : ''}
-                                    <span class="text-[10px] font-bold text-slate-500 dark:text-gray-400 bg-white dark:bg-dark-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-gray-700 font-mono">
-                                        ${grp.matches.length} ${grp.matches.length === 1 ? 'Match' : 'Matches'}
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                                ${grp.matches.map(m => renderSingleMatchCard(m)).join('')}
-                            </div>
-                        </div>
-                    `;
-                }).join('')}
+            <div class="text-center py-8 text-slate-400 text-xs w-full">
+                <i data-lucide="inbox" class="w-6 h-6 mx-auto mb-2 opacity-50"></i>
+                <p>No matches found in this category.</p>
             </div>
         `;
         safeCreateIcons();

@@ -262,6 +262,77 @@ async def get_series():
 async def health_check():
     return {"status": "ok", "service": "Sports Dynasty Live API"}
 
+@app.get("/manifest.json")
+async def get_manifest():
+    return JSONResponse(content={
+        "name": "Sports Dynasty - Live Cricket Score",
+        "short_name": "Sports Dynasty",
+        "description": "Fastest 3D Live Cricket Scorecards, Ball-by-Ball Commentary & Analytics",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#064e3b",
+        "theme_color": "#064e3b",
+        "icons": [
+            {
+                "src": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png",
+                "sizes": "192x192",
+                "type": "image/png"
+            },
+            {
+                "src": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png",
+                "sizes": "512x512",
+                "type": "image/png"
+            }
+        ]
+    })
+
+@app.get("/robots.txt")
+async def get_robots():
+    content = """User-agent: *
+Allow: /
+Sitemap: https://sportsdynasty.in/sitemap.xml
+"""
+    return Response(content=content, media_type="text/plain")
+
+@app.get("/sitemap.xml")
+async def get_sitemap():
+    now_iso = datetime.utcnow().strftime("%Y-%m-%d")
+    xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>https://sportsdynasty.in/</loc>
+        <lastmod>{now_iso}</lastmod>
+        <changefreq>always</changefreq>
+        <priority>1.0</priority>
+    </url>
+    <url>
+        <loc>https://sportsdynasty.in/#tab-live</loc>
+        <lastmod>{now_iso}</lastmod>
+        <changefreq>always</changefreq>
+        <priority>0.9</priority>
+    </url>
+    <url>
+        <loc>https://sportsdynasty.in/#tab-scorecard</loc>
+        <lastmod>{now_iso}</lastmod>
+        <changefreq>always</changefreq>
+        <priority>0.8</priority>
+    </url>
+    <url>
+        <loc>https://sportsdynasty.in/#tab-rankings</loc>
+        <lastmod>{now_iso}</lastmod>
+        <changefreq>daily</changefreq>
+        <priority>0.7</priority>
+    </url>
+    <url>
+        <loc>https://sportsdynasty.in/#tab-news</loc>
+        <lastmod>{now_iso}</lastmod>
+        <changefreq>hourly</changefreq>
+        <priority>0.8</priority>
+    </url>
+</urlset>
+"""
+    return Response(content=xml_content, media_type="application/xml")
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     print("=" * 60)

@@ -414,6 +414,30 @@ function renderSingleMatchCard(m) {
     const seriesTitle = m.leagueName || (m.description ? m.description.split(',')[0].trim() : 'Series');
     const safeSeries = escapeQuotes(seriesTitle);
 
+    let cardRRR = "";
+    if (isLive && c1.score && c2.score && !m.isTestMatch) {
+        const s1 = String(c1.score || "");
+        const s2 = String(c2.score || "");
+        const r1M = s1.match(/^(\d+)/);
+        const r2M = s2.match(/^(\d+)/);
+        const ov2M = s2.match(/\((\d+(?:\.\d+)?)\s*ov/i);
+        if (r1M && r2M && ov2M) {
+            const r1 = parseInt(r1M[1], 10);
+            const r2 = parseInt(r2M[1], 10);
+            const target = r1 + 1;
+            const runsNeed = target - r2;
+            const ov2Val = parseFloat(ov2M[1]);
+            const fullOv = Math.floor(ov2Val);
+            const remBalls = Math.round((ov2Val - fullOv) * 10);
+            const ballsBowled = fullOv * 6 + remBalls;
+            const maxOvers = (s1.includes('/50') || s2.includes('/50') || (m.description && /odi|50/i.test(m.description))) ? 50 : 20;
+            const ballsLeft = Math.max(0, maxOvers * 6 - ballsBowled);
+            if (runsNeed > 0 && ballsLeft > 0) {
+                cardRRR = (runsNeed / (ballsLeft / 6.0)).toFixed(2);
+            }
+        }
+    }
+
     return `
         <div onclick="selectMatch('${m.leagueId}', '${m.id}')" 
              class="match-card p-3 rounded-xl border border-slate-200 dark:border-gray-800 bg-white dark:bg-dark-800 cursor-pointer ${isActive ? 'active-match' : ''}">
@@ -449,7 +473,14 @@ function renderSingleMatchCard(m) {
                 </div>
             </div>
 
-            ${m.winProbability && (isLive || m.winProbability.isLive) ? `
+            ${cardRRR ? `
+                <div class="mt-2 pt-1.5 border-t border-slate-100 dark:border-gray-800/80 flex items-center justify-between text-[10px] font-mono font-bold">
+                    <span class="text-rose-600 dark:text-[#ff4d6d] flex items-center gap-1 font-black">
+                        <i data-lucide="target" class="w-3 h-3 text-rose-500 animate-pulse"></i> RRR: ${cardRRR}
+                    </span>
+                    ${m.crr ? `<span class="text-emerald-600 dark:text-emerald-400 font-bold">CRR: ${m.crr}</span>` : ''}
+                </div>
+            ` : (m.winProbability && (isLive || m.winProbability.isLive) ? `
                 <div class="mt-2 pt-1.5 border-t border-slate-100 dark:border-gray-800/80 flex items-center justify-between text-[10px] font-mono font-bold">
                     <span class="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                         <i data-lucide="trending-up" class="w-3 h-3 text-emerald-500"></i> ${m.winProbability.team1?.shortName} ${m.winProbability.team1?.probability}%
@@ -463,7 +494,7 @@ function renderSingleMatchCard(m) {
                     <span class="w-1.5 h-1.5 rounded-full bg-[#059669] dark:bg-sky-400 shrink-0"></span>
                     <span>${cardSummaryText}</span>
                 </div>
-            ` : '')}
+            ` : ''))}
         </div>
     `;
 }
@@ -905,11 +936,45 @@ function renderHeroBanner(data) {
         }
         const last10 = String(data.liveCrease && data.liveCrease.last10Overs ? data.liveCrease.last10Overs : "");
 
+        // Compute Required Run Rate (RRR) for 2nd innings chase in limited overs
+        let liveRRR = "";
+        const isTestMatch = Boolean(
+            data.isTestMatch || 
+            (data.currentInnings && data.currentInnings.isTestMatch) || 
+            (data.description && /test|4-day|5-day|championship|shield|ranji|trophy/i.test(data.description))
+        );
+
+        if (!isTestMatch && isLive && competitors && competitors.length >= 2) {
+            const s1 = String(c1Score || "");
+            const s2 = String(c2Score || "");
+            const r1M = s1.match(/^(\d+)/);
+            const r2M = s2.match(/^(\d+)/);
+            const ov2M = s2.match(/\((\d+(?:\.\d+)?)\s*ov/i);
+            if (r1M && r2M && ov2M) {
+                const r1 = parseInt(r1M[1], 10);
+                const r2 = parseInt(r2M[1], 10);
+                const target = r1 + 1;
+                const runsNeed = target - r2;
+                const ov2Val = parseFloat(ov2M[1]);
+                const fullOv = Math.floor(ov2Val);
+                const remBalls = Math.round((ov2Val - fullOv) * 10);
+                const ballsBowled = fullOv * 6 + remBalls;
+                const maxOvers = (s1.includes('/50') || s2.includes('/50') || (data.description && /odi|50/i.test(data.description))) ? 50 : 20;
+                const ballsLeft = Math.max(0, maxOvers * 6 - ballsBowled);
+                if (runsNeed > 0 && ballsLeft > 0) {
+                    liveRRR = (runsNeed / (ballsLeft / 6.0)).toFixed(2);
+                }
+            }
+        }
+
         // Determine active batting team for dynamic 3D Active Pod highlighting
         const c1IsBatting = isTeamCurrentlyBatting(c1, data);
         const c2IsBatting = !c1IsBatting ? isTeamCurrentlyBatting(c2, data) : false;
 
         const displayBadge = data.currentInnings && data.currentInnings.displayBadge ? String(data.currentInnings.displayBadge) : '';
+
+        const shareTitle = `${c1Name} vs ${c2Name}`;
+        const shareScore = `${c1Name} ${c1Score} | ${c2Name} ${c2Score}`;
 
         container.innerHTML = `
             <div class="flex flex-col space-y-3">
@@ -920,6 +985,12 @@ function renderHeroBanner(data) {
                         <span class="font-bold truncate max-w-xl text-slate-700 dark:text-emerald-200 text-xs">${seriesText}</span>
                     </div>
                     <div class="flex items-center gap-2 text-slate-600 dark:text-gray-300 font-black text-xs">
+                        <button onclick="shareActiveMatchWhatsApp('${escapeQuotes(shareTitle)}', '${escapeQuotes(shareScore)}', '${escapeQuotes(situationBanner)}')" 
+                                class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#25D366]/15 hover:bg-[#25D366]/30 text-[#16a34a] dark:text-[#4ade80] border border-[#25D366]/40 transition active:scale-95 cursor-pointer text-[11px] font-bold shadow-2xs" 
+                                title="Share live match to WhatsApp">
+                            <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
+                            <span>Share</span>
+                        </button>
                         <button onclick="navigateMatch(-1)" class="hover:text-emerald-500 dark:hover:text-emerald-400 flex items-center gap-1 transition px-2.5 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-dark-800 border border-transparent hover:border-emerald-500/30 active:scale-95">
                             <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i> Prev
                         </button>
@@ -969,7 +1040,12 @@ function renderHeroBanner(data) {
                         ` : ''}
                     </div>
                     <div class="text-[11px] sm:text-xs text-slate-600 dark:text-gray-300 font-bold flex flex-wrap items-center gap-2">
-                        ${renderCompactWinProbBadge(data.winProbability, c1, c2, data.isTestMatch)}
+                        ${liveRRR ? `
+                            <span class="bg-gradient-to-r from-rose-500/15 via-rose-500/10 to-transparent dark:from-rose-950/60 dark:to-dark-900 px-3 py-1 rounded-lg border border-rose-500/40 shadow-sm text-rose-700 dark:text-[#ff4d6d] font-mono font-black flex items-center gap-1.5" title="Required Run Rate: ${liveRRR}">
+                                <i data-lucide="target" class="w-3.5 h-3.5 text-rose-500 animate-pulse"></i>
+                                <span>RRR: <span class="text-slate-900 dark:text-white font-black">${liveRRR}</span></span>
+                            </span>
+                        ` : renderCompactWinProbBadge(data.winProbability, c1, c2, data.isTestMatch)}
                         ${currentCRR ? `<span class="bg-white/80 dark:bg-dark-900/90 px-3 py-1 rounded-lg border border-emerald-500/30 shadow-sm">CRR: <span class="font-mono font-black text-emerald-600 dark:text-emerald-400">${currentCRR}</span></span>` : ''}
                         ${last10 ? `<span class="bg-white/80 dark:bg-dark-900/90 px-3 py-1 rounded-lg border border-emerald-500/30 shadow-sm">Last 10: <span class="font-mono font-bold text-slate-800 dark:text-gray-200">${last10}</span></span>` : ''}
                     </div>
@@ -980,6 +1056,18 @@ function renderHeroBanner(data) {
         console.error("renderHeroBanner execution error:", err);
     }
 }
+
+window.shareActiveMatchWhatsApp = function(title, scoreText, sitText) {
+    const url = 'https://sportsdynasty.in';
+    const text = `🏏 *${title}* Live Scorecard\n📊 ${scoreText}\n⚡ ${sitText}\n👉 Watch Live Ball-by-Ball Scorecard on Sports Dynasty:\n${url}`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+};
+
+window.shareActiveMatchTelegram = function(title, scoreText, sitText) {
+    const url = 'https://sportsdynasty.in';
+    const text = `🏏 ${title} | ${scoreText} • ${sitText} - Live on Sports Dynasty`;
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`, '_blank');
+};
 
 // -------------------------------------------------------------
 // LIVE TAB - CRICINFO MATCH CENTER TABLE & MATCH PULSE

@@ -107,13 +107,12 @@ function isSecondXIMatch(m) {
         txt.includes('2nd-xi') ||
         txt.includes('second-xi') ||
         txt.includes('county 2nd') ||
-        txt.includes('county second') ||
+        txt.includes('county second xi') ||
+        txt.includes('county 2nd xi') ||
         txt.includes('second 11') ||
         txt.includes('2nd 11') ||
         txt.includes('sec xi') ||
-        txt.includes('sec 11') ||
-        txt.includes('2nd innings') ||
-        txt.includes('second innings')
+        txt.includes('sec 11')
     );
 }
 
@@ -2297,7 +2296,7 @@ function renderActiveInningsScorecard(inn, matchData) {
                     </div>
                 </div>
             `;
-            if (window.lucide) window.lucide.createIcons();
+            safeCreateIcons();
         } else {
             yetToBatContainer.innerHTML = '';
         }

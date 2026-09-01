@@ -1088,7 +1088,7 @@ class ESPNClient:
         check_text = f"{league_name} {name} {desc}".lower()
         second_xi_keywords = [
             "second eleven", "2nd eleven", "second xi", "2nd xi", "2nd-xi", "second-xi", "2ndxi",
-            "county 2nd", "county second", "2nd innings", "second innings", "sec xi", "sec 11",
+            "county 2nd", "county second xi", "county 2nd xi", "sec xi", "sec 11",
             "2nd 11", "second 11"
         ]
         if any(k in check_text for k in second_xi_keywords):

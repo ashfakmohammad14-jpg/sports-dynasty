@@ -146,22 +146,28 @@ async def serve_dashboard(request: Request):
     """Serve the Sports Dynasty Cricket Web Platform."""
     content, _ = get_file_content("index.html", "templates")
     if content:
-        return HTMLResponse(content=content)
-    return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Sports Dynasty</title></head><body style="background:#064e3b;color:#fff;font-family:sans-serif;text-align:center;padding:50px;"><h2>🏏 Sports Dynasty Cricket Platform</h2><p>Loading application resources...</p></body></html>""")
+        return HTMLResponse(content=content, media_type="text/html; charset=utf-8")
+    return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Sports Dynasty</title></head><body style="background:#064e3b;color:#fff;font-family:sans-serif;text-align:center;padding:50px;"><h2>Sports Dynasty Cricket Platform</h2><p>Loading application resources...</p></body></html>""")
 
 @app.get("/static/js/{path:path}")
 @app.get("/js/{path:path}")
 @app.get("/dashboard.js")
 async def serve_js(path: str = "dashboard.js"):
-    content, _ = get_file_content("dashboard.js", "static/js")
-    return Response(content=content, media_type="application/javascript")
+    filename = os.path.basename(path) if path.endswith(".js") else "dashboard.js"
+    content, _ = get_file_content(filename, "static/js")
+    if not content:
+        content, _ = get_file_content("dashboard.js", "static/js")
+    return Response(content=content, media_type="application/javascript; charset=utf-8")
 
 @app.get("/static/css/{path:path}")
 @app.get("/css/{path:path}")
 @app.get("/custom.css")
 async def serve_css(path: str = "custom.css"):
-    content, _ = get_file_content("custom.css", "static/css")
-    return Response(content=content, media_type="text/css")
+    filename = os.path.basename(path) if path.endswith(".css") else "custom.css"
+    content, _ = get_file_content(filename, "static/css")
+    if not content:
+        content, _ = get_file_content("custom.css", "static/css")
+    return Response(content=content, media_type="text/css; charset=utf-8")
 
 @app.get("/static/manifest.json")
 @app.get("/manifest.json")

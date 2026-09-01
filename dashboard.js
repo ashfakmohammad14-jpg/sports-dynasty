@@ -38,10 +38,15 @@ let appState = {
     activeRankCategory: 'teams'
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        initTheme();
+        initApp();
+    });
+} else {
     initTheme();
     initApp();
-});
+}
 
 function initTheme() {
     const savedTheme = localStorage.getItem('cricinfo_theme') || 'light';
@@ -99,7 +104,16 @@ function isSecondXIMatch(m) {
         txt.includes('2nd eleven') || 
         txt.includes('second xi') || 
         txt.includes('2nd xi') || 
-        txt.includes('county 2nd')
+        txt.includes('2nd-xi') ||
+        txt.includes('second-xi') ||
+        txt.includes('county 2nd') ||
+        txt.includes('county second') ||
+        txt.includes('second 11') ||
+        txt.includes('2nd 11') ||
+        txt.includes('sec xi') ||
+        txt.includes('sec 11') ||
+        txt.includes('2nd innings') ||
+        txt.includes('second innings')
     );
 }
 

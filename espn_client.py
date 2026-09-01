@@ -1086,14 +1086,16 @@ class ESPNClient:
 
     def _is_second_xi_match(self, league_name: str, name: str, desc: str, competitors: List[Dict[str, Any]]) -> bool:
         check_text = f"{league_name} {name} {desc}".lower()
-        if any(k in check_text for k in [
-            "second eleven", "2nd eleven", "second xi", "2nd xi", 
-            "county 2nd", "2nd-xi", "second-xi", "2ndxi"
-        ]):
+        second_xi_keywords = [
+            "second eleven", "2nd eleven", "second xi", "2nd xi", "2nd-xi", "second-xi", "2ndxi",
+            "county 2nd", "county second", "2nd innings", "second innings", "sec xi", "sec 11",
+            "2nd 11", "second 11"
+        ]
+        if any(k in check_text for k in second_xi_keywords):
             return True
         for c in competitors:
             c_name = str(c.get("displayName") or c.get("name") or "").lower()
-            if any(k in c_name for k in ["2nd xi", "second xi", "2nd eleven", "second eleven"]):
+            if any(k in c_name for k in second_xi_keywords):
                 return True
         return False
 

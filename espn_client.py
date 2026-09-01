@@ -393,10 +393,7 @@ def compute_current_innings_info(innings_data: Dict[str, Any], title: str = "", 
     team_occ_label = ordinals[team_occurrences - 1] if team_occurrences <= 4 else f"{team_occurrences}th"
     team_inn_label = f"{clean_team} {team_occ_label} Innings"
 
-    if is_test:
-        display_badge = f"{match_inn_label} - {team_inn_label}"
-    else:
-        display_badge = f"{match_inn_label} ({clean_team})"
+    display_badge = f"{match_inn_label} ({clean_team})"
 
     return {
         "inningsNumber": str(curr_num),

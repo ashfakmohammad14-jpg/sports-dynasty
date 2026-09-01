@@ -1,0 +1,61 @@
+{
+  "matchId": "1546439",
+  "leagueId": "general",
+  "title": "Cricket Match",
+  "shortName": "",
+  "description": "",
+  "location": "",
+  "city": "",
+  "state": "in",
+  "statusDetail": "Live",
+  "leadSummary": "Live",
+  "currentInnings": {
+    "inningsNumber": "1",
+    "inningsLabel": "1st Innings",
+    "teamName": "",
+    "teamInningsLabel": "",
+    "displayBadge": "1st Innings",
+    "isTestMatch": false,
+    "daySession": ""
+  },
+  "session": "",
+  "isTestMatch": false,
+  "thisSession": "",
+  "notes": [],
+  "crr": "",
+  "competitors": [],
+  "innings": {},
+  "liveCrease": {
+    "hasLiveCrease": false,
+    "batters": [],
+    "activeBowler": null,
+    "recentDeliveries": []
+  },
+  "commentary": [],
+  "squads": [],
+  "news": [],
+  "analytics": {
+    "topBatsmen": [],
+    "topBowlers": [],
+    "partnerships": [],
+    "runsDistribution": []
+  },
+  "odds": [],
+  "leaders": [],
+  "lastUpdated": "2026-09-01 00:46:32",
+  "winProbability": {
+    "team1": {
+      "name": "Team 1",
+      "shortName": "T1",
+      "probability": 50.0
+    },
+    "team2": {
+      "name": "Team 2",
+      "shortName": "T2",
+      "probability": 50.0
+    },
+    "isLive": false,
+    "summary": "50% - 50%",
+    "momentum": "Even Match"
+  }
+}

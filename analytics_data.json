@@ -1,0 +1,22 @@
+{
+  "total_visits": 1522,
+  "today_date": "2026-08-30",
+  "today_visits": 191,
+  "unique_visitors": {
+    "f528764d624d": 1788087114.627333,
+    "laptop_test_1": 1788087143.4674172,
+    "phone_test_2": 1788087143.4908497,
+    "tablet_test_3": 1788087143.5039942,
+    "u1": 1788100217.9918554,
+    "u2": 1788100217.9779198
+  },
+  "active_sessions": {
+    "u1": 1788100217.9918554,
+    "u2": 1788100217.9779198
+  },
+  "total_ad_clicks": 1,
+  "today_ad_clicks": 1,
+  "ad_clicks_breakdown": {
+    "onecard_hero": 1
+  }
+}

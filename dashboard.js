@@ -2944,7 +2944,8 @@ function handleGlobalPlayerSearch(query) {
                         <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
                     </div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
             safeCreateIcons();
         } catch (e) {
             resultsContainer.innerHTML = `<div class="p-4 text-center text-xs text-rose-500">Search error: ${e.message}</div>`;

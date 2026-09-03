@@ -2458,37 +2458,37 @@ function renderActiveInningsScorecard(inn, matchData) {
     if (extrasElem) extrasElem.textContent = inn.extras || '0';
     if (totalElem) totalElem.textContent = formatScorecardTotalWithRR(inn.total, inn.runs);
 
-    // Render Yet to Bat / Did Not Bat (Complete Playing XI visibility)
+    // Render Yet to Bat / Did Not Bat (Strictly Playing XI only)
     const yetToBatContainer = document.getElementById('yet-to-bat-container');
     if (yetToBatContainer) {
         let ytbList = (inn && inn.yetToBat) ? inn.yetToBat : [];
 
-        // Fallback: Compute yetToBat directly from matchData.squads if not in inn
-        if ((!ytbList || ytbList.length === 0) && matchData && matchData.squads && inn && inn.batting) {
-            const innTeam = (inn.teamName || '').toLowerCase().replace(/\b(women|men|xi|2nd|u19|u-19|a\b|team)\b/g, '').replace(/[^a-z0-9]/g, '');
+        const battedCount = (inn && inn.batting) ? inn.batting.length : 0;
+        const maxExpectedYtb = Math.max(0, 11 - battedCount);
+
+        const innTeam = (inn.teamName || '').toLowerCase().replace(/\b(women|men|xi|2nd|u19|u-19|a\b|team)\b/g, '').replace(/[^a-z0-9]/g, '');
+        const matchingSquad = (matchData && matchData.squads) ? matchData.squads.find(sq => {
+            const sqTeam = (sq.teamName || '').toLowerCase().replace(/\b(women|men|xi|2nd|u19|u-19|a\b|team)\b/g, '').replace(/[^a-z0-9]/g, '');
+            return sqTeam && innTeam && (sqTeam === innTeam || sqTeam.includes(innTeam) || innTeam.includes(sqTeam));
+        }) : null;
+
+        if (matchingSquad && matchingSquad.playingXI && matchingSquad.playingXI.length > 0) {
             const battedNames = (inn.batting || []).map(b => (b.name || '').toLowerCase().trim());
-            
-            const matchingSquad = (matchData.squads || []).find(sq => {
-                const sqTeam = (sq.teamName || '').toLowerCase().replace(/\b(women|men|xi|2nd|u19|u-19|a\b|team)\b/g, '').replace(/[^a-z0-9]/g, '');
-                return sqTeam && innTeam && (sqTeam === innTeam || sqTeam.includes(innTeam) || innTeam.includes(sqTeam));
-            });
-            
-            if (matchingSquad) {
-                const candidatePlayers = (matchingSquad.playingXI && matchingSquad.playingXI.length > 0) ? matchingSquad.playingXI : (matchingSquad.players || []);
-                ytbList = candidatePlayers.filter(p => {
-                    const pName = (p.name || '').toLowerCase().trim();
-                    return !battedNames.some(b => b === pName || (b.length > 3 && pName.includes(b)) || (pName.length > 3 && b.includes(pName)));
-                }).map(p => ({
-                    id: p.id || '',
-                    name: p.name || 'Player',
-                    role: p.role || 'Player',
-                    captain: p.captain,
-                    wicketKeeper: p.wicketKeeper,
-                    isCaptain: p.isCaptain,
-                    isWicketKeeper: p.isWicketKeeper,
-                    headshot: p.headshot || ''
-                }));
-            }
+            ytbList = matchingSquad.playingXI.filter(p => {
+                const pName = (p.name || '').toLowerCase().trim();
+                return !battedNames.some(b => b === pName || (b.length > 3 && pName.includes(b)) || (pName.length > 3 && b.includes(pName)));
+            }).map(p => ({
+                id: p.id || '',
+                name: p.name || 'Player',
+                role: p.role || 'Player',
+                captain: p.captain,
+                wicketKeeper: p.wicketKeeper,
+                isCaptain: p.isCaptain,
+                isWicketKeeper: p.isWicketKeeper,
+                headshot: p.headshot || ''
+            }));
+        } else if (ytbList.length > maxExpectedYtb && maxExpectedYtb > 0) {
+            ytbList = ytbList.slice(0, maxExpectedYtb);
         }
 
         if (ytbList && ytbList.length > 0) {
@@ -2503,7 +2503,7 @@ function renderActiveInningsScorecard(inn, matchData) {
                             <i data-lucide="users" class="w-3.5 h-3.5 text-emerald-500"></i>
                             <span>${sectionTitle}</span>
                             <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${badgeColor}">
-                                ${ytbList.length} Players (Playing XI)
+                                ${ytbList.length} Upcoming Batter${ytbList.length === 1 ? '' : 's'}
                             </span>
                         </div>
                         <span class="text-[10px] text-slate-400 font-mono">Playing 11</span>
@@ -2908,8 +2908,8 @@ function renderSquadsTab(data) {
 
     container.innerHTML = squads.map(sq => {
         const playingXI = (sq.playingXI && sq.playingXI.length > 0) ? sq.playingXI : (sq.players || []).slice(0, 11);
-        const bench = (sq.bench && sq.bench.length > 0) ? sq.bench : (sq.players || []).slice(11);
-        const totalCount = (sq.players || []).length || (playingXI.length + bench.length);
+        const bench = (sq.bench && sq.bench.length > 0) ? sq.bench : (sq.fullSquad ? sq.fullSquad.slice(11) : (sq.players || []).slice(11));
+        const totalCount = sq.fullSquad ? sq.fullSquad.length : (playingXI.length + bench.length);
 
         return `
             <div class="bg-white dark:bg-dark-900/90 p-4 rounded-xl border border-slate-200 dark:border-gray-800 space-y-4 shadow-xs">
@@ -3041,12 +3041,31 @@ function renderMatchInfoTab(data) {
 
 // -------------------------------------------------------------
 // Per-Series Tournament Points Table Engine
-// -------------------------------------------------------------
-
-async function renderMatchPointsTableTab(matchData) {
+// -------------async function renderMatchPointsTableTab(matchData) {
     const container = document.getElementById('match-points-table-content');
     if (!container) return;
 
+    const leagueName = String(matchData.leagueName || matchData.description || matchData.seriesTitle || '').toLowerCase();
+    const c1Name = String((matchData.competitors && matchData.competitors[0]?.name) || '').toLowerCase();
+    const c2Name = String((matchData.competitors && matchData.competitors[1]?.name) || '').toLowerCase();
+
+    // 1. Direct official tournament standings from matchData (ESPN provided)
+    if (matchData.standings && matchData.standings.length > 0) {
+        const tournamentTitle = matchData.leagueName || (matchData.description ? matchData.description.split(',')[0].trim() : "Tournament Standings");
+        const activeSeries = {
+            id: 'match-standings',
+            title: tournamentTitle,
+            type: 'Tournament Standings',
+            status: 'Live Standings',
+            dates: matchData.date || '2026',
+            groups: matchData.standings,
+            standings: matchData.standings[0]?.teams || []
+        };
+        renderTournamentPointsTableHTML(container, activeSeries, c1Name, c2Name, matchData);
+        return;
+    }
+
+    // 2. Fetch featured series list if not already cached
     if (!appState.seriesData || appState.seriesData.length === 0) {
         container.innerHTML = `
             <div class="p-8 text-center text-slate-400">
@@ -3066,33 +3085,73 @@ async function renderMatchPointsTableTab(matchData) {
     }
 
     const seriesList = appState.seriesData || [];
-    const leagueName = String(matchData.leagueName || matchData.description || matchData.seriesTitle || '').toLowerCase();
-    const c1Name = String((matchData.competitors && matchData.competitors[0]?.name) || '').toLowerCase();
-    const c2Name = String((matchData.competitors && matchData.competitors[1]?.name) || '').toLowerCase();
 
-    // Match series
+    // Match series against keywords, title, leagueName, or team names
     let matchedSeries = seriesList.find(s => {
         if (!s.standings || s.standings.length === 0) return false;
         const keywords = s.keywords || [s.title.toLowerCase()];
-        return keywords.some(kw => leagueName.includes(kw) || kw.includes(leagueName) || c1Name.includes(kw) || c2Name.includes(kw));
+        return keywords.some(kw => {
+            const lk = kw.toLowerCase();
+            return leagueName.includes(lk) || lk.includes(leagueName) || 
+                   (c1Name && lk.includes(c1Name)) || (c2Name && lk.includes(c2Name));
+        });
     });
 
     if (!matchedSeries) {
-        matchedSeries = seriesList.find(s => s.standings && s.standings.length > 0) || seriesList[0];
+        matchedSeries = seriesList.find(s => {
+            if (!s.standings || s.standings.length === 0) return false;
+            const allTeams = (s.standings || []).map(t => String(t.team || '').toLowerCase());
+            return allTeams.some(t => t.includes(c1Name) || (c1Name && c1Name.includes(t))) &&
+                   allTeams.some(t => t.includes(c2Name) || (c2Name && c2Name.includes(t)));
+        });
     }
 
-    renderTournamentPointsTableHTML(container, matchedSeries, seriesList, c1Name, c2Name, matchData);
+    // STRICT CHECK: If NO series matched, DO NOT SHOW NAMIBIA OR UNRELATED TOURNAMENTS!
+    if (!matchedSeries) {
+        container.innerHTML = `
+            <div class="hud-glass-panel rounded-2xl p-8 border border-slate-200/80 dark:border-gray-800 text-center space-y-3">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto">
+                    <i data-lucide="trophy" class="w-6 h-6"></i>
+                </div>
+                <h4 class="font-black text-slate-900 dark:text-white text-base">Points Table Not Applicable</h4>
+                <p class="text-xs text-slate-500 dark:text-gray-400 max-w-md mx-auto">
+                    Points tables are only available for multi-team tournaments (3 or more teams). Bilateral series and single matches do not have tournament standings.
+                </p>
+            </div>
+        `;
+        safeCreateIcons();
+        return;
+    }
+
+    renderTournamentPointsTableHTML(container, matchedSeries, c1Name, c2Name, matchData);
 }
 
-function renderTournamentPointsTableHTML(container, activeSeries, allSeries, c1Name = '', c2Name = '', matchData = null) {
+function renderTournamentPointsTableHTML(container, activeSeries, c1Name = '', c2Name = '', matchData = null, selectedGroupIndex = -1) {
     if (!container || !activeSeries) return;
 
-    const standingsSeries = allSeries.filter(s => s.standings && s.standings.length > 0);
-    const hasStandings = activeSeries.standings && activeSeries.standings.length > 0;
+    // Support multi-group tournaments (e.g. Group A & Group B in Women's Asia Cup)
+    const groups = activeSeries.groups || [];
+    let currentTeams = activeSeries.standings || [];
+    let activeGroupName = '';
+
+    if (groups.length > 0) {
+        if (selectedGroupIndex < 0 || selectedGroupIndex >= groups.length) {
+            // Automatically select group containing the current match's teams
+            selectedGroupIndex = groups.findIndex(g => {
+                const gTeams = (g.teams || []).map(t => String(t.team || '').toLowerCase());
+                return gTeams.some(t => (c1Name && t.includes(c1Name)) || (c2Name && t.includes(c2Name)));
+            });
+            if (selectedGroupIndex < 0) selectedGroupIndex = 0;
+        }
+        currentTeams = groups[selectedGroupIndex]?.teams || [];
+        activeGroupName = groups[selectedGroupIndex]?.group || groups[selectedGroupIndex]?.name || `Group ${selectedGroupIndex + 1}`;
+    }
+
+    const hasStandings = currentTeams && currentTeams.length > 0;
 
     container.innerHTML = `
         <div class="hud-glass-panel rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-emerald-500/30 shadow-lg space-y-4">
-            <!-- Header with Tournament Selector Pills -->
+            <!-- Header -->
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 dark:border-gray-800 pb-3">
                 <div class="flex items-center space-x-3">
                     <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white shadow-[0_0_15px_rgba(245,158,11,0.4)] shrink-0">
@@ -3103,23 +3162,25 @@ function renderTournamentPointsTableHTML(container, activeSeries, allSeries, c1N
                             <h3 class="text-base sm:text-lg font-black text-slate-900 dark:text-white">${activeSeries.title}</h3>
                             <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-emerald-500/20 text-emerald-700 dark:text-[#00ff88] border border-emerald-500/40">${activeSeries.status || 'Active'}</span>
                         </div>
-                        <p class="text-xs text-slate-500 dark:text-gray-400">${activeSeries.dates || ''} • <span class="font-bold text-emerald-600 dark:text-emerald-400">${activeSeries.type || 'Tournament'}</span> • ${activeSeries.teams || ''}</p>
+                        <p class="text-xs text-slate-500 dark:text-gray-400">${activeSeries.dates || ''} • <span class="font-bold text-emerald-600 dark:text-emerald-400">${activeSeries.type || 'Tournament'}</span> ${activeSeries.teams ? `• ${activeSeries.teams}` : ''}</p>
                     </div>
                 </div>
 
-                <!-- Quick Tournament Switcher -->
-                <div class="flex items-center gap-1.5 flex-wrap">
-                    <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Switch:</span>
-                    ${standingsSeries.map(s => {
-                        const isCurrent = s.id === activeSeries.id;
-                        return `
-                            <button onclick="switchPointsTableSeries('${s.id}')" 
-                                    class="px-2.5 py-1 rounded-lg text-xs font-bold transition ${isCurrent ? 'bg-[#059669] text-white shadow-xs' : 'bg-slate-100 dark:bg-dark-800 text-slate-600 dark:text-gray-300 hover:text-[#059669] border border-slate-200 dark:border-gray-700'}">
-                                ${s.title.split('(')[0].replace('2026', '').replace('2025', '').replace('2024-25', '').trim()}
-                            </button>
-                        `;
-                    }).join('')}
-                </div>
+                <!-- Group Selector Pills (e.g. Group A & Group B) -->
+                ${groups.length > 1 ? `
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        ${groups.map((g, gIdx) => {
+                            const isCurGroup = (gIdx === selectedGroupIndex);
+                            const gTitle = g.group || g.name || `Group ${gIdx + 1}`;
+                            return `
+                                <button onclick="selectTournamentPointsGroup(${gIdx})" 
+                                        class="px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${isCurGroup ? 'bg-[#059669] text-white shadow-xs' : 'bg-slate-100 dark:bg-dark-800 text-slate-600 dark:text-gray-300 hover:text-[#059669] border border-slate-200 dark:border-gray-700'}">
+                                    ${gTitle}
+                                </button>
+                            `;
+                        }).join('')}
+                    </div>
+                ` : ''}
             </div>
 
             <!-- Active Match Teams Indicator -->
@@ -3129,6 +3190,7 @@ function renderTournamentPointsTableHTML(container, activeSeries, allSeries, c1N
                         <i data-lucide="info" class="w-3.5 h-3.5 text-emerald-500"></i>
                         <span>Teams playing in this match are highlighted with <span class="text-emerald-600 dark:text-[#00ff88] font-black">emerald badges</span> in the table below.</span>
                     </span>
+                    ${activeGroupName ? `<span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-[#00ff88]">${activeGroupName}</span>` : ''}
                 </div>
             ` : ''}
 
@@ -3143,22 +3205,21 @@ function renderTournamentPointsTableHTML(container, activeSeries, allSeries, c1N
                                 <th class="py-2.5 px-2 text-right">P</th>
                                 <th class="py-2.5 px-2 text-right">W</th>
                                 <th class="py-2.5 px-2 text-right">L</th>
-                                ${activeSeries.standings[0]?.d !== undefined ? `<th class="py-2.5 px-2 text-right">D</th>` : ''}
-                                ${activeSeries.standings[0]?.nr !== undefined ? `<th class="py-2.5 px-2 text-right">NR</th>` : ''}
-                                ${activeSeries.standings[0]?.nrr !== undefined ? `<th class="py-2.5 px-2 text-right">NRR</th>` : ''}
-                                ${activeSeries.standings[0]?.pct !== undefined ? `<th class="py-2.5 px-2 text-right">PCT %</th>` : ''}
+                                ${currentTeams[0]?.d !== undefined ? `<th class="py-2.5 px-2 text-right">D</th>` : ''}
+                                ${currentTeams[0]?.nr !== undefined ? `<th class="py-2.5 px-2 text-right">NR</th>` : ''}
+                                ${currentTeams[0]?.nrr !== undefined ? `<th class="py-2.5 px-2 text-right">NRR</th>` : ''}
                                 <th class="py-2.5 px-3 text-right font-black text-slate-800 dark:text-white">PTS</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-gray-800/60">
-                            ${activeSeries.standings.map((st, idx) => {
+                            ${currentTeams.map((st, idx) => {
                                 const tNameLower = String(st.team || '').toLowerCase();
                                 const isPlayingNow = (c1Name && tNameLower.includes(c1Name)) || (c2Name && tNameLower.includes(c2Name)) || (c1Name && c1Name.includes(tNameLower)) || (c2Name && c2Name.includes(tNameLower));
                                 const rowHighlight = isPlayingNow ? 'bg-emerald-500/10 dark:bg-emerald-950/40 ring-1 ring-emerald-500/50' : 'hover:bg-slate-50 dark:hover:bg-dark-800/50';
 
                                 return `
                                     <tr class="${rowHighlight} transition">
-                                        <td class="py-2.5 px-3 font-mono font-bold ${idx < 3 ? 'text-amber-500 font-black' : 'text-slate-400'}">${st.rank || (idx + 1)}</td>
+                                        <td class="py-2.5 px-3 font-mono font-bold ${idx < 2 ? 'text-amber-500 font-black' : 'text-slate-400'}">${st.rank || st.pos || (idx + 1)}</td>
                                         <td class="py-2.5 px-3 font-bold text-slate-900 dark:text-white flex items-center gap-2">
                                             ${st.logo ? `<img src="${st.logo}" alt="${st.team}" class="w-5 h-5 object-contain shrink-0" onerror="this.src='https://a.espncdn.com/i/teamlogos/cricket/500/6.png'"/>` : ''}
                                             <span class="truncate">${st.team}</span>
@@ -3170,7 +3231,6 @@ function renderTournamentPointsTableHTML(container, activeSeries, allSeries, c1N
                                         ${st.d !== undefined ? `<td class="py-2.5 px-2 text-right font-mono text-slate-500">${st.d}</td>` : ''}
                                         ${st.nr !== undefined ? `<td class="py-2.5 px-2 text-right font-mono text-slate-500">${st.nr}</td>` : ''}
                                         ${st.nrr !== undefined ? `<td class="py-2.5 px-2 text-right font-mono font-bold text-slate-700 dark:text-gray-300">${st.nrr}</td>` : ''}
-                                        ${st.pct !== undefined ? `<td class="py-2.5 px-2 text-right font-mono font-black text-emerald-600 dark:text-[#00ff88]">${st.pct}%</td>` : ''}
                                         <td class="py-2.5 px-3 text-right font-mono font-black text-sm text-emerald-700 dark:text-[#00ff88] drop-shadow-xs">${st.pts}</td>
                                     </tr>
                                 `;
@@ -3180,7 +3240,7 @@ function renderTournamentPointsTableHTML(container, activeSeries, allSeries, c1N
                 </div>
             ` : `
                 <div class="p-6 text-center text-slate-400 bg-slate-50 dark:bg-dark-900/40 rounded-xl border border-dashed border-slate-200 dark:border-gray-800">
-                    <p class="text-xs">No multi-team standings table available for this series.</p>
+                    <p class="text-xs">No standings recorded yet for this group.</p>
                 </div>
             `}
         </div>
@@ -3189,27 +3249,47 @@ function renderTournamentPointsTableHTML(container, activeSeries, allSeries, c1N
     safeCreateIcons();
 }
 
-function switchPointsTableSeries(seriesId) {
-    const seriesList = appState.seriesData || [];
-    const target = seriesList.find(s => s.id === seriesId);
-    if (!target) return;
-
+function selectTournamentPointsGroup(groupIndex) {
+    if (!appState.currentMatchData) return;
     const container = document.getElementById('match-points-table-content');
     const c1Name = String((appState.currentMatchData?.competitors && appState.currentMatchData.competitors[0]?.name) || '').toLowerCase();
     const c2Name = String((appState.currentMatchData?.competitors && appState.currentMatchData.competitors[1]?.name) || '').toLowerCase();
-
-    renderTournamentPointsTableHTML(container, target, seriesList, c1Name, c2Name, appState.currentMatchData);
+    
+    if (appState.currentMatchData.standings && appState.currentMatchData.standings.length > 0) {
+        const tournamentTitle = appState.currentMatchData.leagueName || (appState.currentMatchData.description ? appState.currentMatchData.description.split(',')[0].trim() : "Tournament Standings");
+        const activeSeries = {
+            id: 'match-standings',
+            title: tournamentTitle,
+            type: 'Tournament Standings',
+            status: 'Live Standings',
+            dates: appState.currentMatchData.date || '2026',
+            groups: appState.currentMatchData.standings,
+            standings: appState.currentMatchData.standings[groupIndex]?.teams || []
+        };
+        renderTournamentPointsTableHTML(container, activeSeries, c1Name, c2Name, appState.currentMatchData, groupIndex);
+    } else {
+        const seriesList = appState.seriesData || [];
+        const leagueName = String(appState.currentMatchData.leagueName || appState.currentMatchData.description || '').toLowerCase();
+        let matchedSeries = seriesList.find(s => {
+            if (!s.standings || s.standings.length === 0) return false;
+            const keywords = s.keywords || [s.title.toLowerCase()];
+            return keywords.some(kw => leagueName.includes(kw.toLowerCase()));
+        });
+        if (matchedSeries) {
+            renderTournamentPointsTableHTML(container, matchedSeries, c1Name, c2Name, appState.currentMatchData, groupIndex);
+        }
+    }
 }
 
 function viewMatchPointsTable(leagueId, eventId) {
     selectMatch(leagueId, eventId, false);
     setTimeout(() => {
-        switchMainTab('standings');
-        const standingsEl = document.getElementById('tab-standings');
-        if (standingsEl) {
-            standingsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        switchMatchTab('points-table');
+        const ptEl = document.getElementById('match-points-table-content');
+        if (ptEl) {
+            ptEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-    }, 150);
+    }, 250);
 }
 
 // -------------------------------------------------------------

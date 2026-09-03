@@ -1604,7 +1604,12 @@ class ESPNClient:
                 
                 if matching_sq:
                     yet_to_bat = []
-                    for pl in matching_sq.get("players", []):
+                    # STRICT RULE: Scorecard yet to bat must ONLY contain Playing 11 players (never bench)!
+                    candidate_players = matching_sq.get("playingXI") or matching_sq.get("players", [])
+                    if len(candidate_players) > 11:
+                        candidate_players = candidate_players[:11]
+
+                    for pl in candidate_players:
                         pl_name = pl.get("name", "")
                         if not any(is_same_player(b_name, pl_name) for b_name in batted_names):
                             clean_n = re.sub(r'\s*\([^\)]*\)', '', pl_name).strip().lower()
@@ -1613,6 +1618,10 @@ class ESPNClient:
                                 "id": str(pl.get("id", "")),
                                 "name": pl_name,
                                 "role": pl.get("role", "Player"),
+                                "captain": pl.get("captain", False),
+                                "wicketKeeper": pl.get("wicketKeeper", False),
+                                "isCaptain": pl.get("captain", False),
+                                "isWicketKeeper": pl.get("wicketKeeper", False),
                                 "headshot": hshot
                             })
                     inn["yetToBat"] = yet_to_bat
@@ -1733,6 +1742,73 @@ class ESPNClient:
         if this_session:
             live_crease["thisSession"] = this_session
 
+        # Process official tournament standings / points table if provided by ESPN
+        def _to_safe_int(val, default=0):
+            try:
+                digits = re.sub(r'[^\d]', '', str(val or ''))
+                return int(digits) if digits else default
+            except Exception:
+                return default
+
+        raw_standings = raw.get("standings", {})
+        standings_data = []
+        if isinstance(raw_standings, dict) and raw_standings:
+            children = raw_standings.get("children", [])
+            if children:
+                for group in children:
+                    g_name = group.get("name", "Standings")
+                    entries = group.get("standings", {}).get("entries", [])
+                    group_teams = []
+                    for e in entries:
+                        team = e.get("team", {})
+                        stats = {s.get("name"): s.get("displayValue") for s in e.get("stats", [])}
+                        logo = team.get("logos", [{}])[0].get("href", "") if team.get("logos") else ""
+                        if not logo and team.get("id"):
+                            logo = f"https://a.espncdn.com/i/teamlogos/cricket/500/{team.get('id')}.png"
+                        group_teams.append({
+                            "pos": _to_safe_int(stats.get("rank")) or len(group_teams) + 1,
+                            "team": team.get("displayName", team.get("name", "Team")),
+                            "abbr": team.get("abbreviation", ""),
+                            "logo": logo,
+                            "p": _to_safe_int(stats.get("matchesPlayed") or stats.get("played") or stats.get("gamesPlayed")),
+                            "w": _to_safe_int(stats.get("matchesWon") or stats.get("wins")),
+                            "l": _to_safe_int(stats.get("matchesLost") or stats.get("losses")),
+                            "nr": _to_safe_int(stats.get("noresult")),
+                            "pts": _to_safe_int(stats.get("matchPoints") or stats.get("points")),
+                            "nrr": str(stats.get("netrr") or stats.get("netRunRate") or "0.000")
+                        })
+                    if group_teams:
+                        standings_data.append({
+                            "group": g_name,
+                            "teams": group_teams
+                        })
+            else:
+                entries = raw_standings.get("standings", {}).get("entries", [])
+                flat_teams = []
+                for e in entries:
+                    team = e.get("team", {})
+                    stats = {s.get("name"): s.get("displayValue") for s in e.get("stats", [])}
+                    logo = team.get("logos", [{}])[0].get("href", "") if team.get("logos") else ""
+                    if not logo and team.get("id"):
+                        logo = f"https://a.espncdn.com/i/teamlogos/cricket/500/{team.get('id')}.png"
+                    flat_teams.append({
+                        "pos": _to_safe_int(stats.get("rank")) or len(flat_teams) + 1,
+                        "team": team.get("displayName", team.get("name", "Team")),
+                        "abbr": team.get("abbreviation", ""),
+                        "logo": logo,
+                        "p": _to_safe_int(stats.get("matchesPlayed") or stats.get("played")),
+                        "w": _to_safe_int(stats.get("matchesWon") or stats.get("wins")),
+                        "l": _to_safe_int(stats.get("matchesLost") or stats.get("losses")),
+                        "nr": _to_safe_int(stats.get("noresult")),
+                        "pts": _to_safe_int(stats.get("matchPoints") or stats.get("points")),
+                        "nrr": str(stats.get("netrr") or stats.get("netRunRate") or "0.000")
+                    })
+                if flat_teams:
+                    standings_data.append({
+                        "group": raw_standings.get("name", "Standings"),
+                        "teams": flat_teams
+                    })
+
         result = {
             "matchId": event_id,
             "leagueId": league_id,
@@ -1755,6 +1831,7 @@ class ESPNClient:
             "liveCrease": live_crease,
             "commentary": commentary,
             "squads": squads,
+            "standings": standings_data,
             "news": articles,
             "analytics": analytics,
             "odds": odds_raw,
@@ -3323,13 +3400,21 @@ class ESPNClient:
                     "headshot": headshot
                 })
 
+            # Strict cap: Playing XI must have exactly 11 players (move excess substitutes to bench)
+            bench_from_roster = []
+            if len(playing_xi) > 11:
+                bench_from_roster = playing_xi[11:]
+                playing_xi = playing_xi[:11]
+                playing_ids = {p["id"] for p in playing_xi if p.get("id")}
+                playing_names = {p["name"].strip().lower() for p in playing_xi if p.get("name")}
+
             # Match full squad from ESPN 'squads' array
             matched_sq = next(
                 (sq for sq in full_squads if str(sq.get("team", {}).get("id", "")) == team_id or 
                  sq.get("team", {}).get("displayName", "").lower() == team_name.lower()), 
                 None
             )
-            bench_players = []
+            bench_players = list(bench_from_roster)
             if matched_sq:
                 for ath in matched_sq.get("athletes", []):
                     p_id = str(ath.get("id", ""))
@@ -3373,7 +3458,8 @@ class ESPNClient:
                 "teamLogo": team_logo,
                 "playingXI": playing_xi,
                 "bench": bench_players,
-                "players": playing_xi + bench_players
+                "players": playing_xi,
+                "fullSquad": playing_xi + bench_players
             })
         return squads
 
@@ -3788,6 +3874,59 @@ class ESPNClient:
     def get_featured_series(self) -> List[Dict[str, Any]]:
         """Return active & upcoming tournaments, leagues, and comprehensive per-series points tables."""
         return [
+            {
+                "id": "womens-t20-asia-cup-2026",
+                "title": "Women's Twenty20 Asia Cup 2026",
+                "dates": "Aug 28 - Sep 10, 2026",
+                "type": "T20I Tournament",
+                "status": "Ongoing",
+                "teams": "8 Teams (Group A & B)",
+                "matchType": "t20i",
+                "keywords": ["women's twenty20 asia cup", "women asia cup", "womens asia cup", "asia cup women", "hong kong women", "india women", "pakistan women", "thailand women", "sri lanka women", "bangladesh women", "indonesia women", "uae women", "united arab emirates women"],
+                "standings": [
+                    {"rank": 1, "team": "India Women", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1814.png", "p": 1, "w": 1, "l": 0, "nr": 0, "nrr": "+4.700", "pts": 2},
+                    {"rank": 2, "team": "Pakistan Women", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1817.png", "p": 1, "w": 1, "l": 0, "nr": 0, "nrr": "+1.750", "pts": 2},
+                    {"rank": 3, "team": "Thailand Women", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/3874.png", "p": 3, "w": 1, "l": 2, "nr": 0, "nrr": "-2.050", "pts": 2},
+                    {"rank": 4, "team": "Hong Kong Women", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1813.png", "p": 1, "w": 0, "l": 1, "nr": 0, "nrr": "-0.300", "pts": 0},
+                    {"rank": 5, "team": "Sri Lanka Women", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1818.png", "p": 2, "w": 2, "l": 0, "nr": 0, "nrr": "+4.129", "pts": 4},
+                    {"rank": 6, "team": "Bangladesh Women", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1812.png", "p": 1, "w": 1, "l": 0, "nr": 0, "nrr": "+3.550", "pts": 2},
+                    {"rank": 7, "team": "Indonesia Women", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/3875.png", "p": 2, "w": 0, "l": 2, "nr": 0, "nrr": "-3.650", "pts": 0},
+                    {"rank": 8, "team": "United Arab Emirates Women", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/3876.png", "p": 1, "w": 0, "l": 1, "nr": 0, "nrr": "-6.263", "pts": 0}
+                ],
+                "groups": [
+                    {
+                        "name": "Group A",
+                        "teams": [
+                            {"rank": 1, "team": "India Women", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1814.png", "p": 1, "w": 1, "l": 0, "nr": 0, "nrr": "+4.700", "pts": 2},
+                            {"rank": 2, "team": "Pakistan Women", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1817.png", "p": 1, "w": 1, "l": 0, "nr": 0, "nrr": "+1.750", "pts": 2},
+                            {"rank": 3, "team": "Thailand Women", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/3874.png", "p": 3, "w": 1, "l": 2, "nr": 0, "nrr": "-2.050", "pts": 2},
+                            {"rank": 4, "team": "Hong Kong Women", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1813.png", "p": 1, "w": 0, "l": 1, "nr": 0, "nrr": "-0.300", "pts": 0}
+                        ]
+                    },
+                    {
+                        "name": "Group B",
+                        "teams": [
+                            {"rank": 1, "team": "Sri Lanka Women", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1818.png", "p": 2, "w": 2, "l": 0, "nr": 0, "nrr": "+4.129", "pts": 4},
+                            {"rank": 2, "team": "Bangladesh Women", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1812.png", "p": 1, "w": 1, "l": 0, "nr": 0, "nrr": "+3.550", "pts": 2},
+                            {"rank": 3, "team": "Indonesia Women", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/3875.png", "p": 2, "w": 0, "l": 2, "nr": 0, "nrr": "-3.650", "pts": 0},
+                            {"rank": 4, "team": "United Arab Emirates Women", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/3876.png", "p": 1, "w": 0, "l": 1, "nr": 0, "nrr": "-6.263", "pts": 0}
+                        ]
+                    }
+                ],
+                "fixtures": {
+                    "recent": [
+                        {"match": "Match 1", "team1": "Pakistan Women", "score1": "119/5 (20.0 ov)", "team2": "Hong Kong Women", "score2": "84/8 (20.0 ov)", "result": "Pakistan Women won by 35 runs", "date": "Aug 28"},
+                        {"match": "Match 2", "team1": "India Women", "score1": "159/3 (20.0 ov)", "team2": "Thailand Women", "score2": "65 (18.2 ov)", "result": "India Women won by 94 runs", "date": "Aug 29"},
+                        {"match": "Match 3", "team1": "Sri Lanka Women", "score1": "124/4 (20.0 ov)", "team2": "Bangladesh Women", "score2": "121/7 (20.0 ov)", "result": "Sri Lanka Women won by 3 runs", "date": "Aug 30"},
+                        {"match": "Match 4", "team1": "Indonesia Women", "score1": "49 (16.4 ov)", "team2": "Sri Lanka Women", "score2": "80/0 (7.5 ov)", "result": "Sri Lanka Women won by 10 wkts", "date": "Aug 31"}
+                    ],
+                    "upcoming": [
+                        {"match": "Match 8", "team1": "Pakistan Women", "team2": "Thailand Women", "time": "1:30 PM IST", "date": "Sep 4", "venue": "Dubai"},
+                        {"match": "Match 9", "team1": "Bangladesh Women", "team2": "Indonesia Women", "time": "5:30 PM IST", "date": "Sep 4", "venue": "Dubai"},
+                        {"match": "Match 10", "team1": "India Women", "team2": "Pakistan Women", "time": "5:30 PM IST", "date": "Sep 6", "venue": "Dubai"}
+                    ]
+                }
+            },
             {
                 "id": "namibia-tri-series-2026",
                 "title": "Namibia T20 Tri-Series",

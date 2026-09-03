@@ -85,6 +85,17 @@ function initApp() {
     setupRefresh();
     startPollingTimer();
     fetchMatches(false);
+    fetchSeriesData();
+}
+
+async function fetchSeriesData() {
+    try {
+        const resp = await fetch('/api/series');
+        if (resp.ok) {
+            const data = await resp.json();
+            appState.allSeriesData = data.series || [];
+        }
+    } catch(e) {}
 }
 
 // -------------------------------------------------------------
@@ -612,8 +623,33 @@ function renderMatchList() {
     }
 
     if (appState.selectedSeriesFilter) {
+        const sFilter = appState.selectedSeriesFilter.toLowerCase();
+        
+        // Feed matches
+        const feedMatches = (appState.matches || []).filter(m => 
+            (m.leagueName && m.leagueName.toLowerCase().includes(sFilter)) ||
+            (m.description && m.description.toLowerCase().includes(sFilter)) ||
+            (m.name && m.name.toLowerCase().includes(sFilter))
+        );
+
+        // Matching tournament from appState.allSeriesData
+        const matchedSeries = (appState.allSeriesData || []).find(s => {
+            const sTitle = s.title.toLowerCase();
+            const keywords = (s.keywords || [sTitle]).map(k => k.toLowerCase());
+            return sTitle.includes(sFilter) || sFilter.includes(sTitle) || keywords.some(k => sFilter.includes(k) || k.includes(sFilter));
+        });
+
+        const liveFeed = feedMatches.filter(m => m.isLive);
+        const recentFeed = feedMatches.filter(m => !m.isLive && (m.isCompleted || (m.state && ['post', 'final', 'completed'].includes(m.state.toLowerCase()))));
+        const upcomingFeed = feedMatches.filter(m => !m.isLive && (m.isUpcoming || (m.state && ['pre', 'scheduled'].includes(m.state.toLowerCase()))));
+
+        const staticRecent = (matchedSeries && matchedSeries.fixtures && matchedSeries.fixtures.recent) ? matchedSeries.fixtures.recent : [];
+        const staticUpcoming = (matchedSeries && matchedSeries.fixtures && matchedSeries.fixtures.upcoming) ? matchedSeries.fixtures.upcoming : [];
+
+        const totalMatchesCount = liveFeed.length + recentFeed.length + upcomingFeed.length + staticRecent.length + staticUpcoming.length;
+
         container.innerHTML = `
-            <div class="w-full flex flex-col space-y-3">
+            <div class="w-full flex flex-col space-y-4">
                 <div class="flex items-center justify-between bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-transparent border border-emerald-500/40 px-3.5 py-2.5 rounded-2xl shadow-xs">
                     <div class="flex items-center gap-2.5 min-w-0">
                         <button onclick="clearSeriesFilter()" class="flex items-center gap-1.5 text-xs font-black text-emerald-800 dark:text-emerald-300 bg-white dark:bg-dark-800 hover:bg-emerald-50 dark:hover:bg-dark-700 border border-emerald-500/40 px-3 py-1.5 rounded-xl transition active:scale-95 cursor-pointer shadow-sm">
@@ -629,16 +665,102 @@ function renderMatchList() {
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
                         <button onclick="switchPlatformView('series')" class="flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-[#00ff88] bg-white dark:bg-dark-800 hover:bg-emerald-50 dark:hover:bg-dark-700 px-2.5 py-1 rounded-lg border border-emerald-500/40 transition shadow-2xs cursor-pointer">
-                            <i data-lucide="trophy" class="w-3 h-3 text-amber-400"></i>
-                            <span>Series Hub</span>
+                            <i data-lucide="award" class="w-3.5 h-3.5 text-amber-400"></i>
+                            <span>Points Table</span>
                         </button>
                         <span class="text-[10px] font-mono font-black px-2.5 py-1 rounded-lg bg-emerald-600 text-white shadow-2xs shrink-0">
-                            ${filtered.length} ${filtered.length === 1 ? 'Match' : 'Matches'}
+                            ${totalMatchesCount} ${totalMatchesCount === 1 ? 'Match' : 'Matches'}
                         </span>
                     </div>
                 </div>
-                <div class="flex flex-col lg:flex-row space-y-2.5 lg:space-y-0 lg:space-x-3 overflow-x-hidden lg:overflow-x-auto pb-1.5">
-                    ${filtered.length > 0 ? filtered.map(m => renderSingleMatchCard(m)).join('') : '<div class="text-center py-6 text-slate-400 text-xs w-full">No matches found for this tournament.</div>'}
+
+                ${liveFeed.length > 0 ? `
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-1.5 text-xs font-mono font-black uppercase text-rose-500">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
+                            Live Now (${liveFeed.length})
+                        </div>
+                        <div class="flex flex-col lg:flex-row space-y-2.5 lg:space-y-0 lg:space-x-3 overflow-x-hidden lg:overflow-x-auto pb-1.5">
+                            ${liveFeed.map(m => renderSingleMatchCard(m)).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between text-xs font-mono font-black uppercase text-emerald-700 dark:text-emerald-300">
+                        <span class="flex items-center gap-1.5">
+                            <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-500"></i>
+                            Ho Chuke Matches (Completed Results)
+                        </span>
+                        <span class="text-[10px] font-mono text-slate-400">${recentFeed.length + staticRecent.length} Matches</span>
+                    </div>
+                    ${recentFeed.length > 0 ? `
+                        <div class="flex flex-col lg:flex-row space-y-2.5 lg:space-y-0 lg:space-x-3 overflow-x-hidden lg:overflow-x-auto pb-1.5">
+                            ${recentFeed.map(m => renderSingleMatchCard(m)).join('')}
+                        </div>
+                    ` : ''}
+                    ${staticRecent.length > 0 ? `
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                            ${staticRecent.map(m => `
+                                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-dark-900/70 border border-slate-200 dark:border-gray-800 space-y-2">
+                                    <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+                                        <span class="truncate">${m.match || ''}</span>
+                                        <span>${m.date || ''}</span>
+                                    </div>
+                                    <div class="space-y-1 text-xs">
+                                        <div class="flex justify-between font-bold text-slate-900 dark:text-white">
+                                            <span>${m.team1}</span>
+                                            <span class="font-mono text-emerald-600 dark:text-[#00ff88] font-black">${m.score1 || '-'}</span>
+                                        </div>
+                                        <div class="flex justify-between font-bold text-slate-900 dark:text-white">
+                                            <span>${m.team2}</span>
+                                            <span class="font-mono text-slate-600 dark:text-gray-300 font-semibold">${m.score2 || '-'}</span>
+                                        </div>
+                                    </div>
+                                    <div class="pt-1.5 border-t border-slate-200/60 dark:border-gray-800 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                        <i data-lucide="check" class="w-3 h-3 text-emerald-500"></i>
+                                        <span>${m.result}</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : (recentFeed.length === 0 ? '<div class="text-slate-400 text-xs py-2 text-center">No completed matches recorded yet.</div>' : '')}
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between text-xs font-mono font-black uppercase text-blue-600 dark:text-blue-400">
+                        <span class="flex items-center gap-1.5">
+                            <i data-lucide="calendar" class="w-3.5 h-3.5 text-blue-500"></i>
+                            Hone Wale Matches (Upcoming Schedule)
+                        </span>
+                        <span class="text-[10px] font-mono text-slate-400">${upcomingFeed.length + staticUpcoming.length} Matches</span>
+                    </div>
+                    ${upcomingFeed.length > 0 ? `
+                        <div class="flex flex-col lg:flex-row space-y-2.5 lg:space-y-0 lg:space-x-3 overflow-x-hidden lg:overflow-x-auto pb-1.5">
+                            ${upcomingFeed.map(m => renderSingleMatchCard(m)).join('')}
+                        </div>
+                    ` : ''}
+                    ${staticUpcoming.length > 0 ? `
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                            ${staticUpcoming.map(m => `
+                                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-dark-900/70 border border-slate-200 dark:border-gray-800 space-y-2">
+                                    <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+                                        <span class="truncate">${m.match || ''}</span>
+                                        <span class="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold">${m.time || 'Upcoming'}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center py-1 text-xs font-black text-slate-900 dark:text-white">
+                                        <span class="truncate">${m.team1}</span>
+                                        <span class="text-[10px] text-slate-400 font-mono px-2">VS</span>
+                                        <span class="truncate">${m.team2}</span>
+                                    </div>
+                                    <div class="pt-1.5 border-t border-slate-200/60 dark:border-gray-800 text-[10px] text-slate-500 dark:text-gray-400 flex justify-between">
+                                        <span class="truncate flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3 text-slate-400"></i> ${m.venue || ''}</span>
+                                        <span class="font-mono font-bold">${m.date || ''}</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : (upcomingFeed.length === 0 ? '<div class="text-slate-400 text-xs py-2 text-center">No upcoming matches scheduled.</div>' : '')}
                 </div>
             </div>
         `;
@@ -3435,13 +3557,11 @@ async function fetchSeries() {
 
                     <!-- Interactive Sub-Tabs -->
                     <div class="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100/90 dark:bg-dark-900/90 rounded-xl border border-slate-200 dark:border-gray-800">
-                        ${hasStandings ? `
-                            <button onclick="switchSeriesSubTab('${s.id}', 'standings')" id="btn-tab-${s.id}-standings" class="series-subtab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-white dark:bg-dark-800 text-emerald-600 dark:text-[#00ff88] shadow-xs">
-                                <i data-lucide="award" class="w-3.5 h-3.5"></i>
-                                <span>Points Table</span>
-                            </button>
-                        ` : ''}
-                        <button onclick="switchSeriesSubTab('${s.id}', 'recent')" id="btn-tab-${s.id}-recent" class="series-subtab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${!hasStandings ? 'bg-white dark:bg-dark-800 text-emerald-600 dark:text-[#00ff88] shadow-xs' : 'text-slate-600 dark:text-gray-300 hover:text-emerald-600'}">
+                        <button onclick="switchSeriesSubTab('${s.id}', 'all-matches')" id="btn-tab-${s.id}-all-matches" class="series-subtab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-white dark:bg-dark-800 text-emerald-600 dark:text-[#00ff88] shadow-xs">
+                            <i data-lucide="layers" class="w-3.5 h-3.5 text-amber-500"></i>
+                            <span>Ho Chuke + Hone Wale Matches</span>
+                        </button>
+                        <button onclick="switchSeriesSubTab('${s.id}', 'recent')" id="btn-tab-${s.id}-recent" class="series-subtab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-600 dark:text-gray-300 hover:text-emerald-600">
                             <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-500"></i>
                             <span>Ho Chuke (${recentMatches.length})</span>
                         </button>
@@ -3449,21 +3569,23 @@ async function fetchSeries() {
                             <i data-lucide="calendar" class="w-3.5 h-3.5 text-blue-500"></i>
                             <span>Hone Wale (${upcomingMatches.length})</span>
                         </button>
+                        ${hasStandings ? `
+                            <button onclick="switchSeriesSubTab('${s.id}', 'standings')" id="btn-tab-${s.id}-standings" class="series-subtab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-600 dark:text-gray-300 hover:text-emerald-600">
+                                <i data-lucide="award" class="w-3.5 h-3.5"></i>
+                                <span>Points Table</span>
+                            </button>
+                        ` : ''}
                         ${liveMatches.length > 0 ? `
                             <button onclick="switchSeriesSubTab('${s.id}', 'live')" id="btn-tab-${s.id}-live" class="series-subtab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-rose-500 hover:text-rose-600">
                                 <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
                                 <span>Live (${liveMatches.length})</span>
                             </button>
                         ` : ''}
-                        <button onclick="switchSeriesSubTab('${s.id}', 'all-matches')" id="btn-tab-${s.id}-all-matches" class="series-subtab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-600 dark:text-gray-300 hover:text-amber-500">
-                            <i data-lucide="layers" class="w-3.5 h-3.5 text-amber-500"></i>
-                            <span>Sabhi Matches (Dono)</span>
-                        </button>
                     </div>
 
                     <!-- Panel 1: Standings (Points Table) -->
                     ${hasStandings ? `
-                        <div id="panel-${s.id}-standings" class="series-subpanel space-y-2">
+                        <div id="panel-${s.id}-standings" class="series-subpanel space-y-2 hidden">
                             <div class="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-gray-800">
                                 <table class="w-full text-left text-xs border-collapse">
                                     <thead>
@@ -3619,7 +3741,7 @@ async function fetchSeries() {
                     ` : ''}
 
                     <!-- Panel 5: Sabhi Matches (Ho Chuke + Hone Wale Dono Ek Sath) -->
-                    <div id="panel-${s.id}-all-matches" class="series-subpanel space-y-5 hidden">
+                    <div id="panel-${s.id}-all-matches" class="series-subpanel space-y-5 block">
                         ${liveMatches.length > 0 ? `
                             <div class="space-y-2">
                                 <h5 class="text-xs font-mono font-black uppercase text-rose-500 flex items-center gap-1.5">

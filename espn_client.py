@@ -608,15 +608,15 @@ def normalize_competitor_score_from_raw(comp_dict: Dict[str, Any], is_test_match
     s = clean_event_competitor_score(raw_score, is_test_match)
     linescores = comp_dict.get("linescores", [])
     
-    # If score is missing runs or starts with "(" e.g. "(5 wkts; 16.3 ovs)" or "(all out; 9.5 ovs)"
-    if s.startswith("(") or (s and not re.match(r'^\d', s)):
+    # If raw score has no runs or starts with "(" without runs e.g. "(86 ov)"
+    if not s or not re.search(r'\d', s) or s.startswith("(") or (s and not re.match(r'^\d', s)):
         if linescores:
             parts = []
             for ls in linescores:
                 r = ls.get("runs")
                 w = ls.get("wickets")
                 ov = ls.get("overs")
-                if r is not None and int(r) > 0:
+                if r is not None and str(r).isdigit() and int(r) > 0:
                     ov_s = str(ov)[:-2] if str(ov).endswith('.0') else str(ov)
                     ov_str = f" ({ov_s} ov)" if ov else ""
                     if w == 10 or str(w) == "10":
@@ -627,17 +627,24 @@ def normalize_competitor_score_from_raw(comp_dict: Dict[str, Any], is_test_match
                         parts.append(f"{r}{ov_str}")
             if parts:
                 return " & ".join(parts)
+        # If no batting runs exist for this team, they have not batted yet!
+        return ""
     elif linescores and not is_test_match and "(" not in s and "ov" not in s.lower():
-        # Find the batting linescore for this team (period 1 for team 1, period 2 for team 2)
-        bat_ls = next((ls for ls in linescores if ls.get("period") == 1 or (ls.get("runs") is not None and int(ls.get("runs", 0)) > 0)), linescores[0])
-        ov = bat_ls.get("overs")
-        if ov and str(ov) not in ["0", "0.0", ""]:
-            ov_s = str(ov)[:-2] if str(ov).endswith('.0') else str(ov)
-            s = f"{s} ({ov_s} ov)"
+        # Only append overs if team has actually scored runs
+        if re.match(r'^\d', s.strip()):
+            bat_ls = next((ls for ls in linescores if ls.get("period") == 1 or (ls.get("runs") is not None and int(ls.get("runs", 0)) > 0)), linescores[0])
+            ov = bat_ls.get("overs")
+            r = bat_ls.get("runs")
+            if ov and str(ov) not in ["0", "0.0", ""] and (r is not None and int(r or 0) > 0):
+                ov_s = str(ov)[:-2] if str(ov).endswith('.0') else str(ov)
+                s = f"{s} ({ov_s} ov)"
     return s
 
 def clean_event_competitor_score(s: str, is_test_match: bool = False) -> str:
     if not s:
+        return ""
+    # If string is purely overs without any runs scored e.g. "(86 ov)", "(86.0 ov)", "86 ov"
+    if re.fullmatch(r'\s*\(?\s*\d+(?:\.\d+)?\s*(?:ov|overs)?\s*\)?\s*', str(s), flags=re.I) and '/' not in str(s):
         return ""
     s = re.sub(r',\s*RR:\s*[\d\.]+', '', str(s), flags=re.I).strip()
     parts = s.split("&")
@@ -645,6 +652,9 @@ def clean_event_competitor_score(s: str, is_test_match: bool = False) -> str:
     for idx, p in enumerate(parts):
         is_last = (idx == len(parts) - 1)
         p_str = p.strip()
+        # Discard individual parts that are purely overs e.g. "(86 ov)"
+        if re.fullmatch(r'\s*\(?\s*\d+(?:\.\d+)?\s*(?:ov|overs)?\s*\)?\s*', p_str, flags=re.I) and '/' not in p_str:
+            continue
         if not is_last and is_test_match:
             p_str = re.sub(r'\s*\([^\)]*\)', '', p_str).strip()
             p_str = re.sub(r'[/\\-]10', '', p_str).strip()
@@ -1410,11 +1420,12 @@ class ESPNClient:
                 inn_tot = str(innings_data[inn_k].get("total", ""))
                 ov_m = re.search(r'\((\d+(?:\.\d+)?\s*ov)\)', inn_tot, re.I)
                 if ov_m:
-                    cur_sc = comp_obj.get("score", "")
-                    if "(" not in cur_sc:
-                        comp_obj["score"] = f"{cur_sc} {ov_m.group(0)}"
-                    elif "target" not in cur_sc:
-                        comp_obj["score"] = re.sub(r'\(\d+(?:\.\d+)?\s*ov\)', ov_m.group(0), cur_sc)
+                    cur_sc = comp_obj.get("score", "").strip()
+                    if cur_sc and re.match(r'^\d', cur_sc):
+                        if "(" not in cur_sc:
+                            comp_obj["score"] = f"{cur_sc} {ov_m.group(0)}"
+                        elif "target" not in cur_sc:
+                            comp_obj["score"] = re.sub(r'\(\d+(?:\.\d+)?\s*ov\)', ov_m.group(0), cur_sc)
 
         if match_state.lower() in ["post", "final", "completed"]:
             if raw_status_summary and raw_status_summary.lower() not in ["final", "live", "scheduled"]:

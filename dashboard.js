@@ -336,15 +336,14 @@ function isTeamCurrentlyBatting(competitor, data) {
 }
 
 function renderMultiInningsScoreHTML(scoreStr, isTeamBattingNow = false, isLiveMatch = false, crrStr = "", isSecondInnings = false) {
-    if (!scoreStr) {
+    const cleanStr = cleanScoreString(scoreStr);
+    if (!cleanStr || cleanStr === '-' || /^\s*\(?\s*\d+(?:\.\d+)?\s*(?:ov|overs)?\s*\)?\s*$/i.test(cleanStr)) {
         return `
             <div class="bg-slate-100/90 dark:bg-dark-900/90 border border-slate-200 dark:border-emerald-500/30 rounded-lg px-2.5 py-1 shadow-2xs text-right shrink-0">
-                <div class="font-mono font-bold text-sm sm:text-base text-slate-400 dark:text-gray-500">-</div>
+                <div class="font-mono font-bold text-xs sm:text-sm text-slate-400 dark:text-gray-500">Yet to bat</div>
             </div>
         `;
     }
-
-    const cleanStr = cleanScoreString(scoreStr);
     const crrBadge = (isTeamBattingNow && isLiveMatch && crrStr && crrStr !== '-' && crrStr !== '0.00')
         ? `<span class="inline-block text-[8px] sm:text-[9px] font-mono font-black text-emerald-800 dark:text-[#00ff88] bg-[#00ff88]/20 border border-[#00ff88]/50 px-1.5 py-0.2 rounded ml-1 tracking-normal select-none shadow-[0_0_8px_rgba(0,255,136,0.5)]">CRR ${crrStr}</span>`
         : '';
@@ -854,6 +853,10 @@ function computeCRRFromScore(scoreStr) {
 function cleanScoreString(str) {
     if (!str || str === '-') return '-';
     let s = String(str).replace(/,\s*RR:\s*[\d\.]+/gi, '').trim();
+    // If score string is purely overs without runs e.g. "(86 ov)", team has not batted yet!
+    if (/^\s*\(?\s*\d+(?:\.\d+)?\s*(?:ov|overs)?\s*\)?\s*$/i.test(s) && !s.includes('/')) {
+        return '-';
+    }
     s = s.replace(/(\d+[\-/]\d+|\d+)\(/g, '$1 (');
     return s || '-';
 }

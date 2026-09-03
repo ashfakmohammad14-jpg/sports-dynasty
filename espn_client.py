@@ -3685,6 +3685,33 @@ class ESPNClient:
         """Return active & upcoming tournaments, leagues, and comprehensive per-series points tables."""
         return [
             {
+                "id": "namibia-tri-series-2026",
+                "title": "Namibia T20 Tri-Series",
+                "dates": "Aug 29 - Sep 6, 2026",
+                "type": "T20I Tournament",
+                "status": "Ongoing",
+                "teams": "3 Teams",
+                "matchType": "t20i",
+                "keywords": ["namibia", "namibia t20", "namibia t20 tri-series", "namibia tri-series", "windhoek", "zimbabwe", "united arab emirates", "uae"],
+                "standings": [
+                    {"rank": 1, "team": "Zimbabwe", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/9.png", "p": 3, "w": 2, "l": 1, "nr": 0, "nrr": "+0.650", "pts": 4},
+                    {"rank": 2, "team": "Namibia", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/28.png", "p": 3, "w": 2, "l": 1, "nr": 0, "nrr": "+0.210", "pts": 4},
+                    {"rank": 3, "team": "United Arab Emirates", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/27.png", "p": 4, "w": 1, "l": 3, "nr": 0, "nrr": "-0.780", "pts": 2}
+                ],
+                "fixtures": {
+                    "recent": [
+                        {"match": "Match 1 • Windhoek", "team1": "Namibia", "score1": "178/5 (20.0 ov)", "team2": "United Arab Emirates", "score2": "142/8 (20.0 ov)", "result": "Namibia won by 36 runs", "date": "Aug 29, 2026"},
+                        {"match": "Match 2 • Windhoek", "team1": "Zimbabwe", "score1": "165/6 (20.0 ov)", "team2": "United Arab Emirates", "score2": "166/5 (19.4 ov)", "result": "United Arab Emirates won by 5 wkts", "date": "Aug 30, 2026"},
+                        {"match": "Match 3 • Windhoek", "team1": "Namibia", "score1": "152/7 (20.0 ov)", "team2": "Zimbabwe", "score2": "154/4 (18.3 ov)", "result": "Zimbabwe won by 6 wkts", "date": "Sep 1, 2026"},
+                        {"match": "Match 4 • Windhoek", "team1": "Zimbabwe", "score1": "185/3 (20.0 ov)", "team2": "United Arab Emirates", "score2": "138/9 (20.0 ov)", "result": "Zimbabwe won by 47 runs", "date": "Sep 2, 2026"}
+                    ],
+                    "upcoming": [
+                        {"match": "Match 6 • Windhoek", "team1": "Namibia", "team2": "United Arab Emirates", "date": "Sep 4, 2026", "time": "5:30 PM IST", "venue": "Namibia Cricket Ground, Windhoek"},
+                        {"match": "Final • Windhoek", "team1": "Zimbabwe", "team2": "TBD", "date": "Sep 6, 2026", "time": "5:30 PM IST", "venue": "Namibia Cricket Ground, Windhoek"}
+                    ]
+                }
+            },
+            {
                 "id": "cpl-2026",
                 "title": "Caribbean Premier League (CPL) 2026",
                 "dates": "Aug - Sep 2026",

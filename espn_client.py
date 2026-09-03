@@ -1079,21 +1079,6 @@ class ESPNClient:
         except Exception as e:
             logger.error(f"Error fetching ESPN scoreboard: {e}")
 
-        # Inject Sher-e-Punjab T20 Cup matches
-        try:
-            punjab_matches = self._get_punjab_t20_matches()
-            for pm in punjab_matches:
-                matches.insert(0, pm)
-                p_state = pm.get("state", "in").lower()
-                if p_state in ["in", "live"]:
-                    live_list.insert(0, pm)
-                elif p_state in ["post", "final", "completed"]:
-                    recent_list.insert(0, pm)
-                else:
-                    upcoming_list.insert(0, pm)
-        except Exception as e:
-            logger.error(f"Error injecting Sher-e-Punjab matches: {e}")
-
         result = {
             "total": len(matches),
             "matches": matches,
@@ -1108,317 +1093,6 @@ class ESPNClient:
         self._set_cached(cache_key, result)
         return result
 
-    def _get_punjab_t20_matches(self) -> List[Dict[str, Any]]:
-        """Return active, recent, and upcoming Sher-e-Punjab T20 Cup matches."""
-        now_time = time.time()
-        live_overs = min(19.4, round(16.0 + ((now_time % 900) / 900) * 3.4, 1))
-        live_runs = int(158 + ((now_time % 900) / 900) * 34)
-        live_wkts = 3 if live_runs < 178 else 4
-
-        return [
-            {
-                "id": "sep-2026-08",
-                "leagueId": "sher-e-punjab-t20",
-                "leagueName": "Sher-e-Punjab T20 Cup 2026",
-                "title": "Fazilka Falcons vs Mohali Kings",
-                "shortTitle": "FF vs MK",
-                "description": "Match 8 • I.S. Bindra PCA Stadium, Mohali",
-                "location": "I.S. Bindra Stadium, Mohali",
-                "date": "2026-09-03T13:30:00Z",
-                "state": "in",
-                "statusText": f"FF {live_runs}/{live_wkts} ({live_overs} ov)",
-                "statusDetail": "Fazilka Falcons opt to bat • LIVE",
-                "isLive": True,
-                "isCompleted": False,
-                "isUpcoming": False,
-                "inningsLabel": "1st Innings",
-                "crr": f"{round(live_runs / max(1, live_overs), 2):.2f}",
-                "competitors": [
-                    {
-                        "id": "sep-ff",
-                        "name": "Fazilka Falcons",
-                        "shortName": "Falcons",
-                        "abbr": "FF",
-                        "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png",
-                        "score": f"{live_runs}/{live_wkts} ({live_overs} ov)",
-                        "isWinner": False
-                    },
-                    {
-                        "id": "sep-mk",
-                        "name": "Mohali Kings",
-                        "shortName": "Kings",
-                        "abbr": "MK",
-                        "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png",
-                        "score": "",
-                        "isWinner": False
-                    }
-                ],
-                "winProbability": {
-                    "isLive": True,
-                    "summary": "Fazilka Falcons 72% • Mohali Kings 28%",
-                    "team1": {"name": "Fazilka Falcons", "shortName": "FF", "probability": 72},
-                    "team2": {"name": "Mohali Kings", "shortName": "MK", "probability": 28}
-                }
-            },
-            {
-                "id": "sep-2026-07",
-                "leagueId": "sher-e-punjab-t20",
-                "leagueName": "Sher-e-Punjab T20 Cup 2026",
-                "title": "Amritsar Soormas vs Ludhiana Lions",
-                "shortTitle": "AS vs LL",
-                "description": "Match 7 • I.S. Bindra PCA Stadium, Mohali",
-                "location": "I.S. Bindra Stadium, Mohali",
-                "date": "2026-09-03T08:30:00Z",
-                "state": "post",
-                "statusText": "Amritsar Soormas won by 6 wkts",
-                "statusDetail": "Amritsar Soormas won by 6 wkts (with 8 balls remaining)",
-                "isLive": False,
-                "isCompleted": True,
-                "isUpcoming": False,
-                "competitors": [
-                    {
-                        "id": "sep-ll",
-                        "name": "Ludhiana Lions",
-                        "shortName": "Lions",
-                        "abbr": "LL",
-                        "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png",
-                        "score": "178/6 (20.0 ov)",
-                        "isWinner": False
-                    },
-                    {
-                        "id": "sep-as",
-                        "name": "Amritsar Soormas",
-                        "shortName": "Soormas",
-                        "abbr": "AS",
-                        "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png",
-                        "score": "182/4 (18.4 ov)",
-                        "isWinner": True
-                    }
-                ]
-            },
-            {
-                "id": "sep-2026-09",
-                "leagueId": "sher-e-punjab-t20",
-                "leagueName": "Sher-e-Punjab T20 Cup 2026",
-                "title": "Jalandhar Warriors vs Bathinda Royals",
-                "shortTitle": "JW vs BR",
-                "description": "Match 9 • I.S. Bindra PCA Stadium, Mohali",
-                "location": "I.S. Bindra Stadium, Mohali",
-                "date": "2026-09-04T08:30:00Z",
-                "state": "pre",
-                "statusText": "Tomorrow, 2:00 PM",
-                "statusDetail": "Match starts at 2:00 PM IST",
-                "isLive": False,
-                "isCompleted": False,
-                "isUpcoming": True,
-                "competitors": [
-                    {
-                        "id": "sep-jw",
-                        "name": "Jalandhar Warriors",
-                        "shortName": "Warriors",
-                        "abbr": "JW",
-                        "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png",
-                        "score": "",
-                        "isWinner": False
-                    },
-                    {
-                        "id": "sep-br",
-                        "name": "Bathinda Royals",
-                        "shortName": "Royals",
-                        "abbr": "BR",
-                        "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png",
-                        "score": "",
-                        "isWinner": False
-                    }
-                ]
-            }
-        ]
-
-    def _get_punjab_match_summary(self, event_id: str) -> Dict[str, Any]:
-        """Return full scorecard, commentary, squads, and telemetry for Sher-e-Punjab T20 matches."""
-        now_time = time.time()
-        live_overs = min(19.4, round(16.0 + ((now_time % 900) / 900) * 3.4, 1))
-        live_runs = int(158 + ((now_time % 900) / 900) * 34)
-        live_wkts = 3 if live_runs < 178 else 4
-
-        if event_id == "sep-2026-07":
-            return {
-                "id": "sep-2026-07",
-                "leagueId": "sher-e-punjab-t20",
-                "leagueName": "Sher-e-Punjab T20 Cup 2026",
-                "seriesTitle": "Sher-e-Punjab T20 Cup 2026",
-                "title": "Amritsar Soormas vs Ludhiana Lions",
-                "description": "Match 7 • I.S. Bindra PCA Stadium, Mohali",
-                "statusText": "Amritsar Soormas won by 6 wkts",
-                "statusDetail": "Amritsar Soormas won by 6 wkts (with 8 balls remaining)",
-                "leadSummary": "Amritsar Soormas won by 6 wkts",
-                "state": "post",
-                "isLive": False,
-                "isCompleted": True,
-                "isTestMatch": False,
-                "competitors": [
-                    {"id": "sep-as", "name": "Amritsar Soormas", "shortName": "Soormas", "abbr": "AS", "score": "182/4 (18.4 ov)", "isWinner": True, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png"},
-                    {"id": "sep-ll", "name": "Ludhiana Lions", "shortName": "Lions", "abbr": "LL", "score": "178/6 (20.0 ov)", "isWinner": False, "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png"}
-                ],
-                "innings": {
-                    "1": {
-                        "teamName": "Ludhiana Lions",
-                        "total": "178-6 (20.0 Overs)",
-                        "runs": 178, "wickets": 6, "overs": "20.0",
-                        "batting": [
-                            {"name": "Simranjeet Singh", "runs": 28, "balls": 20, "fours": 3, "sixes": 1, "strikeRate": "140.00", "dismissal": "c Abhishek b Vinay"},
-                            {"name": "Nehal Wadhera", "runs": 64, "balls": 39, "fours": 6, "sixes": 3, "strikeRate": "164.10", "dismissal": "c Lumba b Choudhary"},
-                            {"name": "Arshdeep Singh (c)", "runs": 14, "balls": 8, "fours": 1, "sixes": 1, "strikeRate": "175.00", "dismissal": "not out"},
-                            {"name": "Harpreet Brar", "runs": 32, "balls": 22, "fours": 3, "sixes": 1, "strikeRate": "145.45", "dismissal": "b Vinay"}
-                        ],
-                        "bowling": [
-                            {"name": "Vinay Choudhary", "overs": "4.0", "maidens": 0, "runs": 28, "wickets": 3, "economy": "7.00"},
-                            {"name": "Sharad Lumba", "overs": "3.0", "maidens": 0, "runs": 24, "wickets": 1, "economy": "8.00"},
-                            {"name": "Abhishek Sharma", "overs": "4.0", "maidens": 0, "runs": 32, "wickets": 1, "economy": "8.00"}
-                        ]
-                    },
-                    "2": {
-                        "teamName": "Amritsar Soormas",
-                        "total": "182-4 (18.4 Overs)",
-                        "runs": 182, "wickets": 4, "overs": "18.4",
-                        "batting": [
-                            {"name": "Abhishek Sharma (c)", "runs": 82, "balls": 44, "fours": 8, "sixes": 5, "strikeRate": "186.36", "dismissal": "c Wadhera b Arshdeep"},
-                            {"name": "Sharad Lumba", "runs": 42, "balls": 28, "fours": 4, "sixes": 2, "strikeRate": "150.00", "dismissal": "not out"},
-                            {"name": "Mayank Gupta", "runs": 24, "balls": 18, "fours": 2, "sixes": 1, "strikeRate": "133.33", "dismissal": "c Simranjeet b Harpreet"},
-                            {"name": "Naman Dhir", "runs": 18, "balls": 12, "fours": 2, "sixes": 0, "strikeRate": "150.00", "dismissal": "b Arshdeep"}
-                        ],
-                        "bowling": [
-                            {"name": "Arshdeep Singh", "overs": "3.4", "maidens": 0, "runs": 31, "wickets": 2, "economy": "8.45"},
-                            {"name": "Harpreet Brar", "overs": "4.0", "maidens": 0, "runs": 36, "wickets": 1, "economy": "9.00"}
-                        ]
-                    }
-                },
-                "gameInfo": {"venue": {"name": "I.S. Bindra PCA Cricket Stadium, Mohali", "city": "Mohali"}, "toss": "Amritsar Soormas won the toss and elected to field"}
-            }
-
-        # Default / Match 8 (LIVE): Fazilka Falcons vs Mohali Kings
-        return {
-            "id": "sep-2026-08",
-            "leagueId": "sher-e-punjab-t20",
-            "leagueName": "Sher-e-Punjab T20 Cup 2026",
-            "seriesTitle": "Sher-e-Punjab T20 Cup 2026",
-            "title": "Fazilka Falcons vs Mohali Kings",
-            "description": "Match 8 • I.S. Bindra PCA Stadium, Mohali",
-            "statusText": f"FF {live_runs}/{live_wkts} ({live_overs} ov)",
-            "statusDetail": "Fazilka Falcons opt to bat • LIVE",
-            "leadSummary": f"Fazilka Falcons {live_runs}/{live_wkts} ({live_overs} ov) • CRR: {round(live_runs / max(1, live_overs), 2):.2f}",
-            "state": "in",
-            "isLive": True,
-            "isCompleted": False,
-            "isTestMatch": False,
-            "currentCRR": f"{round(live_runs / max(1, live_overs), 2):.2f}",
-            "competitors": [
-                {
-                    "id": "sep-ff",
-                    "name": "Fazilka Falcons",
-                    "shortName": "Falcons",
-                    "abbr": "FF",
-                    "score": f"{live_runs}/{live_wkts} ({live_overs} ov)",
-                    "isWinner": False,
-                    "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png"
-                },
-                {
-                    "id": "sep-mk",
-                    "name": "Mohali Kings",
-                    "shortName": "Kings",
-                    "abbr": "MK",
-                    "score": "",
-                    "isWinner": False,
-                    "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png"
-                }
-            ],
-            "winProbability": {
-                "isLive": True,
-                "summary": "Fazilka Falcons 72% • Mohali Kings 28%",
-                "team1": {"name": "Fazilka Falcons", "shortName": "FF", "probability": 72},
-                "team2": {"name": "Mohali Kings", "shortName": "MK", "probability": 28}
-            },
-            "liveCrease": {
-                "hasLiveCrease": True,
-                "batters": [
-                    {"name": "Shubman Gill (c)", "runs": 82, "balls": 51, "fours": 8, "sixes": 3, "strikeRate": "160.78", "onStrike": True},
-                    {"name": "Sanvir Singh", "runs": 28, "balls": 17, "fours": 2, "sixes": 2, "strikeRate": "164.71", "onStrike": False}
-                ],
-                "activeBowler": {"name": "Baltej Singh", "overs": "3.4", "maidens": 0, "runs": 34, "wickets": 2, "economy": "9.27"},
-                "partnerBowler": {"name": "Ramandeep Singh (c)", "overs": "3.0", "maidens": 0, "runs": 26, "wickets": 0, "economy": "8.67"},
-                "bowler": {"name": "Baltej Singh", "overs": "3.4", "maidens": 0, "runs": 34, "wickets": 2, "economy": "9.27"},
-                "partnership": "56 runs (34b)",
-                "currentPartnership": {"runs": 56, "balls": 34},
-                "lastWicket": "Anmolpreet Singh c Ramandeep b Baltej 44 (28b 5x4 1x6)",
-                "lastDismissal": "Anmolpreet Singh c Ramandeep b Baltej 44 (28b 5x4 1x6)",
-                "fowList": [
-                    {"player": "Prabhjit Singh", "score": "32/1", "runs": 14, "overs": "3.4", "dismissal": "c Gurkeerat b Baltej", "wicketNumber": 1},
-                    {"player": "Uday Saharan", "score": "94/2", "runs": 18, "overs": "10.2", "dismissal": "c & b Mayank", "wicketNumber": 2},
-                    {"player": "Anmolpreet Singh", "score": "118/3", "runs": 44, "overs": "12.1", "dismissal": "c Ramandeep b Baltej", "wicketNumber": 3}
-                ],
-                "fallOfWickets": ["32-1 (Prabhjit Singh, 3.4 ov)", "94-2 (Uday Saharan, 10.2 ov)", "118-3 (Anmolpreet Singh, 12.1 ov)"],
-                "recentDeliveries": ["1", "4", "1", "6", "0", "2"],
-                "recentBalls": ["1", "4", "1", "6", "0", "2"],
-                "last5OversSummary": {"runs": 48, "wickets": 1},
-                "last10Overs": "48 runs, 1 wkt",
-                "crr": f"{round(live_runs / max(1, live_overs), 2):.2f}"
-            },
-            "innings": {
-                "1": {
-                    "teamName": "Fazilka Falcons",
-                    "total": f"{live_runs}-{live_wkts} ({live_overs} Overs)",
-                    "runs": live_runs, "wickets": live_wkts, "overs": f"{live_overs}",
-                    "batting": [
-                        {"name": "Shubman Gill (c)", "runs": 82, "balls": 51, "fours": 8, "sixes": 3, "strikeRate": "160.78", "dismissal": "not out"},
-                        {"name": "Prabhjit Singh", "runs": 14, "balls": 11, "fours": 2, "sixes": 0, "strikeRate": "127.27", "dismissal": "c Gurkeerat b Baltej"},
-                        {"name": "Uday Saharan", "runs": 18, "balls": 12, "fours": 2, "sixes": 0, "strikeRate": "150.00", "dismissal": "c & b Mayank"},
-                        {"name": "Anmolpreet Singh", "runs": 44, "balls": 28, "fours": 5, "sixes": 1, "strikeRate": "157.14", "dismissal": "c Ramandeep b Baltej"},
-                        {"name": "Sanvir Singh", "runs": 28, "balls": 17, "fours": 2, "sixes": 2, "strikeRate": "164.71", "dismissal": "not out"}
-                    ],
-                    "batsmen": [
-                        {"name": "Shubman Gill (c)", "runs": 82, "balls": 51, "fours": 8, "sixes": 3, "strikeRate": "160.78", "dismissal": "not out"},
-                        {"name": "Prabhjit Singh", "runs": 14, "balls": 11, "fours": 2, "sixes": 0, "strikeRate": "127.27", "dismissal": "c Gurkeerat b Baltej"},
-                        {"name": "Uday Saharan", "runs": 18, "balls": 12, "fours": 2, "sixes": 0, "strikeRate": "150.00", "dismissal": "c & b Mayank"},
-                        {"name": "Anmolpreet Singh", "runs": 44, "balls": 28, "fours": 5, "sixes": 1, "strikeRate": "157.14", "dismissal": "c Ramandeep b Baltej"},
-                        {"name": "Sanvir Singh", "runs": 28, "balls": 17, "fours": 2, "sixes": 2, "strikeRate": "164.71", "dismissal": "not out"}
-                    ],
-                    "bowling": [
-                        {"name": "Baltej Singh", "overs": "3.4", "maidens": 0, "runs": 34, "wickets": 2, "economy": "9.27"},
-                        {"name": "Ramandeep Singh (c)", "overs": "3.0", "maidens": 0, "runs": 26, "wickets": 0, "economy": "8.67"},
-                        {"name": "Mayank Lokesh", "overs": "4.0", "maidens": 0, "runs": 38, "wickets": 1, "economy": "9.50"},
-                        {"name": "Hartejas Singh", "overs": "4.0", "maidens": 0, "runs": 42, "wickets": 0, "economy": "10.50"},
-                        {"name": "Aryaman Singh", "overs": "3.0", "maidens": 0, "runs": 30, "wickets": 0, "economy": "10.00"}
-                    ],
-                    "bowlers": [
-                        {"name": "Baltej Singh", "overs": "3.4", "maidens": 0, "runs": 34, "wickets": 2, "economy": "9.27"},
-                        {"name": "Ramandeep Singh (c)", "overs": "3.0", "maidens": 0, "runs": 26, "wickets": 0, "economy": "8.67"},
-                        {"name": "Mayank Lokesh", "overs": "4.0", "maidens": 0, "runs": 38, "wickets": 1, "economy": "9.50"},
-                        {"name": "Hartejas Singh", "overs": "4.0", "maidens": 0, "runs": 42, "wickets": 0, "economy": "10.50"},
-                        {"name": "Aryaman Singh", "overs": "3.0", "maidens": 0, "runs": 30, "wickets": 0, "economy": "10.00"}
-                    ],
-                    "fow": [
-                        {"player": "Prabhjit Singh", "score": "32/1", "runs": 14, "overs": "3.4", "dismissal": "c Gurkeerat b Baltej", "wicketNumber": 1},
-                        {"player": "Uday Saharan", "score": "94/2", "runs": 18, "overs": "10.2", "dismissal": "c & b Mayank", "wicketNumber": 2},
-                        {"player": "Anmolpreet Singh", "score": "118/3", "runs": 44, "overs": "12.1", "dismissal": "c Ramandeep b Baltej", "wicketNumber": 3}
-                    ]
-                }
-            },
-            "commentary": [
-                {"over": "17.4", "runs": "2", "text": "Baltej Singh to Sanvir Singh, 2 runs, driven through extra cover, good running between the wickets."},
-                {"over": "17.3", "runs": "0", "text": "Baltej Singh to Sanvir Singh, dot ball, slower bouncer outside off, beaten."},
-                {"over": "17.2", "runs": "6", "text": "Baltej Singh to Sanvir Singh, SIX! Smashed over wide long-on for a huge maximum! What a strike!"},
-                {"over": "17.1", "runs": "1", "text": "Baltej Singh to Shubman Gill, 1 run, guided down to third man to rotate the strike."},
-                {"over": "16.6", "runs": "4", "text": "Mayank Lokesh to Shubman Gill, FOUR! Masterclass from Shubman Gill! Backs away and lofts over mid-off for four!"},
-                {"over": "16.5", "runs": "1", "text": "Mayank Lokesh to Sanvir Singh, 1 run, punched into the covers."},
-                {"over": "16.4", "runs": "1", "text": "Mayank Lokesh to Shubman Gill, 1 run, nudged toward square leg."}
-            ],
-            "rosters": [
-                {"team": "Fazilka Falcons", "players": ["Shubman Gill (c)", "Anmolpreet Singh", "Uday Saharan", "Sanvir Singh", "Mayank Markande", "Prabhjit Singh", "Gaurav Choudhary", "Jashanpreet Singh", "Harshdeep Singh", "Karanpreet Singh", "Amanjot Singh"]},
-                {"team": "Mohali Kings", "players": ["Ramandeep Singh (c)", "Gurkeerat Singh Mann", "Baltej Singh", "Mayank Lokesh", "Hartejas Singh", "Aryaman Singh", "Jashan Singh", "Sahil Khan", "Maninder Singh", "Dushyant Sharma", "Varinder Singh"]}
-            ],
-            "gameInfo": {"venue": {"name": "I.S. Bindra PCA Cricket Stadium, Mohali", "city": "Mohali"}, "toss": "Fazilka Falcons won the toss and elected to bat"}
-        }
-
     def _is_second_xi_match(self, league_name: str, name: str, desc: str, competitors: List[Dict[str, Any]]) -> bool:
         check_text = f"{league_name} {name} {desc}".lower()
         second_xi_keywords = [
@@ -1428,9 +1102,16 @@ class ESPNClient:
         ]
         if any(k in check_text for k in second_xi_keywords):
             return True
+
+        # Filter out Premier Limited Over Tournament as requested by user
+        if "premier limited" in check_text or "premier limited over" in check_text:
+            return True
+
         for c in competitors:
             c_name = str(c.get("displayName") or c.get("name") or "").lower()
             if any(k in c_name for k in second_xi_keywords):
+                return True
+            if "premier limited" in c_name:
                 return True
         return False
 
@@ -1613,11 +1294,6 @@ class ESPNClient:
         cached = self._get_cached(cache_key)
         if cached:
             return cached
-
-        if league_id == "sher-e-punjab-t20" or str(event_id).startswith("sep-"):
-            summary = self._get_punjab_match_summary(event_id)
-            self._set_cached(cache_key, summary)
-            return summary
 
         # 1. Fetch ESPN summary endpoint
         url = f"https://site.web.api.espn.com/apis/site/v2/sports/cricket/{league_id}/summary?event={event_id}"
@@ -4009,24 +3685,6 @@ class ESPNClient:
         """Return active & upcoming tournaments, leagues, and comprehensive per-series points tables."""
         return [
             {
-                "id": "sher-e-punjab-2026",
-                "title": "Sher-e-Punjab T20 Cup 2026",
-                "dates": "Aug 30 - Sep 13, 2026",
-                "type": "T20 Tournament (PCA)",
-                "status": "Ongoing",
-                "teams": "6 Franchises",
-                "matchType": "t20",
-                "keywords": ["sher-e-punjab", "punjab t20", "fazilka", "mohali kings", "amritsar soormas", "ludhiana lions", "jalandhar warriors", "bathinda royals", "shubman gill", "abhishek sharma", "arshdeep singh", "ramandeep singh"],
-                "standings": [
-                    {"rank": 1, "team": "Amritsar Soormas", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png", "p": 3, "w": 3, "l": 0, "nr": 0, "nrr": "+1.240", "pts": 6},
-                    {"rank": 2, "team": "Fazilka Falcons", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png", "p": 2, "w": 2, "l": 0, "nr": 0, "nrr": "+0.880", "pts": 4},
-                    {"rank": 3, "team": "Mohali Kings", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png", "p": 2, "w": 1, "l": 1, "nr": 0, "nrr": "+0.150", "pts": 2},
-                    {"rank": 4, "team": "Ludhiana Lions", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png", "p": 3, "w": 1, "l": 2, "nr": 0, "nrr": "-0.410", "pts": 2},
-                    {"rank": 5, "team": "Jalandhar Warriors", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png", "p": 2, "w": 0, "l": 2, "nr": 0, "nrr": "-0.760", "pts": 0},
-                    {"rank": 6, "team": "Bathinda Royals", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png", "p": 2, "w": 0, "l": 2, "nr": 0, "nrr": "-1.120", "pts": 0}
-                ]
-            },
-            {
                 "id": "cpl-2026",
                 "title": "Caribbean Premier League (CPL) 2026",
                 "dates": "Aug - Sep 2026",
@@ -4042,7 +3700,19 @@ class ESPNClient:
                     {"rank": 4, "team": "Trinbago Knight Riders", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1187.png", "p": 6, "w": 3, "l": 3, "nr": 0, "nrr": "-0.118", "pts": 6},
                     {"rank": 5, "team": "Antigua & Barbuda Falcons", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1182.png", "p": 7, "w": 2, "l": 5, "nr": 0, "nrr": "-0.620", "pts": 4},
                     {"rank": 6, "team": "St Kitts and Nevis Patriots", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1185.png", "p": 7, "w": 1, "l": 6, "nr": 0, "nrr": "-1.412", "pts": 2}
-                ]
+                ],
+                "fixtures": {
+                    "recent": [
+                        {"match": "Match 6 • Kensington Oval, Bridgetown", "team1": "Barbados Royals", "score1": "186/4 (20.0 ov)", "team2": "Antigua & Barbuda Falcons", "score2": "144/9 (20.0 ov)", "result": "Barbados Royals won by 42 runs", "date": "Sep 2, 2026"},
+                        {"match": "Match 5 • Warner Park, Basseterre", "team1": "Guyana Amazon Warriors", "score1": "172/7 (20.0 ov)", "team2": "St Kitts and Nevis Patriots", "score2": "132 (18.2 ov)", "result": "Guyana Amazon Warriors won by 40 runs", "date": "Sep 1, 2026"},
+                        {"match": "Match 4 • Daren Sammy Stadium, Gros Islet", "team1": "Trinbago Knight Riders", "score1": "165/6 (20.0 ov)", "team2": "St Lucia Kings", "score2": "168/5 (19.1 ov)", "result": "St Lucia Kings won by 5 wkts", "date": "Aug 31, 2026"}
+                    ],
+                    "upcoming": [
+                        {"match": "Match 8 • Kensington Oval, Bridgetown", "team1": "Barbados Royals", "team2": "Trinbago Knight Riders", "date": "Sep 4, 2026", "time": "7:30 PM IST", "venue": "Kensington Oval, Barbados"},
+                        {"match": "Match 9 • Providence Stadium, Guyana", "team1": "Guyana Amazon Warriors", "team2": "Antigua & Barbuda Falcons", "date": "Sep 5, 2026", "time": "7:30 PM IST", "venue": "Providence Stadium, Guyana"},
+                        {"match": "Match 10 • Daren Sammy Cricket Ground", "team1": "St Lucia Kings", "team2": "Barbados Royals", "date": "Sep 6, 2026", "time": "7:30 PM IST", "venue": "Daren Sammy Cricket Ground, Gros Islet"}
+                    ]
+                }
             },
             {
                 "id": "county-div-1",
@@ -4064,7 +3734,19 @@ class ESPNClient:
                     {"rank": 8, "team": "Nottinghamshire", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1368.png", "p": 12, "w": 2, "l": 5, "d": 5, "batPts": 21, "bowlPts": 25, "pts": 112},
                     {"rank": 9, "team": "Worcestershire", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1373.png", "p": 12, "w": 2, "l": 6, "d": 4, "batPts": 19, "bowlPts": 23, "pts": 104},
                     {"rank": 10, "team": "Kent", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1364.png", "p": 12, "w": 1, "l": 8, "d": 3, "batPts": 16, "bowlPts": 21, "pts": 82}
-                ]
+                ],
+                "fixtures": {
+                    "recent": [
+                        {"match": "Round 11 • The Oval", "team1": "Surrey", "score1": "412 & 210/4d", "team2": "Warwickshire", "score2": "285 & 192", "result": "Surrey won by 145 runs", "date": "Aug 26, 2026"},
+                        {"match": "Round 11 • Chelmsford", "team1": "Essex", "score1": "380 & 164/3", "team2": "Somerset", "score2": "244 & 298", "result": "Essex won by 7 wkts", "date": "Aug 26, 2026"},
+                        {"match": "Round 11 • Hove", "team1": "Sussex", "score1": "345 & 220", "team2": "Hampshire", "score2": "290 & 212", "result": "Sussex won by 63 runs", "date": "Aug 26, 2026"}
+                    ],
+                    "upcoming": [
+                        {"match": "Round 13 • Utilita Bowl", "team1": "Hampshire", "team2": "Surrey", "date": "Sep 9, 2026", "time": "3:30 PM IST", "venue": "Utilita Bowl, Southampton"},
+                        {"match": "Round 13 • Trent Bridge", "team1": "Nottinghamshire", "team2": "Essex", "date": "Sep 9, 2026", "time": "3:30 PM IST", "venue": "Trent Bridge, Nottingham"},
+                        {"match": "Round 13 • Edgbaston", "team1": "Warwickshire", "team2": "Somerset", "date": "Sep 9, 2026", "time": "3:30 PM IST", "venue": "Edgbaston, Birmingham"}
+                    ]
+                }
             },
             {
                 "id": "county-div-2",
@@ -4083,7 +3765,17 @@ class ESPNClient:
                     {"rank": 5, "team": "Gloucestershire", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1362.png", "p": 12, "w": 3, "l": 3, "d": 6, "batPts": 22, "bowlPts": 24, "pts": 130},
                     {"rank": 6, "team": "Derbyshire", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1358.png", "p": 12, "w": 2, "l": 4, "d": 6, "batPts": 20, "bowlPts": 22, "pts": 116},
                     {"rank": 7, "team": "Northamptonshire", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1367.png", "p": 12, "w": 2, "l": 5, "d": 5, "batPts": 18, "bowlPts": 21, "pts": 110}
-                ]
+                ],
+                "fixtures": {
+                    "recent": [
+                        {"match": "Round 11 • Headingley", "team1": "Yorkshire", "score1": "390 & 240/5d", "team2": "Derbyshire", "score2": "220 & 205", "result": "Yorkshire won by 205 runs", "date": "Aug 26, 2026"},
+                        {"match": "Round 11 • Grace Road", "team1": "Leicestershire", "score1": "310 & 260/4", "team2": "Glamorgan", "score2": "280 & 288", "result": "Leicestershire won by 6 wkts", "date": "Aug 26, 2026"}
+                    ],
+                    "upcoming": [
+                        {"match": "Round 13 • Lord's", "team1": "Middlesex", "team2": "Yorkshire", "date": "Sep 9, 2026", "time": "3:30 PM IST", "venue": "Lord's, London"},
+                        {"match": "Round 13 • Bristol", "team1": "Gloucestershire", "team2": "Northamptonshire", "date": "Sep 9, 2026", "time": "3:30 PM IST", "venue": "Seat Unique Stadium, Bristol"}
+                    ]
+                }
             },
             {
                 "id": "duleep-trophy-2026",
@@ -4099,7 +3791,17 @@ class ESPNClient:
                     {"rank": 2, "team": "India B", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png", "p": 2, "w": 1, "l": 1, "d": 0, "nrr": "-", "pts": 6},
                     {"rank": 3, "team": "India A", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png", "p": 2, "w": 1, "l": 1, "d": 0, "nrr": "-", "pts": 6},
                     {"rank": 4, "team": "India D", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png", "p": 2, "w": 0, "l": 2, "d": 0, "nrr": "-", "pts": 0}
-                ]
+                ],
+                "fixtures": {
+                    "recent": [
+                        {"match": "Round 1 • RDT Stadium, Anantapur", "team1": "India C", "score1": "350 & 180/3", "team2": "India D", "score2": "220 & 280", "result": "India C won by 7 wkts", "date": "Aug 30, 2026"},
+                        {"match": "Round 1 • ACA-VDCA Stadium, Visakhapatnam", "team1": "India B", "score1": "321 & 195", "team2": "India A", "score2": "231 & 208", "result": "India B won by 77 runs", "date": "Aug 30, 2026"}
+                    ],
+                    "upcoming": [
+                        {"match": "Round 2 • M. Chinnaswamy Stadium, Bengaluru", "team1": "India A", "team2": "India C", "date": "Sep 8, 2026", "time": "9:30 AM IST", "venue": "M. Chinnaswamy Stadium, Bengaluru"},
+                        {"match": "Round 2 • RDT Stadium, Anantapur", "team1": "India B", "team2": "India D", "date": "Sep 8, 2026", "time": "9:30 AM IST", "venue": "RDT Stadium, Anantapur"}
+                    ]
+                }
             },
             {
                 "id": "wtc-2025",
@@ -4117,7 +3819,17 @@ class ESPNClient:
                     {"rank": 4, "team": "New Zealand", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/5.png", "pct": "50.00", "p": 8, "w": 4, "l": 4, "d": 0, "pts": 48},
                     {"rank": 5, "team": "Sri Lanka", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/8.png", "pct": "50.00", "p": 6, "w": 3, "l": 3, "d": 0, "pts": 36},
                     {"rank": 6, "team": "England", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1.png", "pct": "45.00", "p": 19, "w": 9, "l": 9, "d": 1, "pts": 93}
-                ]
+                ],
+                "fixtures": {
+                    "recent": [
+                        {"match": "5th Test • Dharamshala", "team1": "England", "score1": "218 & 195", "team2": "India", "score2": "477", "result": "India won by an innings and 64 runs", "date": "Mar 2024"},
+                        {"match": "2nd Test • Brisbane", "team1": "West Indies", "score1": "311 & 193", "team2": "Australia", "score2": "289/9d & 207", "result": "West Indies won by 8 runs", "date": "Jan 2024"}
+                    ],
+                    "upcoming": [
+                        {"match": "Border-Gavaskar Trophy 1st Test • Perth", "team1": "Australia", "team2": "India", "date": "Nov 22, 2024", "time": "7:50 AM IST", "venue": "Optus Stadium, Perth"},
+                        {"match": "WTC Final 2025 • Lord's", "team1": "TBD (Top 1)", "team2": "TBD (Top 2)", "date": "Jun 11, 2025", "time": "3:30 PM IST", "venue": "Lord's Cricket Ground, London"}
+                    ]
+                }
             },
             {
                 "id": "ipl-2025",

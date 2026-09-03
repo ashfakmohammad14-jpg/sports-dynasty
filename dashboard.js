@@ -112,7 +112,10 @@ function isSecondXIMatch(m) {
         txt.includes('second 11') ||
         txt.includes('2nd 11') ||
         txt.includes('sec xi') ||
-        txt.includes('sec 11')
+        txt.includes('sec 11') ||
+        txt.includes('premier limited') ||
+        txt.includes('sher-e-punjab') ||
+        txt.includes('punjab t20')
     );
 }
 
@@ -624,9 +627,15 @@ function renderMatchList() {
                             <span class="font-black text-xs sm:text-sm text-slate-900 dark:text-white truncate font-mono">${appState.selectedSeriesFilter}</span>
                         </div>
                     </div>
-                    <span class="text-[10px] font-mono font-black px-2.5 py-1 rounded-lg bg-emerald-600 text-white shadow-2xs shrink-0">
-                        ${filtered.length} ${filtered.length === 1 ? 'Match' : 'Matches'}
-                    </span>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button onclick="switchPlatformView('series')" class="flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-[#00ff88] bg-white dark:bg-dark-800 hover:bg-emerald-50 dark:hover:bg-dark-700 px-2.5 py-1 rounded-lg border border-emerald-500/40 transition shadow-2xs cursor-pointer">
+                            <i data-lucide="trophy" class="w-3 h-3 text-amber-400"></i>
+                            <span>Series Hub</span>
+                        </button>
+                        <span class="text-[10px] font-mono font-black px-2.5 py-1 rounded-lg bg-emerald-600 text-white shadow-2xs shrink-0">
+                            ${filtered.length} ${filtered.length === 1 ? 'Match' : 'Matches'}
+                        </span>
+                    </div>
                 </div>
                 <div class="flex flex-col lg:flex-row space-y-2.5 lg:space-y-0 lg:space-x-3 overflow-x-hidden lg:overflow-x-auto pb-1.5">
                     ${filtered.length > 0 ? filtered.map(m => renderSingleMatchCard(m)).join('') : '<div class="text-center py-6 text-slate-400 text-xs w-full">No matches found for this tournament.</div>'}
@@ -3341,66 +3350,326 @@ async function fetchSeries() {
 
         container.innerHTML = seriesList.map(s => {
             const hasStandings = s.standings && s.standings.length > 0;
+            const keywords = (s.keywords || [s.title.toLowerCase()]).map(k => k.toLowerCase());
+            const sTitle = s.title.toLowerCase();
+
+            // Match live matches from active feed
+            const allMatches = appState.matches || [];
+            const liveMatches = allMatches.filter(m => {
+                if (!m.isLive) return false;
+                const text = `${m.leagueName || ''} ${m.description || ''} ${m.name || ''} ${m.title || ''}`.toLowerCase();
+                return keywords.some(k => text.includes(k)) || text.includes(sTitle);
+            });
+
+            // Feed matches that are recent or upcoming
+            const feedRecent = allMatches.filter(m => {
+                if (m.isLive) return false;
+                const isPost = (m.state && ['post', 'final', 'completed'].includes(m.state.toLowerCase())) || m.isCompleted;
+                if (!isPost) return false;
+                const text = `${m.leagueName || ''} ${m.description || ''} ${m.name || ''} ${m.title || ''}`.toLowerCase();
+                return keywords.some(k => text.includes(k)) || text.includes(sTitle);
+            }).map(m => {
+                const c1 = m.competitors && m.competitors[0] ? m.competitors[0] : {};
+                const c2 = m.competitors && m.competitors[1] ? m.competitors[1] : {};
+                return {
+                    match: m.description || m.location || m.leagueName,
+                    team1: c1.name || 'Team 1',
+                    score1: c1.score || '',
+                    team2: c2.name || 'Team 2',
+                    score2: c2.score || '',
+                    result: m.statusDetail || m.summary || (c1.isWinner ? `${c1.name} won` : (c2.isWinner ? `${c2.name} won` : 'Completed')),
+                    date: m.date ? new Date(m.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Recent',
+                    leagueId: m.leagueId,
+                    id: m.id
+                };
+            });
+
+            const feedUpcoming = allMatches.filter(m => {
+                if (m.isLive) return false;
+                const isPre = (m.state && ['pre', 'scheduled'].includes(m.state.toLowerCase())) || m.isUpcoming;
+                if (!isPre) return false;
+                const text = `${m.leagueName || ''} ${m.description || ''} ${m.name || ''} ${m.title || ''}`.toLowerCase();
+                return keywords.some(k => text.includes(k)) || text.includes(sTitle);
+            }).map(m => {
+                const c1 = m.competitors && m.competitors[0] ? m.competitors[0] : {};
+                const c2 = m.competitors && m.competitors[1] ? m.competitors[1] : {};
+                return {
+                    match: m.description || m.leagueName || 'Upcoming Match',
+                    team1: c1.name || 'Team 1',
+                    team2: c2.name || 'Team 2',
+                    date: m.statusText || (m.date ? new Date(m.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Scheduled'),
+                    time: m.statusDetail || 'Upcoming',
+                    venue: m.location || 'Stadium'
+                };
+            });
+
+            // Combine with tournament schedule fixtures
+            const staticRecent = (s.fixtures && s.fixtures.recent) ? s.fixtures.recent : [];
+            const staticUpcoming = (s.fixtures && s.fixtures.upcoming) ? s.fixtures.upcoming : [];
+
+            const recentMatches = [...feedRecent, ...staticRecent];
+            const upcomingMatches = [...feedUpcoming, ...staticUpcoming];
+
             return `
-                <div class="hud-glass-panel rounded-2xl p-5 border border-slate-200/80 dark:border-emerald-500/30 shadow-lg space-y-4">
-                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/60 dark:border-gray-800 pb-3">
+                <div class="hud-glass-panel rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-emerald-500/30 shadow-lg space-y-4" id="series-card-${s.id}">
+                    <!-- Tournament Header -->
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/60 dark:border-gray-800 pb-3">
                         <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-500 font-bold">
-                                <i data-lucide="trophy" class="w-4 h-4 text-amber-400"></i>
+                            <div class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-500 font-bold shrink-0 shadow-xs">
+                                <i data-lucide="trophy" class="w-5 h-5 text-amber-400"></i>
                             </div>
                             <div>
-                                <h3 class="text-base font-black text-slate-900 dark:text-white">${s.title}</h3>
+                                <h3 class="text-base sm:text-lg font-black text-slate-900 dark:text-white">${s.title}</h3>
                                 <p class="text-xs text-slate-500 dark:text-gray-400">${s.dates} • <span class="font-bold text-emerald-600 dark:text-[#00ff88]">${s.type}</span> • ${s.teams}</p>
                             </div>
                         </div>
-                        <span class="px-2.5 py-1 rounded-full text-xs font-mono font-bold ${s.status === 'Ongoing' ? 'bg-emerald-500/20 text-emerald-600 dark:text-[#00ff88] border border-emerald-500/40' : 'bg-slate-200 dark:bg-dark-800 text-slate-600 dark:text-gray-300'}">${s.status}</span>
+                        <div class="flex items-center gap-2">
+                            ${liveMatches.length > 0 ? `
+                                <span class="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-rose-500/20 text-rose-500 border border-rose-500/40 animate-pulse flex items-center gap-1">
+                                    <span class="w-2 h-2 rounded-full bg-rose-500"></span> ${liveMatches.length} Live
+                                </span>
+                            ` : ''}
+                            <span class="px-2.5 py-1 rounded-full text-xs font-mono font-bold ${s.status === 'Ongoing' ? 'bg-emerald-500/20 text-emerald-600 dark:text-[#00ff88] border border-emerald-500/40' : 'bg-slate-200 dark:bg-dark-800 text-slate-600 dark:text-gray-300'}">${s.status}</span>
+                        </div>
                     </div>
 
+                    <!-- Interactive Sub-Tabs -->
+                    <div class="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100/90 dark:bg-dark-900/90 rounded-xl border border-slate-200 dark:border-gray-800">
+                        ${hasStandings ? `
+                            <button onclick="switchSeriesSubTab('${s.id}', 'standings')" id="btn-tab-${s.id}-standings" class="series-subtab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-white dark:bg-dark-800 text-emerald-600 dark:text-[#00ff88] shadow-xs">
+                                <i data-lucide="award" class="w-3.5 h-3.5"></i>
+                                <span>Points Table</span>
+                            </button>
+                        ` : ''}
+                        <button onclick="switchSeriesSubTab('${s.id}', 'recent')" id="btn-tab-${s.id}-recent" class="series-subtab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${!hasStandings ? 'bg-white dark:bg-dark-800 text-emerald-600 dark:text-[#00ff88] shadow-xs' : 'text-slate-600 dark:text-gray-300 hover:text-emerald-600'}">
+                            <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-500"></i>
+                            <span>Ho Chuke (${recentMatches.length})</span>
+                        </button>
+                        <button onclick="switchSeriesSubTab('${s.id}', 'upcoming')" id="btn-tab-${s.id}-upcoming" class="series-subtab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-600 dark:text-gray-300 hover:text-blue-500">
+                            <i data-lucide="calendar" class="w-3.5 h-3.5 text-blue-500"></i>
+                            <span>Hone Wale (${upcomingMatches.length})</span>
+                        </button>
+                        ${liveMatches.length > 0 ? `
+                            <button onclick="switchSeriesSubTab('${s.id}', 'live')" id="btn-tab-${s.id}-live" class="series-subtab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-rose-500 hover:text-rose-600">
+                                <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+                                <span>Live (${liveMatches.length})</span>
+                            </button>
+                        ` : ''}
+                        <button onclick="switchSeriesSubTab('${s.id}', 'all-matches')" id="btn-tab-${s.id}-all-matches" class="series-subtab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-600 dark:text-gray-300 hover:text-amber-500">
+                            <i data-lucide="layers" class="w-3.5 h-3.5 text-amber-500"></i>
+                            <span>Sabhi Matches (Dono)</span>
+                        </button>
+                    </div>
+
+                    <!-- Panel 1: Standings (Points Table) -->
                     ${hasStandings ? `
-                        <div class="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-gray-800">
-                            <table class="w-full text-left text-xs border-collapse">
-                                <thead>
-                                    <tr class="bg-slate-100/80 dark:bg-dark-900/80 border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 font-mono text-[11px] uppercase tracking-wider">
-                                        <th class="py-2.5 px-3">#</th>
-                                        <th class="py-2.5 px-3 min-w-[150px]">Team</th>
-                                        <th class="py-2.5 px-2 text-right">P</th>
-                                        <th class="py-2.5 px-2 text-right">W</th>
-                                        <th class="py-2.5 px-2 text-right">L</th>
-                                        ${s.standings[0]?.d !== undefined ? `<th class="py-2.5 px-2 text-right">D</th>` : ''}
-                                        ${s.standings[0]?.nr !== undefined ? `<th class="py-2.5 px-2 text-right">NR</th>` : ''}
-                                        ${s.standings[0]?.nrr !== undefined ? `<th class="py-2.5 px-2 text-right">NRR</th>` : ''}
-                                        ${s.standings[0]?.pct !== undefined ? `<th class="py-2.5 px-2 text-right">PCT %</th>` : ''}
-                                        <th class="py-2.5 px-3 text-right font-black text-slate-800 dark:text-white">PTS</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-100 dark:divide-gray-800/60">
-                                    ${s.standings.map((st, idx) => `
-                                        <tr class="hover:bg-slate-50 dark:hover:bg-dark-800/60 transition font-medium">
-                                            <td class="py-2.5 px-3 font-mono font-bold ${idx < 3 ? 'text-amber-500 font-black' : 'text-slate-400'}">${st.rank || (idx + 1)}</td>
-                                            <td class="py-2.5 px-3 font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                                ${st.logo ? `<img src="${st.logo}" alt="${st.team}" class="w-5 h-5 object-contain shrink-0" onerror="this.src='https://a.espncdn.com/i/teamlogos/cricket/500/6.png'"/>` : ''}
-                                                <span class="truncate">${st.team}</span>
-                                            </td>
-                                            <td class="py-2.5 px-2 text-right font-mono text-slate-700 dark:text-gray-300 font-semibold">${st.p}</td>
-                                            <td class="py-2.5 px-2 text-right font-mono text-emerald-600 dark:text-emerald-400 font-bold">${st.w}</td>
-                                            <td class="py-2.5 px-2 text-right font-mono text-rose-500 font-bold">${st.l}</td>
-                                            ${st.d !== undefined ? `<td class="py-2.5 px-2 text-right font-mono text-slate-500">${st.d}</td>` : ''}
-                                            ${st.nr !== undefined ? `<td class="py-2.5 px-2 text-right font-mono text-slate-500">${st.nr}</td>` : ''}
-                                            ${st.nrr !== undefined ? `<td class="py-2.5 px-2 text-right font-mono font-bold text-slate-700 dark:text-gray-300">${st.nrr}</td>` : ''}
-                                            ${st.pct !== undefined ? `<td class="py-2.5 px-2 text-right font-mono font-black text-emerald-600 dark:text-[#00ff88]">${st.pct}%</td>` : ''}
-                                            <td class="py-2.5 px-3 text-right font-mono font-black text-sm text-emerald-700 dark:text-[#00ff88] drop-shadow-xs">${st.pts}</td>
+                        <div id="panel-${s.id}-standings" class="series-subpanel space-y-2">
+                            <div class="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-gray-800">
+                                <table class="w-full text-left text-xs border-collapse">
+                                    <thead>
+                                        <tr class="bg-slate-100/80 dark:bg-dark-900/80 border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 font-mono text-[11px] uppercase tracking-wider">
+                                            <th class="py-2.5 px-3">#</th>
+                                            <th class="py-2.5 px-3 min-w-[150px]">Team</th>
+                                            <th class="py-2.5 px-2 text-right">P</th>
+                                            <th class="py-2.5 px-2 text-right">W</th>
+                                            <th class="py-2.5 px-2 text-right">L</th>
+                                            ${s.standings[0]?.d !== undefined ? `<th class="py-2.5 px-2 text-right">D</th>` : ''}
+                                            ${s.standings[0]?.nr !== undefined ? `<th class="py-2.5 px-2 text-right">NR</th>` : ''}
+                                            ${s.standings[0]?.nrr !== undefined ? `<th class="py-2.5 px-2 text-right">NRR</th>` : ''}
+                                            ${s.standings[0]?.pct !== undefined ? `<th class="py-2.5 px-2 text-right">PCT %</th>` : ''}
+                                            <th class="py-2.5 px-3 text-right font-black text-slate-800 dark:text-white">PTS</th>
                                         </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 dark:divide-gray-800/60">
+                                        ${s.standings.map((st, idx) => `
+                                            <tr class="hover:bg-slate-50 dark:hover:bg-dark-800/60 transition font-medium">
+                                                <td class="py-2.5 px-3 font-mono font-bold ${idx < 3 ? 'text-amber-500 font-black' : 'text-slate-400'}">${st.rank || (idx + 1)}</td>
+                                                <td class="py-2.5 px-3 font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                                    ${st.logo ? `<img src="${st.logo}" alt="${st.team}" class="w-5 h-5 object-contain shrink-0" onerror="this.src='https://a.espncdn.com/i/teamlogos/cricket/500/6.png'"/>` : ''}
+                                                    <span class="truncate">${st.team}</span>
+                                                </td>
+                                                <td class="py-2.5 px-2 text-right font-mono text-slate-700 dark:text-gray-300 font-semibold">${st.p}</td>
+                                                <td class="py-2.5 px-2 text-right font-mono text-emerald-600 dark:text-emerald-400 font-bold">${st.w}</td>
+                                                <td class="py-2.5 px-2 text-right font-mono text-rose-500 font-bold">${st.l}</td>
+                                                ${st.d !== undefined ? `<td class="py-2.5 px-2 text-right font-mono text-slate-500">${st.d}</td>` : ''}
+                                                ${st.nr !== undefined ? `<td class="py-2.5 px-2 text-right font-mono text-slate-500">${st.nr}</td>` : ''}
+                                                ${st.nrr !== undefined ? `<td class="py-2.5 px-2 text-right font-mono font-bold text-slate-700 dark:text-gray-300">${st.nrr}</td>` : ''}
+                                                ${st.pct !== undefined ? `<td class="py-2.5 px-2 text-right font-mono font-black text-emerald-600 dark:text-[#00ff88]">${st.pct}%</td>` : ''}
+                                                <td class="py-2.5 px-3 text-right font-mono font-black text-sm text-emerald-700 dark:text-[#00ff88] drop-shadow-xs">${st.pts}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     ` : ''}
 
-                    ${s.groups ? `
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                            ${s.groups.map(g => `<div class="p-3 rounded-xl bg-slate-50 dark:bg-dark-800/60 border border-slate-200 dark:border-gray-800 text-slate-700 dark:text-gray-300 font-medium">${g}</div>`).join('')}
+                    <!-- Panel 2: Ho Chuke Matches (Recent / Results) -->
+                    <div id="panel-${s.id}-recent" class="series-subpanel space-y-3 ${hasStandings ? 'hidden' : ''}">
+                        <div class="flex items-center justify-between pb-1">
+                            <h4 class="text-xs font-mono font-black uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                                <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-500"></i>
+                                Ho Chuke Matches (Completed Results)
+                            </h4>
+                            <span class="text-[10px] font-mono text-slate-400">${recentMatches.length} Matches</span>
+                        </div>
+                        ${recentMatches.length > 0 ? `
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                ${recentMatches.map(m => `
+                                    <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-dark-900/70 border border-slate-200 dark:border-gray-800 space-y-2 hover:border-emerald-500/50 transition cursor-pointer shadow-xs" ${m.leagueId && m.id ? `onclick="selectMatch('${m.leagueId}', '${m.id}')"` : ''}>
+                                        <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                                            <span class="truncate">${m.match || 'Completed Match'}</span>
+                                            <span class="shrink-0">${m.date || ''}</span>
+                                        </div>
+                                        <div class="space-y-1.5 text-xs">
+                                            <div class="flex items-center justify-between font-bold text-slate-900 dark:text-white">
+                                                <span class="truncate">${m.team1}</span>
+                                                <span class="font-mono text-emerald-600 dark:text-[#00ff88] shrink-0 font-black">${m.score1 || '-'}</span>
+                                            </div>
+                                            <div class="flex items-center justify-between font-bold text-slate-900 dark:text-white">
+                                                <span class="truncate">${m.team2}</span>
+                                                <span class="font-mono text-slate-600 dark:text-gray-300 shrink-0 font-semibold">${m.score2 || '-'}</span>
+                                            </div>
+                                        </div>
+                                        <div class="pt-2 border-t border-slate-200/70 dark:border-gray-800 flex items-center justify-between text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                                            <span class="truncate flex items-center gap-1">
+                                                <i data-lucide="check" class="w-3 h-3 text-emerald-500"></i>
+                                                ${m.result}
+                                            </span>
+                                            ${m.leagueId && m.id ? `<span class="text-[10px] font-mono text-slate-400 hover:text-emerald-500 shrink-0">Scorecard →</span>` : ''}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : `
+                            <div class="p-6 text-center text-slate-400 text-xs font-medium bg-slate-50 dark:bg-dark-900/40 rounded-xl">No completed matches recorded yet.</div>
+                        `}
+                    </div>
+
+                    <!-- Panel 3: Hone Wale Matches (Upcoming / Schedule) -->
+                    <div id="panel-${s.id}-upcoming" class="series-subpanel space-y-3 hidden">
+                        <div class="flex items-center justify-between pb-1">
+                            <h4 class="text-xs font-mono font-black uppercase text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                                <i data-lucide="calendar" class="w-3.5 h-3.5 text-blue-500"></i>
+                                Hone Wale Matches (Upcoming Schedule)
+                            </h4>
+                            <span class="text-[10px] font-mono text-slate-400">${upcomingMatches.length} Matches</span>
+                        </div>
+                        ${upcomingMatches.length > 0 ? `
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                ${upcomingMatches.map(m => `
+                                    <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-dark-900/70 border border-slate-200 dark:border-gray-800 space-y-2.5 hover:border-blue-500/50 transition shadow-xs">
+                                        <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                                            <span class="truncate">${m.match || 'Fixture'}</span>
+                                            <span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold text-[10px] shrink-0">${m.time || 'Upcoming'}</span>
+                                        </div>
+                                        <div class="flex items-center justify-between py-1 text-xs font-black text-slate-900 dark:text-white">
+                                            <span class="truncate flex-1">${m.team1}</span>
+                                            <span class="text-[10px] text-slate-400 font-mono px-2 shrink-0">VS</span>
+                                            <span class="truncate flex-1 text-right">${m.team2}</span>
+                                        </div>
+                                        <div class="pt-2 border-t border-slate-200/70 dark:border-gray-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-gray-400">
+                                            <span class="truncate flex items-center gap-1">
+                                                <i data-lucide="map-pin" class="w-3 h-3 text-slate-400"></i>
+                                                ${m.venue || ''}
+                                            </span>
+                                            <span class="font-mono text-[10px] font-bold text-slate-700 dark:text-gray-300 shrink-0">${m.date || ''}</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : `
+                            <div class="p-6 text-center text-slate-400 text-xs font-medium bg-slate-50 dark:bg-dark-900/40 rounded-xl">No upcoming matches scheduled.</div>
+                        `}
+                    </div>
+
+                    <!-- Panel 4: Live Matches (if any) -->
+                    ${liveMatches.length > 0 ? `
+                        <div id="panel-${s.id}-live" class="series-subpanel space-y-3 hidden">
+                            <div class="flex items-center justify-between pb-1">
+                                <h4 class="text-xs font-mono font-black uppercase text-rose-500 flex items-center gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
+                                    Ongoing Live Matches
+                                </h4>
+                                <span class="text-[10px] font-mono text-rose-500 font-bold">${liveMatches.length} Live Now</span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                ${liveMatches.map(m => `
+                                    <div class="p-3.5 rounded-xl bg-rose-500/5 dark:bg-rose-950/20 border border-rose-500/30 space-y-2.5 hover:border-rose-500/60 transition cursor-pointer shadow-xs" onclick="selectMatch('${m.leagueId}', '${m.id}')">
+                                        <div class="flex items-center justify-between text-[11px] text-rose-600 dark:text-rose-400 font-mono">
+                                            <span class="truncate">${m.description || m.location}</span>
+                                            <span class="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-black">● LIVE</span>
+                                        </div>
+                                        <div class="space-y-1.5 text-xs">
+                                            ${(m.competitors || []).map(c => `
+                                                <div class="flex items-center justify-between font-bold text-slate-900 dark:text-white">
+                                                    <span class="truncate">${c.name}</span>
+                                                    <span class="font-mono text-emerald-600 dark:text-[#00ff88] font-black">${c.score || ''}</span>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                        <div class="pt-2 border-t border-rose-200 dark:border-rose-900/50 flex items-center justify-between text-[11px] text-rose-600 dark:text-rose-300 font-bold">
+                                            <span class="truncate">${m.statusDetail || 'In Progress'}</span>
+                                            <span class="text-xs text-[#059669] dark:text-[#00ff88] font-mono">Watch Live →</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
                     ` : ''}
+
+                    <!-- Panel 5: Sabhi Matches (Ho Chuke + Hone Wale Dono Ek Sath) -->
+                    <div id="panel-${s.id}-all-matches" class="series-subpanel space-y-5 hidden">
+                        ${liveMatches.length > 0 ? `
+                            <div class="space-y-2">
+                                <h5 class="text-xs font-mono font-black uppercase text-rose-500 flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span> Live Now
+                                </h5>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                                    ${liveMatches.map(m => `
+                                        <div class="p-3 rounded-xl bg-rose-500/5 border border-rose-500/30 text-xs font-bold cursor-pointer" onclick="selectMatch('${m.leagueId}', '${m.id}')">
+                                            <div class="text-[10px] text-rose-600 font-mono">${m.description || 'Live Match'}</div>
+                                            <div class="py-1">${(m.competitors || []).map(c => `${c.name}: ${c.score || '-'}`).join(' vs ')}</div>
+                                            <div class="text-[10px] text-emerald-600">${m.statusDetail || 'LIVE'} • Watch →</div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <!-- Ho Chuke Section -->
+                        <div class="space-y-2">
+                            <h5 class="text-xs font-mono font-black uppercase text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                                <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-500"></i> Ho Chuke Matches (Completed)
+                            </h5>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                                ${recentMatches.slice(0, 4).map(m => `
+                                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-dark-900/60 border border-slate-200 dark:border-gray-800 text-xs space-y-1">
+                                        <div class="flex justify-between text-[10px] text-slate-400 font-mono"><span>${m.match || ''}</span><span>${m.date || ''}</span></div>
+                                        <div class="flex justify-between font-bold"><span>${m.team1}</span><span class="text-emerald-600 dark:text-[#00ff88]">${m.score1 || '-'}</span></div>
+                                        <div class="flex justify-between font-bold"><span>${m.team2}</span><span>${m.score2 || '-'}</span></div>
+                                        <div class="text-[10px] text-emerald-600 font-semibold pt-1 border-t border-slate-100 dark:border-gray-800">${m.result}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Hone Wale Section -->
+                        <div class="space-y-2">
+                            <h5 class="text-xs font-mono font-black uppercase text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
+                                <i data-lucide="calendar" class="w-3.5 h-3.5 text-blue-500"></i> Hone Wale Matches (Upcoming)
+                            </h5>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                                ${upcomingMatches.slice(0, 4).map(m => `
+                                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-dark-900/60 border border-slate-200 dark:border-gray-800 text-xs space-y-1">
+                                        <div class="flex justify-between text-[10px] text-slate-400 font-mono"><span>${m.match || ''}</span><span class="text-blue-500 font-bold">${m.time || ''}</span></div>
+                                        <div class="font-black py-0.5">${m.team1} vs ${m.team2}</div>
+                                        <div class="text-[10px] text-slate-500">${m.venue || ''} • ${m.date || ''}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             `;
         }).join('');
@@ -3410,6 +3679,31 @@ async function fetchSeries() {
         if (container) container.innerHTML = `<div class="p-8 text-center text-rose-500 text-xs">Error: ${e.message}</div>`;
     }
 }
+
+window.switchSeriesSubTab = function(seriesId, tabName) {
+    const card = document.getElementById(`series-card-${seriesId}`);
+    if (!card) return;
+
+    // Hide all subpanels in this card
+    card.querySelectorAll('.series-subpanel').forEach(p => p.classList.add('hidden'));
+
+    // Show target subpanel
+    const targetPanel = document.getElementById(`panel-${seriesId}-${tabName}`);
+    if (targetPanel) targetPanel.classList.remove('hidden');
+
+    // Update buttons
+    card.querySelectorAll('.series-subtab-btn').forEach(btn => {
+        btn.classList.remove('bg-white', 'dark:bg-dark-800', 'text-emerald-600', 'dark:text-[#00ff88]', 'shadow-xs');
+        btn.classList.add('text-slate-600', 'dark:text-gray-300');
+    });
+    const activeBtn = document.getElementById(`btn-tab-${seriesId}-${tabName}`);
+    if (activeBtn) {
+        activeBtn.classList.remove('text-slate-600', 'dark:text-gray-300');
+        activeBtn.classList.add('bg-white', 'dark:bg-dark-800', 'text-emerald-600', 'dark:text-[#00ff88]', 'shadow-xs');
+    }
+
+    safeCreateIcons();
+};
 
 // -------------------------------------------------------------
 // Teams Directory Hub

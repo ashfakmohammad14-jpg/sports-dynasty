@@ -264,6 +264,24 @@ html, body {
     }
 }
 
+/* Innings Badges (1st Innings, 2nd Innings) - Compact, refined font */
+.innings-pill,
+.match-card .innings-pill {
+    font-size: 8.5px !important;
+    font-weight: 700 !important;
+    padding: 1px 5px !important;
+    border-radius: 4px !important;
+    line-height: 1.15 !important;
+    letter-spacing: normal !important;
+}
+
+.hero-inn-label,
+.hero-inn-label span {
+    font-size: 8px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.03em !important;
+}
+
 @media (min-width: 1024px) {
     #match-list-container {
         display: flex !important;
@@ -582,7 +600,27 @@ body.layout-mode-desktop #app-main-container {
         font-size: 14.5px !important;
         font-weight: 700 !important;
     }
-    .match-card .text-\[9px\] {
+    /* Inning Label Pill (1st Innings / 2nd Innings) - Compact, small & sleek */
+    .match-card .innings-pill,
+    .innings-pill {
+        font-size: 8px !important;
+        font-weight: 700 !important;
+        padding: 1px 4.5px !important;
+        border-radius: 4px !important;
+        letter-spacing: normal !important;
+        line-height: 1.1 !important;
+        vertical-align: middle !important;
+    }
+
+    /* Hero Banner Innings Tag (1st INN / 2nd INN) - Sleek & Small */
+    .hero-inn-label,
+    .hero-inn-label span {
+        font-size: 7.5px !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.04em !important;
+    }
+
+    .match-card .text-\[9px\]:not(.innings-pill) {
         font-size: 11.5px !important;
         font-weight: 800 !important;
         padding: 4px 9px !important;

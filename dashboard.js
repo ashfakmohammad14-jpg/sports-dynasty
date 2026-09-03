@@ -361,7 +361,7 @@ function renderMultiInningsScoreHTML(scoreStr, isTeamBattingNow = false, isLiveM
             <div class="flex items-center gap-1 sm:gap-1.5 text-right shrink-0">
                 <!-- 1st/2nd Innings Glass Pod (Completed) -->
                 <div class="bg-slate-100/90 dark:bg-dark-900/90 border border-slate-200/90 dark:border-emerald-500/30 rounded-lg px-2 py-0.5 sm:px-2.5 sm:py-1 shadow-2xs">
-                    <div class="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-gray-400 flex items-center justify-end gap-1">
+                    <div class="hero-inn-label text-[7.5px] sm:text-[8px] font-bold uppercase tracking-wider text-slate-400 dark:text-gray-400 flex items-center justify-end gap-1">
                         <span class="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500 shrink-0"></span>
                         <span>${inn1Label}</span>
                     </div>
@@ -378,9 +378,9 @@ function renderMultiInningsScoreHTML(scoreStr, isTeamBattingNow = false, isLiveM
                 <!-- 3rd/4th Innings Pod (Active 3D Neon Pod if Live, Glass Pod if Completed) -->
                 ${inn2IsLive ? `
                     <div class="bg-emerald-500/15 dark:bg-emerald-950/80 border-2 border-[#00ff88] rounded-lg px-2 sm:px-2.5 py-0.5 sm:py-1 shadow-[0_0_20px_rgba(0,255,136,0.5),inset_0_0_10px_rgba(0,255,136,0.2)] ring-1 ring-[#00ff88]/50">
-                        <div class="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-emerald-800 dark:text-[#00ff88] flex items-center justify-end gap-1">
+                        <div class="hero-inn-label text-[7.5px] sm:text-[8px] font-bold uppercase tracking-wider text-emerald-800 dark:text-[#00ff88] flex items-center justify-end gap-1">
                             <span class="w-1.5 h-1.5 rounded-full bg-[#00ff88] shadow-[0_0_8px_#00ff88] animate-ping shrink-0"></span>
-                            <span class="font-black">${inn2Label} (LIVE)</span>
+                            <span class="font-bold">${inn2Label} (LIVE)</span>
                             ${crrBadge}
                         </div>
                         <div class="digital-score-3d font-mono font-black text-sm sm:text-base md:text-lg text-emerald-800 dark:text-[#00ff88] drop-shadow-[0_0_12px_rgba(0,255,136,0.6)] tracking-tight leading-tight">
@@ -389,7 +389,7 @@ function renderMultiInningsScoreHTML(scoreStr, isTeamBattingNow = false, isLiveM
                     </div>
                 ` : `
                     <div class="bg-slate-100/90 dark:bg-dark-900/90 border border-slate-200/90 dark:border-emerald-500/30 rounded-lg px-2 py-0.5 sm:px-2.5 sm:py-1 shadow-2xs">
-                        <div class="text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-gray-400 flex items-center justify-end gap-1">
+                        <div class="hero-inn-label text-[7.5px] sm:text-[8px] font-bold uppercase tracking-wider text-slate-400 dark:text-gray-400 flex items-center justify-end gap-1">
                             <span class="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500 shrink-0"></span>
                             <span>${inn2Label}</span>
                         </div>
@@ -408,9 +408,9 @@ function renderMultiInningsScoreHTML(scoreStr, isTeamBattingNow = false, isLiveM
 
     return `
         <div class="${innIsLive ? 'bg-emerald-500/15 dark:bg-emerald-950/80 border-2 border-[#00ff88] shadow-[0_0_20px_rgba(0,255,136,0.5),inset_0_0_10px_rgba(0,255,136,0.2)] ring-1 ring-[#00ff88]/50' : 'bg-slate-100/90 dark:bg-dark-900/90 border border-slate-200/90 dark:border-emerald-500/30 shadow-2xs'} rounded-lg px-2.5 sm:px-3 py-1 sm:py-1.5 text-right shrink-0">
-            <div class="text-[8px] sm:text-[9px] font-black uppercase tracking-wider ${innIsLive ? 'text-emerald-800 dark:text-[#00ff88]' : 'text-slate-400 dark:text-gray-400'} flex items-center justify-end gap-1">
+            <div class="hero-inn-label text-[7.5px] sm:text-[8px] font-bold uppercase tracking-wider ${innIsLive ? 'text-emerald-800 dark:text-[#00ff88]' : 'text-slate-400 dark:text-gray-400'} flex items-center justify-end gap-1">
                 <span class="w-1.5 h-1.5 rounded-full ${innIsLive ? 'bg-[#00ff88] shadow-[0_0_8px_#00ff88] animate-ping' : 'bg-slate-400 dark:bg-slate-500'} shrink-0"></span>
-                <span class="${innIsLive ? 'font-black' : ''}">${innLabel} ${innIsLive ? '(LIVE)' : ''}</span>
+                <span class="${innIsLive ? 'font-bold' : ''}">${innLabel} ${innIsLive ? '(LIVE)' : ''}</span>
                 ${innIsLive ? crrBadge : ''}
             </div>
             <div class="${innIsLive ? 'digital-score-3d text-emerald-800 dark:text-[#00ff88] drop-shadow-[0_0_12px_rgba(0,255,136,0.6)]' : 'text-slate-800 dark:text-gray-100 font-bold'} font-mono text-base sm:text-lg md:text-xl tracking-tight leading-tight">
@@ -517,7 +517,7 @@ function renderSingleMatchCard(m) {
                         ${seriesTitle}
                     </span>
                     <i data-lucide="chevron-right" class="w-3 h-3 text-slate-400 group-hover/ser:text-emerald-500 shrink-0 transition group-hover/ser:translate-x-0.5"></i>
-                    ${m.inningsLabel ? `<span class="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold uppercase bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-emerald-300 border border-sky-200 dark:border-sky-800 shrink-0">${m.inningsLabel}</span>` : ''}
+                    ${m.inningsLabel ? `<span class="innings-pill text-[8px] px-1.5 py-0.2 rounded font-mono font-medium uppercase bg-sky-50 dark:bg-sky-950/70 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 shrink-0 select-none">${m.inningsLabel}</span>` : ''}
                 </div>
                 
                 <div class="flex items-center gap-1.5 shrink-0">

@@ -237,15 +237,15 @@ html, body {
     transform: translateY(-2px);
 }
 
-/* Mobile Vertical Match Cards List (Zero Left-Right Scroll Needed) */
+/* Mobile Vertical Match Cards List (Zero Left-Right Scroll Needed, 50% Larger Touch Box) */
 @media (max-width: 1023px) {
     #match-list-container {
         display: flex !important;
         flex-direction: column !important;
-        gap: 14px !important;
+        gap: 16px !important;
         overflow-x: hidden !important;
         width: 100% !important;
-        padding-bottom: 12px !important;
+        padding-bottom: 16px !important;
     }
     .match-card {
         min-width: 100% !important;
@@ -253,11 +253,11 @@ html, body {
         width: 100% !important;
         flex-shrink: 1 !important;
         margin: 0 !important;
-        padding: 16px 14px !important;
-        border-radius: 16px !important;
+        padding: 22px 18px !important;
+        border-radius: 20px !important;
         box-sizing: border-box !important;
-        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.07), 0 1px 4px rgba(0, 0, 0, 0.04) !important;
-        border: 1.5px solid rgba(16, 185, 129, 0.25) !important;
+        box-shadow: 0 8px 25px -4px rgba(0, 0, 0, 0.09), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+        border: 2px solid rgba(16, 185, 129, 0.3) !important;
     }
     .match-card:hover {
         transform: translateY(-2px) scale(1.005) !important;
@@ -535,48 +535,58 @@ body.layout-mode-desktop #app-main-container {
         box-sizing: border-box !important;
     }
 
-    /* MATCH CARDS: Generous, prominent touch boxes with large bold typography */
+    /* MATCH CARDS: 50% LARGER TOUCH BOXES WITH GENEROUS SPACE & BOLD VISUALS */
     .match-card {
-        padding: 16px 14px !important;
-        border-radius: 16px !important;
-        margin-bottom: 4px !important;
+        padding: 22px 18px !important;
+        border-radius: 20px !important;
+        margin-bottom: 8px !important;
     }
     .match-card .card-win-prob {
         display: none !important;
     }
+    .match-card .card-points-btn {
+        padding: 4px 10px !important;
+        font-size: 11px !important;
+        font-weight: 800 !important;
+        border-radius: 8px !important;
+    }
     .match-card .text-xs {
-        font-size: 14px !important;
-        line-height: 1.4 !important;
+        font-size: 15px !important;
+        line-height: 1.5 !important;
     }
     .match-card .font-bold.text-slate-800,
     .match-card .font-bold.dark\:text-gray-200,
     .match-card .truncate.font-bold {
-        font-size: 16.5px !important;
+        font-size: 18px !important;
         font-weight: 800 !important;
         letter-spacing: -0.01em !important;
     }
     .match-card img {
-        width: 28px !important;
-        height: 28px !important;
+        width: 36px !important;
+        min-width: 36px !important;
+        max-width: 36px !important;
+        height: 36px !important;
+        object-fit: contain !important;
     }
     .match-card .font-mono.font-bold,
     .match-card .font-mono.font-black {
-        font-size: 19px !important;
+        font-size: 22px !important;
         font-weight: 900 !important;
         letter-spacing: -0.02em !important;
     }
     .match-card .text-\[10px\] {
-        font-size: 12.5px !important;
+        font-size: 13.5px !important;
         font-weight: 800 !important;
     }
     .match-card .text-\[11px\] {
-        font-size: 13.5px !important;
+        font-size: 14.5px !important;
         font-weight: 700 !important;
     }
     .match-card .text-\[9px\] {
         font-size: 11.5px !important;
         font-weight: 800 !important;
-        padding: 3px 8px !important;
+        padding: 4px 9px !important;
+        border-radius: 8px !important;
     }
 
     /* HERO BANNER: Crisp, large match scores */

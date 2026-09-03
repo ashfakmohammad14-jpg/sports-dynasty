@@ -519,9 +519,18 @@ function renderSingleMatchCard(m) {
                     <i data-lucide="chevron-right" class="w-3 h-3 text-slate-400 group-hover/ser:text-emerald-500 shrink-0 transition group-hover/ser:translate-x-0.5"></i>
                     ${m.inningsLabel ? `<span class="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold uppercase bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-emerald-300 border border-sky-200 dark:border-sky-800 shrink-0">${m.inningsLabel}</span>` : ''}
                 </div>
-                <span class="text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase shrink-0 ${statusClass}">
-                    ${displayStatus}
-                </span>
+                
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button onclick="event.stopPropagation(); viewMatchPointsTable('${m.leagueId}', '${m.id}')" 
+                            class="card-points-btn flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 text-[9.5px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-2xs"
+                            title="View Tournament Points Table">
+                        <i data-lucide="trophy" class="w-3 h-3 text-amber-500"></i>
+                        <span>Points Table</span>
+                    </button>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase shrink-0 ${statusClass}">
+                        ${displayStatus}
+                    </span>
+                </div>
             </div>
 
             <div class="space-y-1 text-xs">
@@ -2875,6 +2884,17 @@ function switchPointsTableSeries(seriesId) {
     const c2Name = String((appState.currentMatchData?.competitors && appState.currentMatchData.competitors[1]?.name) || '').toLowerCase();
 
     renderTournamentPointsTableHTML(container, target, seriesList, c1Name, c2Name, appState.currentMatchData);
+}
+
+function viewMatchPointsTable(leagueId, eventId) {
+    selectMatch(leagueId, eventId, false);
+    setTimeout(() => {
+        switchMainTab('standings');
+        const standingsEl = document.getElementById('tab-standings');
+        if (standingsEl) {
+            standingsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 150);
 }
 
 // -------------------------------------------------------------

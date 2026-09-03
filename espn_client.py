@@ -1339,16 +1339,29 @@ class ESPNClient:
                 "team2": {"name": "Mohali Kings", "shortName": "MK", "probability": 28}
             },
             "liveCrease": {
+                "hasLiveCrease": True,
                 "batters": [
                     {"name": "Shubman Gill (c)", "runs": 82, "balls": 51, "fours": 8, "sixes": 3, "strikeRate": "160.78", "onStrike": True},
                     {"name": "Sanvir Singh", "runs": 28, "balls": 17, "fours": 2, "sixes": 2, "strikeRate": "164.71", "onStrike": False}
                 ],
+                "activeBowler": {"name": "Baltej Singh", "overs": "3.4", "maidens": 0, "runs": 34, "wickets": 2, "economy": "9.27"},
+                "partnerBowler": {"name": "Ramandeep Singh (c)", "overs": "3.0", "maidens": 0, "runs": 26, "wickets": 0, "economy": "8.67"},
                 "bowler": {"name": "Baltej Singh", "overs": "3.4", "maidens": 0, "runs": 34, "wickets": 2, "economy": "9.27"},
+                "partnership": "56 runs (34b)",
                 "currentPartnership": {"runs": 56, "balls": 34},
+                "lastWicket": "Anmolpreet Singh c Ramandeep b Baltej 44 (28b 5x4 1x6)",
+                "lastDismissal": "Anmolpreet Singh c Ramandeep b Baltej 44 (28b 5x4 1x6)",
+                "fowList": [
+                    {"player": "Prabhjit Singh", "score": "32/1", "runs": 14, "overs": "3.4", "dismissal": "c Gurkeerat b Baltej", "wicketNumber": 1},
+                    {"player": "Uday Saharan", "score": "94/2", "runs": 18, "overs": "10.2", "dismissal": "c & b Mayank", "wicketNumber": 2},
+                    {"player": "Anmolpreet Singh", "score": "118/3", "runs": 44, "overs": "12.1", "dismissal": "c Ramandeep b Baltej", "wicketNumber": 3}
+                ],
+                "fallOfWickets": ["32-1 (Prabhjit Singh, 3.4 ov)", "94-2 (Uday Saharan, 10.2 ov)", "118-3 (Anmolpreet Singh, 12.1 ov)"],
+                "recentDeliveries": ["1", "4", "1", "6", "0", "2"],
                 "recentBalls": ["1", "4", "1", "6", "0", "2"],
                 "last5OversSummary": {"runs": 48, "wickets": 1},
-                "lastDismissal": "Anmolpreet Singh c Ramandeep b Baltej 44 (28b 5x4 1x6)",
-                "fallOfWickets": ["32-1 (Prabhjit Singh, 3.4 ov)", "94-2 (Uday Saharan, 10.2 ov)", "118-3 (Anmolpreet Singh, 12.1 ov)"]
+                "last10Overs": "48 runs, 1 wkt",
+                "crr": f"{round(live_runs / max(1, live_overs), 2):.2f}"
             },
             "innings": {
                 "1": {
@@ -1362,12 +1375,31 @@ class ESPNClient:
                         {"name": "Anmolpreet Singh", "runs": 44, "balls": 28, "fours": 5, "sixes": 1, "strikeRate": "157.14", "dismissal": "c Ramandeep b Baltej"},
                         {"name": "Sanvir Singh", "runs": 28, "balls": 17, "fours": 2, "sixes": 2, "strikeRate": "164.71", "dismissal": "not out"}
                     ],
+                    "batsmen": [
+                        {"name": "Shubman Gill (c)", "runs": 82, "balls": 51, "fours": 8, "sixes": 3, "strikeRate": "160.78", "dismissal": "not out"},
+                        {"name": "Prabhjit Singh", "runs": 14, "balls": 11, "fours": 2, "sixes": 0, "strikeRate": "127.27", "dismissal": "c Gurkeerat b Baltej"},
+                        {"name": "Uday Saharan", "runs": 18, "balls": 12, "fours": 2, "sixes": 0, "strikeRate": "150.00", "dismissal": "c & b Mayank"},
+                        {"name": "Anmolpreet Singh", "runs": 44, "balls": 28, "fours": 5, "sixes": 1, "strikeRate": "157.14", "dismissal": "c Ramandeep b Baltej"},
+                        {"name": "Sanvir Singh", "runs": 28, "balls": 17, "fours": 2, "sixes": 2, "strikeRate": "164.71", "dismissal": "not out"}
+                    ],
                     "bowling": [
                         {"name": "Baltej Singh", "overs": "3.4", "maidens": 0, "runs": 34, "wickets": 2, "economy": "9.27"},
                         {"name": "Ramandeep Singh (c)", "overs": "3.0", "maidens": 0, "runs": 26, "wickets": 0, "economy": "8.67"},
                         {"name": "Mayank Lokesh", "overs": "4.0", "maidens": 0, "runs": 38, "wickets": 1, "economy": "9.50"},
                         {"name": "Hartejas Singh", "overs": "4.0", "maidens": 0, "runs": 42, "wickets": 0, "economy": "10.50"},
                         {"name": "Aryaman Singh", "overs": "3.0", "maidens": 0, "runs": 30, "wickets": 0, "economy": "10.00"}
+                    ],
+                    "bowlers": [
+                        {"name": "Baltej Singh", "overs": "3.4", "maidens": 0, "runs": 34, "wickets": 2, "economy": "9.27"},
+                        {"name": "Ramandeep Singh (c)", "overs": "3.0", "maidens": 0, "runs": 26, "wickets": 0, "economy": "8.67"},
+                        {"name": "Mayank Lokesh", "overs": "4.0", "maidens": 0, "runs": 38, "wickets": 1, "economy": "9.50"},
+                        {"name": "Hartejas Singh", "overs": "4.0", "maidens": 0, "runs": 42, "wickets": 0, "economy": "10.50"},
+                        {"name": "Aryaman Singh", "overs": "3.0", "maidens": 0, "runs": 30, "wickets": 0, "economy": "10.00"}
+                    ],
+                    "fow": [
+                        {"player": "Prabhjit Singh", "score": "32/1", "runs": 14, "overs": "3.4", "dismissal": "c Gurkeerat b Baltej", "wicketNumber": 1},
+                        {"player": "Uday Saharan", "score": "94/2", "runs": 18, "overs": "10.2", "dismissal": "c & b Mayank", "wicketNumber": 2},
+                        {"player": "Anmolpreet Singh", "score": "118/3", "runs": 44, "overs": "12.1", "dismissal": "c Ramandeep b Baltej", "wicketNumber": 3}
                     ]
                 }
             },

@@ -1554,8 +1554,8 @@ function renderCricinfoLiveTab(data) {
     if (!crease) return;
 
     const batters = crease.batters || [];
-    const bw = crease.activeBowler;
-    const pb = crease.partnerBowler;
+    const bw = crease.activeBowler || crease.bowler || (crease.bowlers && crease.bowlers[0]);
+    const pb = crease.partnerBowler || (crease.bowlers && crease.bowlers[1]);
 
     let battersHtml = '';
     if (batters.length === 0) {
@@ -1784,8 +1784,9 @@ function renderCricinfoLiveTab(data) {
     }
 
     const lastWkt = (fowList && fowList.length > 0) ? fowList[fowList.length - 1] : null;
-    const lastWktOver = (lastWkt && lastWkt.overs) ? `Ov ${lastWkt.overs}` : '';
-    const formattedPartnership = cleanPartnershipDisplay(crease.partnership);
+    const rawPartnership = crease.partnership || 
+        (crease.currentPartnership ? `${crease.currentPartnership.runs} runs (${crease.currentPartnership.balls || 0}b)` : '');
+    const formattedPartnership = cleanPartnershipDisplay(rawPartnership);
 
     let fowItemsHtml = '';
     if (!fowList || fowList.length === 0) {
@@ -1899,8 +1900,9 @@ function renderCricinfoLiveTab(data) {
                     <!-- 2. Last Batter Out Micro-Bar -->
                     ${(() => {
                         let lastOutText = "";
-                        if (crease && crease.lastWicket && String(crease.lastWicket).trim() !== "") {
-                            lastOutText = String(crease.lastWicket).trim();
+                        const directLast = (crease && (crease.lastWicket || crease.lastDismissal)) ? String(crease.lastWicket || crease.lastDismissal).trim() : "";
+                        if (directLast) {
+                            lastOutText = directLast;
                         } else if (fowList && fowList.length > 0) {
                             const lastF = fowList[fowList.length - 1];
                             const pName = lastF.player || lastF.name || "Wicket";

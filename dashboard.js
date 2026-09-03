@@ -242,6 +242,25 @@ async function fetchMatchDetails(leagueId, eventId, silent = false, retryCount =
         }
 
         appState.currentMatchData = data;
+
+        // Sync rich detailed score from summary back into carousel match card
+        if (data.competitors && appState.matches) {
+            const mObj = appState.matches.find(x => String(x.id) === String(eventId));
+            if (mObj && mObj.competitors) {
+                let changed = false;
+                data.competitors.forEach((sc, idx) => {
+                    if (mObj.competitors[idx] && sc.score) {
+                        const curScore = mObj.competitors[idx].score || '';
+                        if (!curScore || curScore === '-' || (sc.score.includes('ov') && !curScore.includes('ov'))) {
+                            mObj.competitors[idx].score = sc.score;
+                            changed = true;
+                        }
+                    }
+                });
+                if (changed) renderMatchList();
+            }
+        }
+
         renderAllMatchDetails(data);
     } catch (err) {
         console.error('Error fetching match details:', err);
@@ -1018,7 +1037,7 @@ function cleanScoreString(str) {
     if (!str || str === '-') return '-';
     let s = String(str).replace(/,\s*RR:\s*[\d\.]+/gi, '').trim();
     // If score string is purely overs without runs e.g. "(86 ov)", team has not batted yet!
-    if (/^\s*\(?\s*\d+(?:\.\d+)?\s*(?:ov|overs)?\s*\)?\s*$/i.test(s) && !s.includes('/')) {
+    if (/^\s*\(?\s*\d+(?:\.\d+)?\s*(?:ov|overs)\s*\)?\s*$/i.test(s) && !s.includes('/')) {
         return '-';
     }
     s = s.replace(/(\d+[\-/]\d+|\d+)\(/g, '$1 (');

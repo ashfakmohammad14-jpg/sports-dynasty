@@ -644,7 +644,7 @@ def clean_event_competitor_score(s: str, is_test_match: bool = False) -> str:
     if not s:
         return ""
     # If string is purely overs without any runs scored e.g. "(86 ov)", "(86.0 ov)", "86 ov"
-    if re.fullmatch(r'\s*\(?\s*\d+(?:\.\d+)?\s*(?:ov|overs)?\s*\)?\s*', str(s), flags=re.I) and '/' not in str(s):
+    if re.search(r'(?:ov|overs)', str(s), flags=re.I) and not re.search(r'\d+\s*/\s*\d+', str(s)) and re.fullmatch(r'\s*\(?\s*\d+(?:\.\d+)?\s*(?:ov|overs)\s*\)?\s*', str(s), flags=re.I):
         return ""
     s = re.sub(r',\s*RR:\s*[\d\.]+', '', str(s), flags=re.I).strip()
     parts = s.split("&")
@@ -653,7 +653,7 @@ def clean_event_competitor_score(s: str, is_test_match: bool = False) -> str:
         is_last = (idx == len(parts) - 1)
         p_str = p.strip()
         # Discard individual parts that are purely overs e.g. "(86 ov)"
-        if re.fullmatch(r'\s*\(?\s*\d+(?:\.\d+)?\s*(?:ov|overs)?\s*\)?\s*', p_str, flags=re.I) and '/' not in p_str:
+        if re.search(r'(?:ov|overs)', p_str, flags=re.I) and not re.search(r'\d+\s*/\s*\d+', p_str) and re.fullmatch(r'\s*\(?\s*\d+(?:\.\d+)?\s*(?:ov|overs)\s*\)?\s*', p_str, flags=re.I):
             continue
         if not is_last and is_test_match:
             p_str = re.sub(r'\s*\([^\)]*\)', '', p_str).strip()

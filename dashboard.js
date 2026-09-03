@@ -549,7 +549,7 @@ function renderSingleMatchCard(m) {
                     ${m.crr ? `<span class="text-emerald-600 dark:text-emerald-400 font-bold">CRR: ${m.crr}</span>` : ''}
                 </div>
             ` : (m.winProbability && (isLive || m.winProbability.isLive) ? `
-                <div class="mt-2 pt-1.5 border-t border-slate-100 dark:border-gray-800/80 flex items-center justify-between text-[10px] font-mono font-bold">
+                <div class="card-win-prob hidden md:flex mt-2 pt-1.5 border-t border-slate-100 dark:border-gray-800/80 items-center justify-between text-[10px] font-mono font-bold">
                     <span class="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                         <i data-lucide="trending-up" class="w-3 h-3 text-emerald-500"></i> ${m.winProbability.team1?.shortName} ${m.winProbability.team1?.probability}%
                     </span>

@@ -535,6 +535,9 @@ body.layout-mode-desktop #app-main-container {
     .match-card {
         padding: 12px 10px !important;
     }
+    .match-card .card-win-prob {
+        display: none !important;
+    }
     .match-card .text-xs {
         font-size: 13px !important;
         line-height: 1.35 !important;

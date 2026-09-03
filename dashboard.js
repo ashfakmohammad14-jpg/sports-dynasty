@@ -3041,7 +3041,9 @@ function renderMatchInfoTab(data) {
 
 // -------------------------------------------------------------
 // Per-Series Tournament Points Table Engine
-// -------------async function renderMatchPointsTableTab(matchData) {
+// -------------------------------------------------------------
+
+async function renderMatchPointsTableTab(matchData) {
     const container = document.getElementById('match-points-table-content');
     if (!container) return;
 

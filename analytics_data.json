@@ -1,18 +1,31 @@
 {
-  "total_visits": 1522,
-  "today_date": "2026-08-30",
-  "today_visits": 191,
+  "total_visits": 1538,
+  "today_date": "2026-09-03",
+  "today_visits": 16,
   "unique_visitors": {
     "f528764d624d": 1788087114.627333,
     "laptop_test_1": 1788087143.4674172,
     "phone_test_2": 1788087143.4908497,
     "tablet_test_3": 1788087143.5039942,
     "u1": 1788100217.9918554,
-    "u2": 1788100217.9779198
+    "u2": 1788100217.9779198,
+    "v_z6bxg92osc_mtlai2im": 1788425726.868508,
+    "v_8mopik7liq_mtlbgaby": 1788427327.721835,
+    "v_ob25vj9ns7_mtlbi4do": 1788427412.7208362,
+    "v_4on76ogxlx_mtlcaey5": 1788428728.8872504,
+    "v_dhvr507qae_mtld13ij": 1788429977.994406,
+    "v_xcps37uj8l_mtld6590": 1788430211.925359,
+    "v_ygmsah4j60_mtlggu5r": 1788435751.2653759,
+    "v_jojp0nf0r7_mtlgj0ej": 1788435850.448484,
+    "v_ligs1d41gn_mtlhd30a": 1788437253.9446647,
+    "v_2xwx5ry503_mtlhdpgy": 1788437282.1477284,
+    "v_120o5n8hvg_mtll7t0i": 1788443723.7036517,
+    "v_fwc95ime5f_mtll8hzh": 1788443758.200834,
+    "v_yjjxgu6q1w_mtlmpx1k": 1788446251.2343695,
+    "v_cpu9sdkugg_mtlsh93o": 1788455921.9614165
   },
   "active_sessions": {
-    "u1": 1788100217.9918554,
-    "u2": 1788100217.9779198
+    "v_cpu9sdkugg_mtlsh93o": 1788455921.9614165
   },
   "total_ad_clicks": 1,
   "today_ad_clicks": 1,

@@ -2716,6 +2716,168 @@ function renderMatchInfoTab(data) {
 }
 
 // -------------------------------------------------------------
+// Per-Series Tournament Points Table Engine
+// -------------------------------------------------------------
+
+async function renderMatchPointsTableTab(matchData) {
+    const container = document.getElementById('match-points-table-content');
+    if (!container) return;
+
+    if (!appState.seriesData || appState.seriesData.length === 0) {
+        container.innerHTML = `
+            <div class="p-8 text-center text-slate-400">
+                <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-500"></i>
+                <p class="text-xs font-bold">Loading official tournament points table...</p>
+            </div>
+        `;
+        try {
+            const resp = await fetch('/api/series');
+            if (resp.ok) {
+                const json = await resp.json();
+                appState.seriesData = json.series || [];
+            }
+        } catch(e) {
+            console.warn("Series fetch error:", e);
+        }
+    }
+
+    const seriesList = appState.seriesData || [];
+    const leagueName = String(matchData.leagueName || matchData.description || matchData.seriesTitle || '').toLowerCase();
+    const c1Name = String((matchData.competitors && matchData.competitors[0]?.name) || '').toLowerCase();
+    const c2Name = String((matchData.competitors && matchData.competitors[1]?.name) || '').toLowerCase();
+
+    // Match series
+    let matchedSeries = seriesList.find(s => {
+        if (!s.standings || s.standings.length === 0) return false;
+        const keywords = s.keywords || [s.title.toLowerCase()];
+        return keywords.some(kw => leagueName.includes(kw) || kw.includes(leagueName) || c1Name.includes(kw) || c2Name.includes(kw));
+    });
+
+    if (!matchedSeries) {
+        matchedSeries = seriesList.find(s => s.standings && s.standings.length > 0) || seriesList[0];
+    }
+
+    renderTournamentPointsTableHTML(container, matchedSeries, seriesList, c1Name, c2Name, matchData);
+}
+
+function renderTournamentPointsTableHTML(container, activeSeries, allSeries, c1Name = '', c2Name = '', matchData = null) {
+    if (!container || !activeSeries) return;
+
+    const standingsSeries = allSeries.filter(s => s.standings && s.standings.length > 0);
+    const hasStandings = activeSeries.standings && activeSeries.standings.length > 0;
+
+    container.innerHTML = `
+        <div class="hud-glass-panel rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-emerald-500/30 shadow-lg space-y-4">
+            <!-- Header with Tournament Selector Pills -->
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 dark:border-gray-800 pb-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white shadow-[0_0_15px_rgba(245,158,11,0.4)] shrink-0">
+                        <i data-lucide="trophy" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h3 class="text-base sm:text-lg font-black text-slate-900 dark:text-white">${activeSeries.title}</h3>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-emerald-500/20 text-emerald-700 dark:text-[#00ff88] border border-emerald-500/40">${activeSeries.status || 'Active'}</span>
+                        </div>
+                        <p class="text-xs text-slate-500 dark:text-gray-400">${activeSeries.dates || ''} • <span class="font-bold text-emerald-600 dark:text-emerald-400">${activeSeries.type || 'Tournament'}</span> • ${activeSeries.teams || ''}</p>
+                    </div>
+                </div>
+
+                <!-- Quick Tournament Switcher -->
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Switch:</span>
+                    ${standingsSeries.map(s => {
+                        const isCurrent = s.id === activeSeries.id;
+                        return `
+                            <button onclick="switchPointsTableSeries('${s.id}')" 
+                                    class="px-2.5 py-1 rounded-lg text-xs font-bold transition ${isCurrent ? 'bg-[#059669] text-white shadow-xs' : 'bg-slate-100 dark:bg-dark-800 text-slate-600 dark:text-gray-300 hover:text-[#059669] border border-slate-200 dark:border-gray-700'}">
+                                ${s.title.split('(')[0].replace('2026', '').replace('2025', '').replace('2024-25', '').trim()}
+                            </button>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+
+            <!-- Active Match Teams Indicator -->
+            ${(c1Name || c2Name) ? `
+                <div class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300">
+                    <span class="flex items-center gap-1.5 font-bold">
+                        <i data-lucide="info" class="w-3.5 h-3.5 text-emerald-500"></i>
+                        <span>Teams playing in this match are highlighted with <span class="text-emerald-600 dark:text-[#00ff88] font-black">emerald badges</span> in the table below.</span>
+                    </span>
+                </div>
+            ` : ''}
+
+            <!-- Standings Table -->
+            ${hasStandings ? `
+                <div class="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-gray-800">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100/80 dark:bg-dark-900/80 border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 font-mono text-[11px] uppercase tracking-wider">
+                                <th class="py-2.5 px-3">#</th>
+                                <th class="py-2.5 px-3 min-w-[150px]">Team</th>
+                                <th class="py-2.5 px-2 text-right">P</th>
+                                <th class="py-2.5 px-2 text-right">W</th>
+                                <th class="py-2.5 px-2 text-right">L</th>
+                                ${activeSeries.standings[0]?.d !== undefined ? `<th class="py-2.5 px-2 text-right">D</th>` : ''}
+                                ${activeSeries.standings[0]?.nr !== undefined ? `<th class="py-2.5 px-2 text-right">NR</th>` : ''}
+                                ${activeSeries.standings[0]?.nrr !== undefined ? `<th class="py-2.5 px-2 text-right">NRR</th>` : ''}
+                                ${activeSeries.standings[0]?.pct !== undefined ? `<th class="py-2.5 px-2 text-right">PCT %</th>` : ''}
+                                <th class="py-2.5 px-3 text-right font-black text-slate-800 dark:text-white">PTS</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-gray-800/60">
+                            ${activeSeries.standings.map((st, idx) => {
+                                const tNameLower = String(st.team || '').toLowerCase();
+                                const isPlayingNow = (c1Name && tNameLower.includes(c1Name)) || (c2Name && tNameLower.includes(c2Name)) || (c1Name && c1Name.includes(tNameLower)) || (c2Name && c2Name.includes(tNameLower));
+                                const rowHighlight = isPlayingNow ? 'bg-emerald-500/10 dark:bg-emerald-950/40 ring-1 ring-emerald-500/50' : 'hover:bg-slate-50 dark:hover:bg-dark-800/50';
+
+                                return `
+                                    <tr class="${rowHighlight} transition">
+                                        <td class="py-2.5 px-3 font-mono font-bold ${idx < 3 ? 'text-amber-500 font-black' : 'text-slate-400'}">${st.rank || (idx + 1)}</td>
+                                        <td class="py-2.5 px-3 font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                            ${st.logo ? `<img src="${st.logo}" alt="${st.team}" class="w-5 h-5 object-contain shrink-0" onerror="this.src='https://a.espncdn.com/i/teamlogos/cricket/500/6.png'"/>` : ''}
+                                            <span class="truncate">${st.team}</span>
+                                            ${isPlayingNow ? `<span class="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-600 dark:text-[#00ff88] text-[9px] font-mono font-bold uppercase shrink-0">Playing</span>` : ''}
+                                        </td>
+                                        <td class="py-2.5 px-2 text-right font-mono text-slate-700 dark:text-gray-300 font-semibold">${st.p}</td>
+                                        <td class="py-2.5 px-2 text-right font-mono text-emerald-600 dark:text-emerald-400 font-bold">${st.w}</td>
+                                        <td class="py-2.5 px-2 text-right font-mono text-rose-500 font-bold">${st.l}</td>
+                                        ${st.d !== undefined ? `<td class="py-2.5 px-2 text-right font-mono text-slate-500">${st.d}</td>` : ''}
+                                        ${st.nr !== undefined ? `<td class="py-2.5 px-2 text-right font-mono text-slate-500">${st.nr}</td>` : ''}
+                                        ${st.nrr !== undefined ? `<td class="py-2.5 px-2 text-right font-mono font-bold text-slate-700 dark:text-gray-300">${st.nrr}</td>` : ''}
+                                        ${st.pct !== undefined ? `<td class="py-2.5 px-2 text-right font-mono font-black text-emerald-600 dark:text-[#00ff88]">${st.pct}%</td>` : ''}
+                                        <td class="py-2.5 px-3 text-right font-mono font-black text-sm text-emerald-700 dark:text-[#00ff88] drop-shadow-xs">${st.pts}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            ` : `
+                <div class="p-6 text-center text-slate-400 bg-slate-50 dark:bg-dark-900/40 rounded-xl border border-dashed border-slate-200 dark:border-gray-800">
+                    <p class="text-xs">No multi-team standings table available for this series.</p>
+                </div>
+            `}
+        </div>
+    `;
+
+    safeCreateIcons();
+}
+
+function switchPointsTableSeries(seriesId) {
+    const seriesList = appState.seriesData || [];
+    const target = seriesList.find(s => s.id === seriesId);
+    if (!target) return;
+
+    const container = document.getElementById('match-points-table-content');
+    const c1Name = String((appState.currentMatchData?.competitors && appState.currentMatchData.competitors[0]?.name) || '').toLowerCase();
+    const c2Name = String((appState.currentMatchData?.competitors && appState.currentMatchData.competitors[1]?.name) || '').toLowerCase();
+
+    renderTournamentPointsTableHTML(container, target, seriesList, c1Name, c2Name, appState.currentMatchData);
+}
+
+// -------------------------------------------------------------
 // Interactive UI Handlers (Tabs, Search, Timers)
 // -------------------------------------------------------------
 
@@ -2746,6 +2908,8 @@ function switchMainTab(targetTab) {
         renderAnalyticsTab(appState.currentMatchData);
     } else if (targetTab === 'scorecard' && appState.currentMatchData) {
         renderScorecardTab(appState.currentMatchData);
+    } else if (targetTab === 'standings' && appState.currentMatchData) {
+        renderMatchPointsTableTab(appState.currentMatchData);
     }
     safeCreateIcons();
 }
@@ -3171,31 +3335,38 @@ async function fetchSeries() {
                     </div>
 
                     ${hasStandings ? `
-                        <div class="overflow-x-auto">
+                        <div class="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-gray-800">
                             <table class="w-full text-left text-xs border-collapse">
                                 <thead>
-                                    <tr class="border-b border-slate-200 dark:border-gray-800 text-slate-400 font-mono text-[10px] uppercase">
-                                        <th class="py-2 px-3">#</th>
-                                        <th class="py-2 px-3">Team</th>
-                                        <th class="py-2 px-2 text-right">PCT %</th>
-                                        <th class="py-2 px-2 text-right">Played</th>
-                                        <th class="py-2 px-2 text-right">Won</th>
-                                        <th class="py-2 px-2 text-right">Lost</th>
-                                        <th class="py-2 px-3 text-right">Points</th>
+                                    <tr class="bg-slate-100/80 dark:bg-dark-900/80 border-b border-slate-200 dark:border-gray-800 text-slate-500 dark:text-gray-400 font-mono text-[11px] uppercase tracking-wider">
+                                        <th class="py-2.5 px-3">#</th>
+                                        <th class="py-2.5 px-3 min-w-[150px]">Team</th>
+                                        <th class="py-2.5 px-2 text-right">P</th>
+                                        <th class="py-2.5 px-2 text-right">W</th>
+                                        <th class="py-2.5 px-2 text-right">L</th>
+                                        ${s.standings[0]?.d !== undefined ? `<th class="py-2.5 px-2 text-right">D</th>` : ''}
+                                        ${s.standings[0]?.nr !== undefined ? `<th class="py-2.5 px-2 text-right">NR</th>` : ''}
+                                        ${s.standings[0]?.nrr !== undefined ? `<th class="py-2.5 px-2 text-right">NRR</th>` : ''}
+                                        ${s.standings[0]?.pct !== undefined ? `<th class="py-2.5 px-2 text-right">PCT %</th>` : ''}
+                                        <th class="py-2.5 px-3 text-right font-black text-slate-800 dark:text-white">PTS</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody class="divide-y divide-slate-100 dark:divide-gray-800/60">
                                     ${s.standings.map((st, idx) => `
-                                        <tr class="border-b border-slate-100 dark:border-gray-800/50 hover:bg-slate-50 dark:hover:bg-dark-800/60 transition font-medium">
-                                            <td class="py-2 px-3 font-mono font-bold ${idx === 0 ? 'text-amber-500' : 'text-slate-500'}">${idx + 1}</td>
-                                            <td class="py-2 px-3 font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                                <span>${st.team}</span>
+                                        <tr class="hover:bg-slate-50 dark:hover:bg-dark-800/60 transition font-medium">
+                                            <td class="py-2.5 px-3 font-mono font-bold ${idx < 3 ? 'text-amber-500 font-black' : 'text-slate-400'}">${st.rank || (idx + 1)}</td>
+                                            <td class="py-2.5 px-3 font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                                ${st.logo ? `<img src="${st.logo}" alt="${st.team}" class="w-5 h-5 object-contain shrink-0" onerror="this.src='https://a.espncdn.com/i/teamlogos/cricket/500/6.png'"/>` : ''}
+                                                <span class="truncate">${st.team}</span>
                                             </td>
-                                            <td class="py-2 px-2 text-right font-mono font-black text-emerald-600 dark:text-[#00ff88]">${st.pct}%</td>
-                                            <td class="py-2 px-2 text-right font-mono text-slate-700 dark:text-gray-300">${st.p}</td>
-                                            <td class="py-2 px-2 text-right font-mono text-emerald-600 dark:text-emerald-400">${st.w}</td>
-                                            <td class="py-2 px-2 text-right font-mono text-rose-500">${st.l}</td>
-                                            <td class="py-2 px-3 text-right font-mono font-bold text-slate-900 dark:text-white">${st.pts || (st.w * 12)}</td>
+                                            <td class="py-2.5 px-2 text-right font-mono text-slate-700 dark:text-gray-300 font-semibold">${st.p}</td>
+                                            <td class="py-2.5 px-2 text-right font-mono text-emerald-600 dark:text-emerald-400 font-bold">${st.w}</td>
+                                            <td class="py-2.5 px-2 text-right font-mono text-rose-500 font-bold">${st.l}</td>
+                                            ${st.d !== undefined ? `<td class="py-2.5 px-2 text-right font-mono text-slate-500">${st.d}</td>` : ''}
+                                            ${st.nr !== undefined ? `<td class="py-2.5 px-2 text-right font-mono text-slate-500">${st.nr}</td>` : ''}
+                                            ${st.nrr !== undefined ? `<td class="py-2.5 px-2 text-right font-mono font-bold text-slate-700 dark:text-gray-300">${st.nrr}</td>` : ''}
+                                            ${st.pct !== undefined ? `<td class="py-2.5 px-2 text-right font-mono font-black text-emerald-600 dark:text-[#00ff88]">${st.pct}%</td>` : ''}
+                                            <td class="py-2.5 px-3 text-right font-mono font-black text-sm text-emerald-700 dark:text-[#00ff88] drop-shadow-xs">${st.pts}</td>
                                         </tr>
                                     `).join('')}
                                 </tbody>

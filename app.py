@@ -184,10 +184,8 @@ async def serve_sw():
 @app.get("/ads.txt")
 async def serve_ads_txt():
     """Official Google AdSense ads.txt authorization record."""
-    content, _ = get_file_content("ads.txt")
-    if not content:
-        content = "google.com, pub-9257478787714323, DIRECT, f08c47fec0942fa0\n"
-    return Response(content=content, media_type="text/plain")
+    content = "google.com, pub-9257478787714323, DIRECT, f08c47fec0942fa0\n"
+    return Response(content=content, media_type="text/plain; charset=utf-8")
 
 
 @app.get("/api/matches")
@@ -256,13 +254,14 @@ async def get_teams():
         return JSONResponse(content={"teams": []})
 
 @app.get("/api/series")
+@app.get("/api/standings")
 async def get_series():
     """Return featured tournaments, series, and standings."""
     try:
         data = espn_service.get_featured_series()
-        return JSONResponse(content={"series": data})
+        return JSONResponse(content={"series": data, "standings": data})
     except Exception as e:
-        return JSONResponse(content={"series": []})
+        return JSONResponse(content={"series": [], "standings": []})
 
 @app.get("/api/health")
 async def health_check():

@@ -3676,32 +3676,100 @@ class ESPNClient:
         ]
 
     def get_featured_series(self) -> List[Dict[str, Any]]:
-        """Return active & upcoming tournaments, leagues, and standings."""
+        """Return active & upcoming tournaments, leagues, and comprehensive per-series points tables."""
         return [
+            {
+                "id": "cpl-2026",
+                "title": "Caribbean Premier League (CPL) 2026",
+                "dates": "Aug - Sep 2026",
+                "type": "T20 Tournament",
+                "status": "Ongoing",
+                "teams": "6 Franchises",
+                "matchType": "cpl",
+                "keywords": ["cpl", "caribbean", "patriots", "tridents", "royals", "kings", "warriors", "riders", "falcons"],
+                "standings": [
+                    {"rank": 1, "team": "Barbados Royals", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1183.png", "p": 6, "w": 5, "l": 1, "nr": 0, "nrr": "+1.124", "pts": 10},
+                    {"rank": 2, "team": "Guyana Amazon Warriors", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1184.png", "p": 6, "w": 4, "l": 2, "nr": 0, "nrr": "+0.845", "pts": 8},
+                    {"rank": 3, "team": "St Lucia Kings", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1186.png", "p": 6, "w": 4, "l": 2, "nr": 0, "nrr": "+0.312", "pts": 8},
+                    {"rank": 4, "team": "Trinbago Knight Riders", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1187.png", "p": 6, "w": 3, "l": 3, "nr": 0, "nrr": "-0.118", "pts": 6},
+                    {"rank": 5, "team": "Antigua & Barbuda Falcons", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1182.png", "p": 7, "w": 2, "l": 5, "nr": 0, "nrr": "-0.620", "pts": 4},
+                    {"rank": 6, "team": "St Kitts and Nevis Patriots", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1185.png", "p": 7, "w": 1, "l": 6, "nr": 0, "nrr": "-1.412", "pts": 2}
+                ]
+            },
+            {
+                "id": "county-div-1",
+                "title": "County Championship Division One 2026",
+                "dates": "Apr - Sep 2026",
+                "type": "First-Class Tournament",
+                "status": "Ongoing",
+                "teams": "10 Counties",
+                "matchType": "county",
+                "keywords": ["division one", "championship division one", "essex", "sussex", "surrey", "somerset", "hampshire", "warwickshire", "durham", "nottinghamshire", "worcestershire", "kent"],
+                "standings": [
+                    {"rank": 1, "team": "Surrey", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1370.png", "p": 12, "w": 7, "l": 1, "d": 4, "batPts": 34, "bowlPts": 32, "pts": 184},
+                    {"rank": 2, "team": "Essex", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1360.png", "p": 12, "w": 6, "l": 2, "d": 4, "batPts": 28, "bowlPts": 30, "pts": 168},
+                    {"rank": 3, "team": "Somerset", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1369.png", "p": 12, "w": 5, "l": 2, "d": 5, "batPts": 30, "bowlPts": 29, "pts": 162},
+                    {"rank": 4, "team": "Sussex", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1371.png", "p": 12, "w": 5, "l": 3, "d": 4, "batPts": 26, "bowlPts": 28, "pts": 154},
+                    {"rank": 5, "team": "Hampshire", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1363.png", "p": 12, "w": 4, "l": 3, "d": 5, "batPts": 24, "bowlPts": 29, "pts": 146},
+                    {"rank": 6, "team": "Warwickshire", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1372.png", "p": 12, "w": 3, "l": 5, "d": 4, "batPts": 25, "bowlPts": 27, "pts": 122},
+                    {"rank": 7, "team": "Durham", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1359.png", "p": 12, "w": 3, "l": 5, "d": 4, "batPts": 22, "bowlPts": 26, "pts": 118},
+                    {"rank": 8, "team": "Nottinghamshire", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1368.png", "p": 12, "w": 2, "l": 5, "d": 5, "batPts": 21, "bowlPts": 25, "pts": 112},
+                    {"rank": 9, "team": "Worcestershire", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1373.png", "p": 12, "w": 2, "l": 6, "d": 4, "batPts": 19, "bowlPts": 23, "pts": 104},
+                    {"rank": 10, "team": "Kent", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1364.png", "p": 12, "w": 1, "l": 8, "d": 3, "batPts": 16, "bowlPts": 21, "pts": 82}
+                ]
+            },
+            {
+                "id": "county-div-2",
+                "title": "County Championship Division Two 2026",
+                "dates": "Apr - Sep 2026",
+                "type": "First-Class Tournament",
+                "status": "Ongoing",
+                "teams": "8 Counties",
+                "matchType": "county",
+                "keywords": ["division two", "championship division two", "yorkshire", "middlesex", "leicestershire", "glamorgan", "gloucestershire", "derbyshire", "northamptonshire"],
+                "standings": [
+                    {"rank": 1, "team": "Yorkshire", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1374.png", "p": 12, "w": 5, "l": 1, "d": 6, "batPts": 32, "bowlPts": 31, "pts": 166},
+                    {"rank": 2, "team": "Middlesex", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1366.png", "p": 12, "w": 5, "l": 2, "d": 5, "batPts": 29, "bowlPts": 28, "pts": 158},
+                    {"rank": 3, "team": "Leicestershire", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1365.png", "p": 12, "w": 4, "l": 2, "d": 6, "batPts": 27, "bowlPts": 26, "pts": 148},
+                    {"rank": 4, "team": "Glamorgan", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1361.png", "p": 12, "w": 3, "l": 2, "d": 7, "batPts": 24, "bowlPts": 25, "pts": 136},
+                    {"rank": 5, "team": "Gloucestershire", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1362.png", "p": 12, "w": 3, "l": 3, "d": 6, "batPts": 22, "bowlPts": 24, "pts": 130},
+                    {"rank": 6, "team": "Derbyshire", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1358.png", "p": 12, "w": 2, "l": 4, "d": 6, "batPts": 20, "bowlPts": 22, "pts": 116},
+                    {"rank": 7, "team": "Northamptonshire", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1367.png", "p": 12, "w": 2, "l": 5, "d": 5, "batPts": 18, "bowlPts": 21, "pts": 110}
+                ]
+            },
+            {
+                "id": "duleep-trophy-2026",
+                "title": "Duleep Trophy 2026",
+                "dates": "Sep 2026",
+                "type": "First-Class Tournament",
+                "status": "Ongoing",
+                "teams": "4 Teams",
+                "matchType": "duleep",
+                "keywords": ["duleep", "india a", "india b", "india c", "india d", "south zone", "north zone", "central zone", "east zone", "west zone"],
+                "standings": [
+                    {"rank": 1, "team": "India C", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png", "p": 2, "w": 2, "l": 0, "d": 0, "nrr": "-", "pts": 12},
+                    {"rank": 2, "team": "India B", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png", "p": 2, "w": 1, "l": 1, "d": 0, "nrr": "-", "pts": 6},
+                    {"rank": 3, "team": "India A", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png", "p": 2, "w": 1, "l": 1, "d": 0, "nrr": "-", "pts": 6},
+                    {"rank": 4, "team": "India D", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png", "p": 2, "w": 0, "l": 2, "d": 0, "nrr": "-", "pts": 0}
+                ]
+            },
             {
                 "id": "wtc-2025",
                 "title": "ICC World Test Championship 2023-2025",
                 "dates": "Jun 2023 - Jun 2025",
                 "type": "Test Championship",
                 "status": "Ongoing",
-                "teams": "9 Teams",
+                "teams": "9 Nations",
+                "matchType": "wtc",
+                "keywords": ["wtc", "world test championship", "icc wtc"],
                 "standings": [
-                    {"team": "India", "pct": "68.52", "p": 14, "w": 9, "l": 4, "d": 1, "pts": 118},
-                    {"team": "Australia", "pct": "62.50", "p": 12, "w": 8, "l": 3, "d": 1, "pts": 90},
-                    {"team": "South Africa", "pct": "54.17", "p": 8, "w": 4, "l": 3, "d": 1, "pts": 52},
-                    {"team": "New Zealand", "pct": "50.00", "p": 8, "w": 4, "l": 4, "d": 0, "pts": 48},
-                    {"team": "Sri Lanka", "pct": "50.00", "p": 6, "w": 3, "l": 3, "d": 0, "pts": 36},
-                    {"team": "England", "pct": "45.00", "p": 19, "w": 9, "l": 9, "d": 1, "pts": 93}
+                    {"rank": 1, "team": "India", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/6.png", "pct": "68.52", "p": 14, "w": 9, "l": 4, "d": 1, "pts": 118},
+                    {"rank": 2, "team": "Australia", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/2.png", "pct": "62.50", "p": 12, "w": 8, "l": 3, "d": 1, "pts": 90},
+                    {"rank": 3, "team": "South Africa", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/3.png", "pct": "54.17", "p": 8, "w": 4, "l": 3, "d": 1, "pts": 52},
+                    {"rank": 4, "team": "New Zealand", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/5.png", "pct": "50.00", "p": 8, "w": 4, "l": 4, "d": 0, "pts": 48},
+                    {"rank": 5, "team": "Sri Lanka", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/8.png", "pct": "50.00", "p": 6, "w": 3, "l": 3, "d": 0, "pts": 36},
+                    {"rank": 6, "team": "England", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1.png", "pct": "45.00", "p": 19, "w": 9, "l": 9, "d": 1, "pts": 93}
                 ]
-            },
-            {
-                "id": "ct-2025",
-                "title": "ICC Champions Trophy 2025",
-                "dates": "February - March 2025",
-                "type": "ODI Tournament",
-                "status": "Upcoming",
-                "teams": "8 Teams",
-                "groups": ["Group A: India, Pakistan, New Zealand, Bangladesh", "Group B: Australia, England, South Africa, Afghanistan"]
             },
             {
                 "id": "ipl-2025",
@@ -3711,14 +3779,6 @@ class ESPNClient:
                 "status": "Upcoming",
                 "teams": "10 Franchises",
                 "defendingChamp": "Kolkata Knight Riders"
-            },
-            {
-                "id": "bbl-2025",
-                "title": "Big Bash League 2024-25",
-                "dates": "December 2024 - January 2025",
-                "type": "T20 League",
-                "status": "Completed",
-                "teams": "8 Teams"
             }
         ]
 

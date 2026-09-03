@@ -72,7 +72,7 @@
     </script>
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/custom.css?v=2.1.0">
+    <link rel="stylesheet" href="/custom.css?v=2.2.0">
 
     <!-- Google AdSense Official Script -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9257478787714323"
@@ -280,6 +280,9 @@
                     <button class="main-tab-btn cricinfo-tab flex items-center gap-1.5" data-tab="squads">
                         <i data-lucide="users" class="w-3.5 h-3.5"></i> Squads
                     </button>
+                    <button class="main-tab-btn cricinfo-tab flex items-center gap-1.5" data-tab="standings">
+                        <i data-lucide="trophy" class="w-3.5 h-3.5 text-amber-500"></i> Points Table
+                    </button>
                     <button class="main-tab-btn cricinfo-tab flex items-center gap-1.5" data-tab="info">
                         <i data-lucide="info" class="w-3.5 h-3.5"></i> Match Info
                     </button>
@@ -459,6 +462,11 @@
                     <!-- TAB 7: MATCH INFO -->
                     <div id="tab-info" class="tab-pane hidden space-y-3">
                         <div id="match-info-content" class="bg-slate-50 dark:bg-dark-900/60 p-4 rounded-xl border border-slate-200 dark:border-gray-800 text-xs space-y-2.5"></div>
+                    </div>
+
+                    <!-- TAB 7: PER-SERIES POINTS TABLE -->
+                    <div id="tab-standings" class="tab-pane hidden space-y-4">
+                        <div id="match-points-table-content" class="space-y-4"></div>
                     </div>
 
                 </div>
@@ -853,6 +861,6 @@
     </div>
 
     <!-- Custom JavaScript -->
-    <script src="/dashboard.js?v=8.1.0"></script>
+    <script src="/dashboard.js?v=8.2.0"></script>
 </body>
 </html>

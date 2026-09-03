@@ -539,14 +539,14 @@ function renderSingleMatchCard(m) {
                         ${renderTeamLogo(c1.name, c1.logo, 'w-5 h-5')}
                         <span class="font-bold text-slate-800 dark:text-gray-200 truncate ${c1.isWinner ? 'text-[#059669] dark:text-emerald-400' : ''}">${c1.name}</span>
                     </div>
-                    <span class="font-mono font-bold text-slate-900 dark:text-white text-right">${cleanScoreString(c1.score)}</span>
+                    <span class="match-team-score font-mono font-bold text-slate-900 dark:text-white text-right">${cleanScoreString(c1.score)}</span>
                 </div>
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-2 truncate">
                         ${renderTeamLogo(c2.name, c2.logo, 'w-5 h-5')}
                         <span class="font-bold text-slate-800 dark:text-gray-200 truncate ${c2.isWinner ? 'text-[#059669] dark:text-emerald-400' : ''}">${c2.name}</span>
                     </div>
-                    <span class="font-mono font-bold text-slate-900 dark:text-white text-right">${cleanScoreString(c2.score)}</span>
+                    <span class="match-team-score font-mono font-bold text-slate-900 dark:text-white text-right">${cleanScoreString(c2.score)}</span>
                 </div>
             </div>
 

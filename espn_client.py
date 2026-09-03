@@ -1309,6 +1309,7 @@ class ESPNClient:
         game_info = raw.get("gameInfo", {})
         notes_raw = raw.get("notes", [])
         rosters_raw = raw.get("rosters", [])
+        full_squads_raw = raw.get("squads", [])
         matchcards_raw = raw.get("matchcards", [])
         leaders_raw = raw.get("leaders", [])
         odds_raw = raw.get("odds", [])
@@ -1492,43 +1493,70 @@ class ESPNClient:
             if pbp_commentary:
                 commentary = pbp_commentary
 
-        # Process Squads / Rosters
-        squads = self._process_rosters(rosters_raw)
+        # Process Squads / Rosters (Playing XI and Full Squad)
+        squads = self._process_rosters(rosters_raw, full_squads_raw)
 
-        # Build comprehensive player photo map from squads
+        # Build comprehensive player photo map, captain map, and wicketkeeper map
         player_photo_map = {}
+        captain_names = set()
+        wk_names = set()
+
         for sq in squads:
             for p in sq.get("players", []):
                 p_head = p.get("headshot", "")
-                if p.get("name"):
-                    player_photo_map[p["name"].strip().lower()] = p_head
-                    clean_p = re.sub(r'\s*\([^\)]*\)', '', p["name"]).strip().lower()
+                p_name = p.get("name", "").strip().lower()
+                clean_p = re.sub(r'\s*\([^\)]*\)', '', p_name).strip()
+
+                if p_name:
+                    player_photo_map[p_name] = p_head
                     player_photo_map[clean_p] = p_head
                 if p.get("shortName"):
                     player_photo_map[p["shortName"].strip().lower()] = p_head
 
-        # Enrich live crease batters and bowlers with headshots
+                if p.get("captain"):
+                    captain_names.add(p_name)
+                    captain_names.add(clean_p)
+                if p.get("wicketKeeper"):
+                    wk_names.add(p_name)
+                    wk_names.add(clean_p)
+
+        # Enrich live crease batters and bowlers with headshots, captain, and wicketkeeper flags
         if live_crease:
             for b in live_crease.get("batters", []):
-                clean_n = re.sub(r'\s*\([^\)]*\)', '', b.get("name", "")).strip().lower()
-                b["headshot"] = player_photo_map.get(clean_n) or player_photo_map.get(b.get("name", "").strip().lower(), "")
+                raw_n = b.get("name", "")
+                clean_n = re.sub(r'\s*\([^\)]*\)', '', raw_n).strip().lower()
+                b["headshot"] = player_photo_map.get(clean_n) or player_photo_map.get(raw_n.strip().lower(), "")
+                is_c = (clean_n in captain_names) or b.get("isCaptain", False)
+                is_wk = (clean_n in wk_names) or b.get("isWicketKeeper", False)
+                b["isCaptain"] = is_c
+                b["isWicketKeeper"] = is_wk
+
             if live_crease.get("activeBowler"):
                 bw = live_crease["activeBowler"]
                 clean_n = re.sub(r'\s*\([^\)]*\)', '', bw.get("name", "")).strip().lower()
                 bw["headshot"] = player_photo_map.get(clean_n) or player_photo_map.get(bw.get("name", "").strip().lower(), "")
+                bw["isCaptain"] = (clean_n in captain_names) or bw.get("isCaptain", False)
+                bw["isWicketKeeper"] = (clean_n in wk_names) or bw.get("isWicketKeeper", False)
+
             if live_crease.get("partnerBowler"):
                 pb = live_crease["partnerBowler"]
                 clean_n = re.sub(r'\s*\([^\)]*\)', '', pb.get("name", "")).strip().lower()
                 pb["headshot"] = player_photo_map.get(clean_n) or player_photo_map.get(pb.get("name", "").strip().lower(), "")
+                pb["isCaptain"] = (clean_n in captain_names) or pb.get("isCaptain", False)
+                pb["isWicketKeeper"] = (clean_n in wk_names) or pb.get("isWicketKeeper", False)
 
-        # Enrich innings batting and bowling with headshots
+        # Enrich innings batting and bowling with headshots, captain, and wicketkeeper flags
         for inn_key, inn in innings_data.items():
             for b in inn.get("batting", []):
                 clean_n = re.sub(r'\s*\([^\)]*\)', '', b.get("name", "")).strip().lower()
                 b["headshot"] = player_photo_map.get(clean_n) or player_photo_map.get(b.get("name", "").strip().lower(), "")
+                b["isCaptain"] = (clean_n in captain_names) or b.get("isCaptain", False)
+                b["isWicketKeeper"] = (clean_n in wk_names) or b.get("isWicketKeeper", False)
             for bw in inn.get("bowling", []):
                 clean_n = re.sub(r'\s*\([^\)]*\)', '', bw.get("name", "")).strip().lower()
                 bw["headshot"] = player_photo_map.get(clean_n) or player_photo_map.get(bw.get("name", "").strip().lower(), "")
+                bw["isCaptain"] = (clean_n in captain_names) or bw.get("isCaptain", False)
+                bw["isWicketKeeper"] = (clean_n in wk_names) or bw.get("isWicketKeeper", False)
 
         # Enrich innings with yetToBat (Did Not Bat / Yet to Bat list for Playing 11 visibility)
         def clean_team_stem(name):
@@ -3242,34 +3270,110 @@ class ESPNClient:
 
         return processed
 
-    def _process_rosters(self, rosters: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Extract full squads with athlete details."""
+    def _process_rosters(self, rosters: List[Dict[str, Any]], full_squads: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
+        """Extract full squads with Playing XI and Bench (Cricbuzz style) with captain & keeper details."""
+        if full_squads is None:
+            full_squads = []
+
         squads = []
         for r in rosters:
             team_info = r.get("team", {})
+            team_id = str(team_info.get("id", ""))
             team_name = team_info.get("displayName", team_info.get("name", "Team"))
             team_logo = team_info.get("logo", "")
-            
-            players = []
+            if not team_logo and team_info.get("logos"):
+                team_logo = team_info["logos"][0].get("href", "")
+
+            playing_xi = []
+            playing_ids = set()
+            playing_names = set()
+
             for athlete_item in r.get("roster", []):
                 ath = athlete_item.get("athlete", {})
-                pos = ath.get("position", {})
-                players.append({
-                    "id": ath.get("id", ""),
-                    "name": ath.get("displayName", ath.get("name", "Player")),
+                pos = athlete_item.get("position") or ath.get("position") or {}
+                pos_id = pos.get("id", "") if isinstance(pos, dict) else ""
+                pos_name = pos.get("name", "Player") if isinstance(pos, dict) else str(pos)
+                if pos_name in ["Unknown", "UKN"]:
+                    pos_name = "Player"
+
+                is_capt = bool(athlete_item.get("captain") or ath.get("captain"))
+                is_wk = bool(
+                    athlete_item.get("keeper") or ath.get("keeper") or 
+                    ath.get("wicketKeeper") or pos_id in ["WK", "WBT"] or 
+                    "wicketkeeper" in str(pos_name).lower()
+                )
+
+                p_id = str(ath.get("id", ""))
+                p_name = ath.get("displayName", ath.get("name", "Player"))
+                if p_id:
+                    playing_ids.add(p_id)
+                if p_name:
+                    playing_names.add(p_name.strip().lower())
+
+                headshot = ath.get("headshot", {}).get("href", "") if isinstance(ath.get("headshot"), dict) else str(ath.get("headshot") or "")
+
+                playing_xi.append({
+                    "id": p_id,
+                    "name": p_name,
                     "shortName": ath.get("shortName", ""),
                     "jersey": ath.get("jersey", ""),
-                    "role": pos.get("displayName", "Player"),
-                    "captain": ath.get("captain", False),
-                    "wicketKeeper": ath.get("wicketKeeper", False),
-                    "headshot": ath.get("headshot", {}).get("href", "")
+                    "role": pos_name,
+                    "captain": is_capt,
+                    "wicketKeeper": is_wk,
+                    "headshot": headshot
                 })
 
+            # Match full squad from ESPN 'squads' array
+            matched_sq = next(
+                (sq for sq in full_squads if str(sq.get("team", {}).get("id", "")) == team_id or 
+                 sq.get("team", {}).get("displayName", "").lower() == team_name.lower()), 
+                None
+            )
+            bench_players = []
+            if matched_sq:
+                for ath in matched_sq.get("athletes", []):
+                    p_id = str(ath.get("id", ""))
+                    p_name = ath.get("displayName", ath.get("name", "Player"))
+                    clean_name = p_name.strip().lower()
+
+                    if p_id in playing_ids or clean_name in playing_names:
+                        # Synchronize captain / keeper back to playing XI if full squad has it
+                        for px in playing_xi:
+                            if px["id"] == p_id or px["name"].strip().lower() == clean_name:
+                                if ath.get("captain"):
+                                    px["captain"] = True
+                                if ath.get("keeper"):
+                                    px["wicketKeeper"] = True
+                        continue
+
+                    pos = ath.get("position", {})
+                    pos_id = pos.get("id", "") if isinstance(pos, dict) else ""
+                    pos_name = pos.get("name", "Player") if isinstance(pos, dict) else str(pos)
+                    if pos_name in ["Unknown", "UKN"]:
+                        pos_name = "Player"
+
+                    is_capt = bool(ath.get("captain"))
+                    is_wk = bool(ath.get("keeper") or pos_id in ["WK", "WBT"] or "wicketkeeper" in str(pos_name).lower())
+                    headshot = ath.get("headshot", {}).get("href", "") if isinstance(ath.get("headshot"), dict) else str(ath.get("headshot") or "")
+
+                    bench_players.append({
+                        "id": p_id,
+                        "name": p_name,
+                        "shortName": ath.get("shortName", ""),
+                        "jersey": ath.get("jersey", ""),
+                        "role": pos_name,
+                        "captain": is_capt,
+                        "wicketKeeper": is_wk,
+                        "headshot": headshot
+                    })
+
             squads.append({
-                "teamId": team_info.get("id", ""),
+                "teamId": team_id,
                 "teamName": team_name,
                 "teamLogo": team_logo,
-                "players": players
+                "playingXI": playing_xi,
+                "bench": bench_players,
+                "players": playing_xi + bench_players
             })
         return squads
 

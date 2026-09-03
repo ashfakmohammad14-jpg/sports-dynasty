@@ -1742,6 +1742,18 @@ function renderCricinfoLiveTab(data) {
         battersHtml = batters.map((b, idx) => {
             const isFacing = (!isMatchCompleted && idx === strikerIndex);
             const sr = (b.strikeRate && b.strikeRate !== '0.00' && b.strikeRate !== 0) ? b.strikeRate : computeStrikeRate(b.runs, b.balls);
+            const isC = Boolean(b.isCaptain || b.captain || /\(c\)/i.test(b.name) || /\(c\s*&/i.test(b.name));
+            const isWk = Boolean(b.isWicketKeeper || b.wicketKeeper || /\(wk\)/i.test(b.name) || /&\s*wk\)/i.test(b.name));
+            const cleanBName = b.name.replace(/\s*\([^\)]*\)/g, '').trim();
+            let bRoleTag = '';
+            if (isC && isWk) {
+                bRoleTag = '<span class="text-[8.5px] font-mono font-black px-1 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none ml-1">(c & wk)</span>';
+            } else if (isC) {
+                bRoleTag = '<span class="text-[8.5px] font-mono font-black px-1 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none ml-1">(c)</span>';
+            } else if (isWk) {
+                bRoleTag = '<span class="text-[8.5px] font-mono font-black px-1 py-0.2 rounded bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 shrink-0 select-none ml-1">(wk)</span>';
+            }
+
             return `
                 <tr onclick="toggleStrike('${data.leagueId}', '${data.matchId}', '${b.name.replace(/'/g, "\\'")}')" 
                     title="Click to toggle active strike to ${b.name}" 
@@ -1754,10 +1766,11 @@ function renderCricinfoLiveTab(data) {
                                     <span class="relative inline-flex rounded-full h-2 w-2 bg-[#00ff88] shadow-[0_0_8px_#00ff88]"></span>
                                 </span>
                             ` : ''}
-                            <div onclick="event.stopPropagation(); openPlayerProfile('${b.id || ''}', '${b.name.replace(/'/g, "\\'")}')" 
-                                 class="flex items-center gap-1 min-w-0 cursor-pointer hover:opacity-80 transition group/p" title="View Profile & Stats of ${b.name}">
-                                ${renderPlayerAvatar(b.name, b.headshot, 'w-4 h-4 sm:w-5 sm:h-5 group-hover/p:ring-2 group-hover/p:ring-[#00ff88] shrink-0')}
-                                <span class="text-[#059669] dark:text-emerald-400 truncate group-hover/p:underline text-[11px] sm:text-xs ${isFacing ? 'font-black text-emerald-700 dark:text-[#00ff88]' : 'font-semibold'}">${b.name}</span>
+                            <div onclick="event.stopPropagation(); openPlayerProfile('${b.id || ''}', '${cleanBName.replace(/'/g, "\\'")}')" 
+                                 class="flex items-center gap-1 min-w-0 cursor-pointer hover:opacity-80 transition group/p" title="View Profile & Stats of ${cleanBName}">
+                                ${renderPlayerAvatar(cleanBName, b.headshot, 'w-4 h-4 sm:w-5 sm:h-5 group-hover/p:ring-2 group-hover/p:ring-[#00ff88] shrink-0')}
+                                <span class="text-[#059669] dark:text-emerald-400 truncate group-hover/p:underline text-[11px] sm:text-xs ${isFacing ? 'font-black text-emerald-700 dark:text-[#00ff88]' : 'font-semibold'}">${cleanBName}</span>
+                                ${bRoleTag}
                             </div>
                             ${isFacing ? '<span class="text-[7px] font-black uppercase px-1 py-0.2 rounded bg-[#00ff88]/25 text-emerald-800 dark:text-[#00ff88] border border-[#00ff88]/60 shrink-0 font-mono hidden sm:inline">STRIKE</span>' : ''}
                         </div>
@@ -1794,6 +1807,9 @@ function renderCricinfoLiveTab(data) {
         bowlersHtml = bowlers.map((b, idx) => {
             const isBowlingNow = (idx === 0 && !isMatchCompleted);
             const econ = (b.economy && b.economy !== '0.00' && b.economy !== '0') ? b.economy : computeEconomy(b.overs, b.runs);
+            const isBwC = Boolean(b.isCaptain || b.captain || /\(c\)/i.test(b.name));
+            const cleanBwName = b.name.replace(/\s*\([^\)]*\)/g, '').trim();
+            const bwRoleTag = isBwC ? '<span class="text-[8.5px] font-mono font-black px-1 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none ml-1">(c)</span>' : '';
 
             return `
                 <tr class="hover:bg-slate-50 dark:hover:bg-dark-900/60 transition ${isBowlingNow ? 'bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent dark:from-amber-950/50 dark:via-dark-900 border-l-4 border-l-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.2)]' : ''}">
@@ -1805,10 +1821,11 @@ function renderCricinfoLiveTab(data) {
                                     <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,1)]"></span>
                                 </span>
                             ` : ''}
-                            <div onclick="event.stopPropagation(); openPlayerProfile('${b.id || ''}', '${b.name.replace(/'/g, "\\'")}')" 
-                                 class="flex items-center gap-1 min-w-0 cursor-pointer hover:opacity-80 transition group/p" title="View Profile & Stats of ${b.name}">
-                                ${renderPlayerAvatar(b.name, b.headshot, 'w-4 h-4 sm:w-5 sm:h-5 group-hover/p:ring-2 group-hover/p:ring-amber-400 shrink-0')}
-                                <span class="text-[#059669] dark:text-emerald-400 truncate group-hover/p:underline text-[11px] sm:text-xs ${isBowlingNow ? 'font-black text-amber-700 dark:text-amber-300' : 'font-semibold'}">${b.name}</span>
+                            <div onclick="event.stopPropagation(); openPlayerProfile('${b.id || ''}', '${cleanBwName.replace(/'/g, "\\'")}')" 
+                                 class="flex items-center gap-1 min-w-0 cursor-pointer hover:opacity-80 transition group/p" title="View Profile & Stats of ${cleanBwName}">
+                                ${renderPlayerAvatar(cleanBwName, b.headshot, 'w-4 h-4 sm:w-5 sm:h-5 group-hover/p:ring-2 group-hover/p:ring-amber-400 shrink-0')}
+                                <span class="text-[#059669] dark:text-emerald-400 truncate group-hover/p:underline text-[11px] sm:text-xs ${isBowlingNow ? 'font-black text-amber-700 dark:text-amber-300' : 'font-semibold'}">${cleanBwName}</span>
+                                ${bwRoleTag}
                             </div>
                             ${isBowlingNow ? '<span class="text-[7px] font-black uppercase px-1 py-0.2 rounded bg-amber-400/25 text-amber-700 dark:text-amber-300 border border-amber-400/60 shrink-0 font-mono hidden sm:inline">BOWLING</span>' : ''}
                         </div>
@@ -2392,16 +2409,30 @@ function renderActiveInningsScorecard(inn, matchData) {
                 const sr = (b.strikeRate && b.strikeRate !== '0.00') ? b.strikeRate : computeStrikeRate(b.runs, b.balls);
                 const dismissalHtml = formatDismissalHTML(b.dismissal, b.isNotOut);
                 const safeName = escapeQuotes(b.name);
+
+                const isC = Boolean(b.isCaptain || b.captain || /\(c\)/i.test(b.name) || /\(c\s*&/i.test(b.name));
+                const isWk = Boolean(b.isWicketKeeper || b.wicketKeeper || /\(wk\)/i.test(b.name) || /&\s*wk\)/i.test(b.name));
+                const cleanDisplayName = b.name.replace(/\s*\([^\)]*\)/g, '').trim();
+                let roleTag = '';
+                if (isC && isWk) {
+                    roleTag = '<span class="text-[9.5px] font-mono font-black px-1 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none ml-1">(c & wk)</span>';
+                } else if (isC) {
+                    roleTag = '<span class="text-[9.5px] font-mono font-black px-1 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none ml-1">(c)</span>';
+                } else if (isWk) {
+                    roleTag = '<span class="text-[9.5px] font-mono font-black px-1 py-0.2 rounded bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 shrink-0 select-none ml-1">(wk)</span>';
+                }
+
                 return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-dark-900/60 transition border-b border-slate-100 dark:border-gray-800/80">
                         <td class="py-2 px-2 text-left align-top" style="width: 44%;">
                             <div class="flex items-start gap-1.5 min-w-0">
                                 <div onclick="openPlayerProfile('${b.id || ''}', '${safeName}')" 
                                      class="flex items-start gap-1.5 min-w-0 cursor-pointer hover:opacity-80 transition group/p w-full" title="View Profile & Stats of ${b.name}">
-                                    ${renderPlayerAvatar(b.name, b.headshot, 'w-4 h-4 sm:w-5 sm:h-5 group-hover/p:ring-2 group-hover/p:ring-[#00ff88] shrink-0 mt-0.5')}
+                                    ${renderPlayerAvatar(cleanDisplayName, b.headshot, 'w-4 h-4 sm:w-5 sm:h-5 group-hover/p:ring-2 group-hover/p:ring-[#00ff88] shrink-0 mt-0.5')}
                                     <div class="min-w-0 flex-1">
-                                        <div class="flex items-center gap-1">
-                                            <span class="font-bold text-slate-900 dark:text-white group-hover/p:text-[#00ff88] group-hover/p:underline text-xs sm:text-sm truncate">${b.name}</span>
+                                        <div class="flex items-center gap-1 flex-wrap">
+                                            <span class="font-bold text-slate-900 dark:text-white group-hover/p:text-[#00ff88] group-hover/p:underline text-xs sm:text-sm truncate">${cleanDisplayName}</span>
+                                            ${roleTag}
                                             ${b.isNotOut ? '<span class="text-rose-600 font-black text-xs shrink-0">*</span>' : ''}
                                         </div>
                                         <div class="text-[10px] text-slate-500 dark:text-gray-400 mt-0.5 leading-snug break-words">
@@ -2442,14 +2473,19 @@ function renderActiveInningsScorecard(inn, matchData) {
                 return sqTeam && innTeam && (sqTeam === innTeam || sqTeam.includes(innTeam) || innTeam.includes(sqTeam));
             });
             
-            if (matchingSquad && matchingSquad.players) {
-                ytbList = matchingSquad.players.filter(p => {
+            if (matchingSquad) {
+                const candidatePlayers = (matchingSquad.playingXI && matchingSquad.playingXI.length > 0) ? matchingSquad.playingXI : (matchingSquad.players || []);
+                ytbList = candidatePlayers.filter(p => {
                     const pName = (p.name || '').toLowerCase().trim();
                     return !battedNames.some(b => b === pName || (b.length > 3 && pName.includes(b)) || (pName.length > 3 && b.includes(pName)));
                 }).map(p => ({
                     id: p.id || '',
                     name: p.name || 'Player',
                     role: p.role || 'Player',
+                    captain: p.captain,
+                    wicketKeeper: p.wicketKeeper,
+                    isCaptain: p.isCaptain,
+                    isWicketKeeper: p.isWicketKeeper,
                     headshot: p.headshot || ''
                 }));
             }
@@ -2473,15 +2509,29 @@ function renderActiveInningsScorecard(inn, matchData) {
                         <span class="text-[10px] text-slate-400 font-mono">Playing 11</span>
                     </div>
                     <div class="flex flex-wrap items-center gap-1.5">
-                        ${ytbList.map(p => `
-                            <div onclick="openPlayerProfile('${p.id || ''}', '${p.name.replace(/'/g, "\\'")}')" 
-                                 class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-dark-800 border border-slate-200/90 dark:border-gray-700/80 hover:border-emerald-500 hover:shadow-xs transition cursor-pointer group/ytb" 
-                                 title="View Profile & Stats of ${p.name}">
-                                ${renderPlayerAvatar(p.name, p.headshot, 'w-5 h-5 rounded-full object-cover object-top border border-emerald-500/30 shrink-0 group-hover/ytb:scale-105 transition')}
-                                <span class="text-xs font-bold text-slate-800 dark:text-gray-200 group-hover/ytb:text-emerald-500 transition">${p.name}</span>
-                                ${p.role && p.role !== 'Player' ? `<span class="text-[9px] text-slate-400 font-mono">(${p.role})</span>` : ''}
-                            </div>
-                        `).join('')}
+                        ${ytbList.map(p => {
+                            const isC = Boolean(p.isCaptain || p.captain || /\(c\)/i.test(p.name));
+                            const isWk = Boolean(p.isWicketKeeper || p.wicketKeeper || /\(wk\)/i.test(p.name));
+                            const cleanPName = p.name.replace(/\s*\([^\)]*\)/g, '').trim();
+                            let ytbTag = '';
+                            if (isC && isWk) {
+                                ytbTag = '<span class="text-[9px] font-mono font-black px-1 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c & wk)</span>';
+                            } else if (isC) {
+                                ytbTag = '<span class="text-[9px] font-mono font-black px-1 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c)</span>';
+                            } else if (isWk) {
+                                ytbTag = '<span class="text-[9px] font-mono font-black px-1 py-0.2 rounded bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 shrink-0 select-none">(wk)</span>';
+                            }
+                            return `
+                                <div onclick="openPlayerProfile('${p.id || ''}', '${cleanPName.replace(/'/g, "\\'")}')" 
+                                     class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-dark-800 border border-slate-200/90 dark:border-gray-700/80 hover:border-emerald-500 hover:shadow-xs transition cursor-pointer group/ytb" 
+                                     title="View Profile & Stats of ${cleanPName}">
+                                    ${renderPlayerAvatar(cleanPName, p.headshot, 'w-5 h-5 rounded-full object-cover object-top border border-emerald-500/30 shrink-0 group-hover/ytb:scale-105 transition')}
+                                    <span class="text-xs font-bold text-slate-800 dark:text-gray-200 group-hover/ytb:text-emerald-500 transition">${cleanPName}</span>
+                                    ${ytbTag}
+                                    ${p.role && p.role !== 'Player' ? `<span class="text-[9px] text-slate-400 font-mono">(${p.role})</span>` : ''}
+                                </div>
+                            `;
+                        }).join('')}
                     </div>
                 </div>
             `;
@@ -2498,14 +2548,19 @@ function renderActiveInningsScorecard(inn, matchData) {
         } else {
             bwlBody.innerHTML = inn.bowling.map(bw => {
                 const econ = (bw.economy && bw.economy !== '0.00' && bw.economy !== '0') ? bw.economy : computeEconomy(bw.overs, bw.runs);
+                const isBwC = Boolean(bw.isCaptain || bw.captain || /\(c\)/i.test(bw.name));
+                const cleanBwName = bw.name.replace(/\s*\([^\)]*\)/g, '').trim();
+                const bwRoleTag = isBwC ? '<span class="text-[9.5px] font-mono font-black px-1 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none ml-1">(c)</span>' : '';
+
                 return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-dark-900/60 transition border-b border-slate-100 dark:border-gray-800/80">
                         <td class="py-1.5 px-2 text-left truncate font-bold text-xs sm:text-sm text-slate-900 dark:text-white" style="width: 44%;">
                             <div class="flex items-center gap-1.5 min-w-0">
                                 <div onclick="openPlayerProfile('${bw.id || ''}', '${bw.name.replace(/'/g, "\\'")}')" 
                                      class="flex items-center gap-1 min-w-0 cursor-pointer hover:opacity-80 transition group/p" title="View Profile & Stats of ${bw.name}">
-                                    ${renderPlayerAvatar(bw.name, bw.headshot, 'w-4 h-4 sm:w-5 sm:h-5 group-hover/p:ring-2 group-hover/p:ring-amber-400 shrink-0')}
-                                    <span class="truncate text-slate-900 dark:text-white group-hover/p:text-[#00ff88] group-hover/p:underline text-[11px] sm:text-xs">${bw.name}</span>
+                                    ${renderPlayerAvatar(cleanBwName, bw.headshot, 'w-4 h-4 sm:w-5 sm:h-5 group-hover/p:ring-2 group-hover/p:ring-amber-400 shrink-0')}
+                                    <span class="truncate text-slate-900 dark:text-white group-hover/p:text-[#00ff88] group-hover/p:underline text-[11px] sm:text-xs">${cleanBwName}</span>
+                                    ${bwRoleTag}
                                 </div>
                             </div>
                         </td>
@@ -2851,27 +2906,111 @@ function renderSquadsTab(data) {
         return;
     }
 
-    container.innerHTML = squads.map(sq => `
-        <div class="bg-white dark:bg-dark-900/80 p-4 rounded-xl border border-slate-200 dark:border-gray-800">
-            <div class="flex items-center space-x-3 mb-4 pb-3 border-b border-slate-200 dark:border-gray-800">
-                ${sq.teamLogo ? `<img src="${sq.teamLogo}" class="w-7 h-7 object-cover rounded shadow-sm border border-slate-200 dark:border-gray-700" onerror="this.style.display='none'">` : ''}
-                <h4 class="font-bold text-slate-900 dark:text-white text-sm">${sq.teamName} Squad</h4>
-            </div>
-            <div class="space-y-1.5 max-h-80 overflow-y-auto pr-1 custom-scrollbar text-xs">
-                ${(sq.players || []).map(p => `
-                    <div onclick="openPlayerProfile('${p.id || ''}', '${p.name.replace(/'/g, "\\'")}')" 
-                         class="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-dark-800/60 border border-slate-200 dark:border-gray-800/40 hover:border-[#00ff88] dark:hover:border-[#00ff88]/60 transition cursor-pointer group/sq" title="View Profile & Stats of ${p.name}">
-                        <div class="flex items-center space-x-2">
-                            <span class="font-bold text-slate-800 dark:text-gray-200 group-hover/sq:text-[#00ff88] group-hover/sq:underline">${p.name}</span>
-                            ${p.captain ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-bold border border-amber-200 dark:border-amber-800">C</span>' : ''}
-                            ${p.wicketKeeper ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 font-bold border border-indigo-200 dark:border-indigo-800">WK</span>' : ''}
+    container.innerHTML = squads.map(sq => {
+        const playingXI = (sq.playingXI && sq.playingXI.length > 0) ? sq.playingXI : (sq.players || []).slice(0, 11);
+        const bench = (sq.bench && sq.bench.length > 0) ? sq.bench : (sq.players || []).slice(11);
+        const totalCount = (sq.players || []).length || (playingXI.length + bench.length);
+
+        return `
+            <div class="bg-white dark:bg-dark-900/90 p-4 rounded-xl border border-slate-200 dark:border-gray-800 space-y-4 shadow-xs">
+                <!-- Team Header -->
+                <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-gray-800">
+                    <div class="flex items-center space-x-3">
+                        ${sq.teamLogo ? `<img src="${sq.teamLogo}" class="w-8 h-8 object-contain rounded-lg p-0.5 bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-gray-700" onerror="this.style.display='none'">` : ''}
+                        <div>
+                            <h4 class="font-black text-slate-900 dark:text-white text-sm sm:text-base">${sq.teamName}</h4>
+                            <span class="text-[10px] text-slate-500 dark:text-gray-400 font-mono">Squad: ${totalCount} Players</span>
                         </div>
-                        <span class="text-[11px] text-slate-500 dark:text-gray-400 group-hover/sq:text-emerald-400 font-mono">${p.role}</span>
                     </div>
-                `).join('')}
+                    <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        Playing 11
+                    </span>
+                </div>
+
+                <!-- PLAYING XI SECTION -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h5 class="text-xs font-black font-mono uppercase tracking-wider text-emerald-600 dark:text-[#00ff88] flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            Playing XI (${playingXI.length})
+                        </h5>
+                        <span class="text-[10px] font-mono text-slate-400">Match XI</span>
+                    </div>
+                    <div class="space-y-1.5 max-h-[420px] overflow-y-auto pr-1 custom-scrollbar text-xs">
+                        ${playingXI.map(p => {
+                            const isC = Boolean(p.captain || p.isCaptain || /\(c\)/i.test(p.name) || /\(c\s*&/i.test(p.name));
+                            const isWk = Boolean(p.wicketKeeper || p.isWicketKeeper || /\(wk\)/i.test(p.name) || /&\s*wk\)/i.test(p.name));
+                            const cleanPName = p.name.replace(/\s*\([^\)]*\)/g, '').trim();
+                            let tag = '';
+                            if (isC && isWk) {
+                                tag = '<span class="text-[9.5px] px-1.5 py-0.2 rounded font-black font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c & wk)</span>';
+                            } else if (isC) {
+                                tag = '<span class="text-[9.5px] px-1.5 py-0.2 rounded font-black font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c)</span>';
+                            } else if (isWk) {
+                                tag = '<span class="text-[9.5px] px-1.5 py-0.2 rounded font-black font-mono bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 shrink-0 select-none">(wk)</span>';
+                            }
+                            return `
+                                <div onclick="openPlayerProfile('${p.id || ''}', '${cleanPName.replace(/'/g, "\\'")}')" 
+                                     class="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-dark-800/70 border border-slate-200/90 dark:border-gray-800 hover:border-emerald-500 dark:hover:border-emerald-500/70 transition cursor-pointer group/sq" title="View Profile & Stats of ${cleanPName}">
+                                    <div class="flex items-center space-x-2.5 truncate">
+                                        ${renderPlayerAvatar(cleanPName, p.headshot, 'w-6 h-6 rounded-full ring-1 ring-slate-200 dark:ring-gray-700 shrink-0')}
+                                        <div class="flex items-center gap-1.5 truncate">
+                                            <span class="font-bold text-slate-900 dark:text-white group-hover/sq:text-[#00ff88] group-hover/sq:underline truncate text-xs">${cleanPName}</span>
+                                            ${tag}
+                                        </div>
+                                    </div>
+                                    <span class="text-[10px] text-slate-500 dark:text-gray-400 group-hover/sq:text-emerald-400 font-mono font-semibold shrink-0 ml-2">${p.role || 'Player'}</span>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+
+                <!-- BENCH SECTION (Cricbuzz Style) -->
+                ${bench.length > 0 ? `
+                    <div class="space-y-2 pt-3 border-t border-slate-200 dark:border-gray-800">
+                        <div class="flex items-center justify-between">
+                            <h5 class="text-xs font-black font-mono uppercase tracking-wider text-slate-600 dark:text-gray-300 flex items-center gap-1.5">
+                                <i data-lucide="armchair" class="w-3.5 h-3.5 text-slate-400"></i>
+                                On the Bench (${bench.length})
+                            </h5>
+                            <span class="text-[10px] font-mono text-slate-400">Rest of Squad</span>
+                        </div>
+                        <div class="space-y-1.5 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar text-xs">
+                            ${bench.map(p => {
+                                const isC = Boolean(p.captain || p.isCaptain || /\(c\)/i.test(p.name));
+                                const isWk = Boolean(p.wicketKeeper || p.isWicketKeeper || /\(wk\)/i.test(p.name));
+                                const cleanPName = p.name.replace(/\s*\([^\)]*\)/g, '').trim();
+                                let tag = '';
+                                if (isC && isWk) {
+                                    tag = '<span class="text-[9.5px] px-1.5 py-0.2 rounded font-black font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c & wk)</span>';
+                                } else if (isC) {
+                                    tag = '<span class="text-[9.5px] px-1.5 py-0.2 rounded font-black font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c)</span>';
+                                } else if (isWk) {
+                                    tag = '<span class="text-[9.5px] px-1.5 py-0.2 rounded font-black font-mono bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 shrink-0 select-none">(wk)</span>';
+                                }
+                                return `
+                                    <div onclick="openPlayerProfile('${p.id || ''}', '${cleanPName.replace(/'/g, "\\'")}')" 
+                                         class="flex items-center justify-between p-2 rounded-lg bg-slate-50/60 dark:bg-dark-800/40 border border-slate-100 dark:border-gray-800/60 hover:border-slate-300 dark:hover:border-gray-700 transition cursor-pointer group/sq" title="View Profile & Stats of ${cleanPName}">
+                                        <div class="flex items-center space-x-2.5 truncate">
+                                            ${renderPlayerAvatar(cleanPName, p.headshot, 'w-6 h-6 rounded-full ring-1 ring-slate-200 dark:ring-gray-700 shrink-0 opacity-80')}
+                                            <div class="flex items-center gap-1.5 truncate">
+                                                <span class="font-semibold text-slate-700 dark:text-gray-300 group-hover/sq:text-emerald-500 truncate text-xs">${cleanPName}</span>
+                                                ${tag}
+                                            </div>
+                                        </div>
+                                        <span class="text-[10px] text-slate-400 font-mono shrink-0 ml-2">${p.role || 'Player'}</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                ` : ''}
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
+
+    safeCreateIcons();
 }
 
 function renderMatchInfoTab(data) {

@@ -498,32 +498,94 @@ body.layout-mode-desktop #app-main-container {
    MOBILE ULTRA-CLEAN VERTICAL FLOW ENHANCEMENTS
    ============================================================ */
 @media (max-width: 768px) {
+    /* Strict viewport confinement - 100% Zero Left-Right Overflow */
+    html, body {
+        overflow-x: hidden !important;
+        max-width: 100vw !important;
+        width: 100% !important;
+    }
+
+    #app-main-container {
+        width: 100% !important;
+        max-width: 100vw !important;
+        overflow-x: hidden !important;
+        padding-left: 4px !important;
+        padding-right: 4px !important;
+    }
+
     main {
-        padding-left: 6px !important;
-        padding-right: 6px !important;
+        padding-left: 4px !important;
+        padding-right: 4px !important;
         max-width: 100% !important;
+        width: 100% !important;
+        overflow-x: hidden !important;
     }
     
     .stadium-hero-card {
-        padding: 10px 8px !important;
+        padding: 12px 10px !important;
     }
     
     /* Prevent any table or element from pushing the horizontal screen */
-    .table-container, .hud-glass-panel, .card {
+    .table-container, .hud-glass-panel, .card, section, div {
         max-width: 100% !important;
-        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* MATCH CARDS: Readable, bold fonts with ample spacing */
+    .match-card {
+        padding: 12px 10px !important;
+    }
+    .match-card .text-xs {
+        font-size: 13px !important;
+        line-height: 1.35 !important;
+    }
+    .match-card .font-bold.text-slate-900,
+    .match-card .font-bold.dark\:text-white,
+    .match-card .truncate.font-bold {
+        font-size: 15px !important;
+        font-weight: 700 !important;
+    }
+    .match-card .font-mono.font-black,
+    .match-card .font-mono.font-bold {
+        font-size: 16px !important;
+        font-weight: 800 !important;
+    }
+    .match-card .text-\[10px\] {
+        font-size: 12px !important;
+    }
+    .match-card .text-\[11px\] {
+        font-size: 12.5px !important;
+    }
+
+    /* HERO BANNER: Crisp, large match scores */
+    #hero-team1-name, #hero-team2-name {
+        font-size: 17px !important;
+        font-weight: 800 !important;
+    }
+    #hero-team1-score, #hero-team2-score {
+        font-size: 22px !important;
+        font-weight: 900 !important;
+        letter-spacing: -0.02em !important;
+    }
+    #match-situation-banner {
+        font-size: 13.5px !important;
+        line-height: 1.4 !important;
+        font-weight: 700 !important;
     }
     
-    /* Clean 100% Mobile Scorecard Table Grid (Cricbuzz 2-Line Flow) */
+    /* SCORECARD TABLE: High-Legibility Cricbuzz 2-Line Grid */
     .cricinfo-table {
         width: 100% !important;
+        max-width: 100% !important;
         table-layout: fixed !important;
         border-collapse: collapse !important;
+        overflow-x: hidden !important;
     }
     .cricinfo-table thead th {
-        padding: 6px 3px !important;
-        font-size: 10px !important;
-        letter-spacing: 0 !important;
+        padding: 8px 3px !important;
+        font-size: 12px !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.02em !important;
         text-align: right !important;
         white-space: nowrap !important;
     }
@@ -533,8 +595,8 @@ body.layout-mode-desktop #app-main-container {
         padding-left: 6px !important;
     }
     .cricinfo-table tbody td {
-        padding: 6px 3px !important;
-        font-size: 11px !important;
+        padding: 8px 3px !important;
+        font-size: 13.5px !important;
         text-align: right !important;
     }
     .cricinfo-table tbody td:first-child {
@@ -544,20 +606,94 @@ body.layout-mode-desktop #app-main-container {
         word-break: break-word !important;
         white-space: normal !important;
     }
+    /* Batter Name & Dismissal text */
+    .cricinfo-table tbody td:first-child span.font-bold {
+        font-size: 14.5px !important;
+        font-weight: 700 !important;
+    }
+    .cricinfo-table tbody td:first-child .text-\[10px\] {
+        font-size: 11.5px !important;
+        line-height: 1.3 !important;
+    }
+    /* Numerical Score Columns: Runs, Balls, 4s, 6s, SR / O, M, R, W, ECON */
     .cricinfo-table th:not(:first-child),
     .cricinfo-table td:not(:first-child) {
         width: 11.2% !important;
         text-align: right !important;
         font-family: monospace !important;
+        font-weight: 800 !important;
+        font-size: 13.5px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: clip !important;
+    }
+
+    /* Extras & Total Rows */
+    #extras-text, #total-text {
+        font-size: 14.5px !important;
+        font-weight: 800 !important;
+    }
+
+    /* Yet to Bat / Playing XI Badges */
+    #yet-to-bat-container .text-xs {
+        font-size: 13px !important;
+    }
+    #yet-to-bat-container .text-\[9px\] {
+        font-size: 11px !important;
+    }
+
+    /* LIVE CREASE TAB: Bigger Batters & Bowlers Telemetry */
+    #cricinfo-live-crease-table-container table td {
+        font-size: 13.5px !important;
+        padding: 8px 4px !important;
+    }
+    #cricinfo-live-crease-table-container table th {
+        font-size: 12px !important;
+        padding: 7px 4px !important;
+    }
+    #cricinfo-live-crease-table-container .text-xs {
+        font-size: 13px !important;
+    }
+    #cricinfo-live-crease-table-container .text-sm {
+        font-size: 14.5px !important;
+    }
+    #cricinfo-live-crease-table-container .font-mono.text-lg {
+        font-size: 20px !important;
+    }
+
+    /* LIVE COMMENTARY: Easy-to-read ball by ball stream */
+    #commentary-list .font-mono.text-base {
+        font-size: 16px !important;
+        font-weight: 900 !important;
+    }
+    #commentary-list p {
+        font-size: 13.5px !important;
+        line-height: 1.45 !important;
+    }
+
+    /* NAVIGATION TABS: Generous touch size */
+    .cricinfo-tab-btn, .main-tab-btn {
+        padding: 8px 12px !important;
+        font-size: 13px !important;
         font-weight: 700 !important;
         white-space: nowrap !important;
     }
+    .match-category-tab {
+        padding: 6px 14px !important;
+        font-size: 13px !important;
+        font-weight: 700 !important;
+    }
 
-    /* Touch friendly tab bar */
-    .cricinfo-tab {
-        padding: 6px 10px !important;
-        font-size: 11px !important;
-        white-space: nowrap !important;
+    /* Back to Matches mobile bar */
+    #mobile-match-back-bar {
+        padding: 10px 12px !important;
+    }
+    #mobile-back-match-title {
+        font-size: 14.5px !important;
+        font-weight: 800 !important;
+    }
+    #mobile-back-match-status {
+        font-size: 12px !important;
     }
 }
 

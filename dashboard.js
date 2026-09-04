@@ -2455,7 +2455,27 @@ function renderActiveInningsScorecard(inn, matchData) {
 
     const extrasElem = document.getElementById('extras-text');
     const totalElem = document.getElementById('total-text');
-    if (extrasElem) extrasElem.textContent = inn.extras || '0';
+    if (extrasElem) {
+        let extVal = (inn.extras || '').trim();
+        if (!extVal || extVal === '0' || extVal === '-') {
+            const totMatch = String(inn.runs || inn.total || '').match(/^(\d+)/);
+            const totRuns = totMatch ? parseInt(totMatch[1], 10) : 0;
+            const batRuns = (inn.batting || []).reduce((acc, b) => acc + (parseInt(b.runs, 10) || 0), 0);
+            if (totRuns > batRuns) {
+                extVal = String(totRuns - batRuns);
+            } else {
+                extVal = '0';
+            }
+        }
+        if (extVal.startsWith('(')) {
+            const nums = extVal.match(/\d+/g);
+            if (nums) {
+                const sumExtras = nums.reduce((acc, n) => acc + parseInt(n, 10), 0);
+                extVal = `${sumExtras} ${extVal}`;
+            }
+        }
+        extrasElem.textContent = extVal;
+    }
     if (totalElem) totalElem.textContent = formatScorecardTotalWithRR(inn.total, inn.runs);
 
     // Render Yet to Bat / Did Not Bat (Strictly Playing XI only)

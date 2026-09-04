@@ -1392,6 +1392,9 @@ class ESPNClient:
                         innings_data[inn_k] = inn_v
                     elif len(inn_v.get("fow", [])) > len(innings_data[inn_k].get("fow", [])):
                         innings_data[inn_k] = inn_v
+                    else:
+                        if (not innings_data[inn_k].get("extras") or innings_data[inn_k].get("extras") == "0") and inn_v.get("extras") and inn_v.get("extras") != "0":
+                            innings_data[inn_k]["extras"] = inn_v.get("extras")
 
         # Enrich innings_data dismissals with detailed catch/bowler information from playbyplay
         try:
@@ -1846,6 +1849,25 @@ class ESPNClient:
                 result["liveCrease"]["recentOvers"] = recent_overs
             result["recentOvers"] = recent_overs
 
+        # Final safety verification: ensure all innings have accurate extras
+        for inn in innings_data.values():
+            cur_ext = str(inn.get("extras", "")).strip()
+            if cur_ext.startswith("("):
+                nums = re.findall(r'\d+', cur_ext)
+                if nums:
+                    ext_sum = sum(int(n) for n in nums)
+                    inn["extras"] = f"{ext_sum} {cur_ext}"
+            elif re.match(r'^\d+\(', cur_ext):
+                inn["extras"] = re.sub(r'^(\d+)\(', r'\1 (', cur_ext)
+            elif not cur_ext or cur_ext == "0":
+                b_sum = sum(int(b.get("runs", 0)) for b in inn.get("batting", []) if str(b.get("runs", "")).isdigit())
+                tot_s = str(inn.get("runs", "") or inn.get("total", ""))
+                m_tot = re.search(r"^(\d+)", tot_s)
+                if m_tot:
+                    tot_n = int(m_tot.group(1))
+                    if tot_n > b_sum:
+                        inn["extras"] = str(tot_n - b_sum)
+
         result["winProbability"] = compute_win_probability(result)
 
         self._set_cached(cache_key, result)
@@ -2185,12 +2207,50 @@ class ESPNClient:
                     if c_sc:
                         total_formatted = clean_event_competitor_score(c_sc)
 
-            extras_w = inn_info.get("wides", 0)
-            extras_nb = inn_info.get("noBalls", 0)
-            extras_b = inn_info.get("byes", 0)
-            extras_lb = inn_info.get("legByes", 0)
-            tot_extras = extras_w + extras_nb + extras_b + extras_lb
-            extras_str = f"{tot_extras} (w {extras_w}, nb {extras_nb}, b {extras_b}, lb {extras_lb})" if tot_extras > 0 else "0"
+            # Calculate extras from ball-by-ball commentary playType
+            p_wides, p_noballs, p_byes, p_legbyes, p_pen = 0, 0, 0, 0, 0
+            for it in p_items:
+                pt_desc = str(it.get("playType", {}).get("description", "")).lower()
+                val = int(it.get("scoreValue", 0))
+                if pt_desc == "wide":
+                    p_wides += val if val > 0 else 1
+                elif pt_desc in ["no ball", "no-ball"]:
+                    p_noballs += val if val > 0 else 1
+                elif pt_desc == "bye":
+                    p_byes += val if val > 0 else 1
+                elif pt_desc in ["leg bye", "leg-bye"]:
+                    p_legbyes += val if val > 0 else 1
+                elif "penalty" in pt_desc:
+                    p_pen += val if val > 0 else 5
+
+            pbp_extras_tot = p_wides + p_noballs + p_byes + p_legbyes + p_pen
+
+            # Cross-check with mathematical difference: Total Runs - Sum of Batters' Runs
+            bat_runs_sum = sum(int(b.get("runs", 0)) for b in batting_list if str(b.get("runs", "")).isdigit())
+            tot_num = 0
+            try:
+                tot_num = int(tot_runs)
+            except Exception:
+                m_tot = re.search(r"(\d+)", str(tot_runs or ""))
+                if m_tot:
+                    tot_num = int(m_tot.group(1))
+
+            math_extras = max(0, tot_num - bat_runs_sum) if tot_num > 0 else 0
+            final_extras_tot = math_extras if math_extras > 0 else pbp_extras_tot
+
+            ext_breakdown = []
+            if p_byes > 0: ext_breakdown.append(f"b {p_byes}")
+            if p_legbyes > 0: ext_breakdown.append(f"lb {p_legbyes}")
+            if p_wides > 0: ext_breakdown.append(f"w {p_wides}")
+            if p_noballs > 0: ext_breakdown.append(f"nb {p_noballs}")
+            if p_pen > 0: ext_breakdown.append(f"p {p_pen}")
+
+            if ext_breakdown:
+                extras_str = f"{final_extras_tot} ({', '.join(ext_breakdown)})"
+            elif final_extras_tot > 0:
+                extras_str = str(final_extras_tot)
+            else:
+                extras_str = "0"
 
             # Reconstruct partnerships for this innings
             pships_list = []
@@ -3306,6 +3366,24 @@ class ESPNClient:
                         "summary": f"{b1['name']} ({b1.get('runs', '0')}*)"
                     })
                 inn["partnerships"] = pships
+
+            # Ensure rich, accurate extras calculation for this innings
+            cur_ext = str(inn.get("extras", "")).strip()
+            if cur_ext.startswith("("):
+                nums = re.findall(r'\d+', cur_ext)
+                if nums:
+                    ext_sum = sum(int(n) for n in nums)
+                    inn["extras"] = f"{ext_sum} {cur_ext}"
+            elif re.match(r'^\d+\(', cur_ext):
+                inn["extras"] = re.sub(r'^(\d+)\(', r'\1 (', cur_ext)
+            elif not cur_ext or cur_ext == "0":
+                b_sum = sum(int(b.get("runs", 0)) for b in inn.get("batting", []) if str(b.get("runs", "")).isdigit())
+                tot_s = str(inn.get("runs", "") or inn.get("total", ""))
+                m_tot = re.search(r"^(\d+)", tot_s)
+                if m_tot:
+                    tot_n = int(m_tot.group(1))
+                    if tot_n > b_sum:
+                        inn["extras"] = str(tot_n - b_sum)
 
         return innings
 

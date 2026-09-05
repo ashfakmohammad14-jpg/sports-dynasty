@@ -84,8 +84,19 @@ function initApp() {
     setupSearch();
     setupRefresh();
     startPollingTimer();
+    startUpcomingCountdowns();
     fetchMatches(false);
     fetchSeriesData();
+
+    // Check for SSR initial view or pathname-based hub route
+    if (window.__INITIAL_VIEW__) {
+        switchPlatformView(window.__INITIAL_VIEW__);
+    } else {
+        const cleanPath = window.location.pathname.replace(/^\/+|\/+$/g, '');
+        if (['news', 'rankings', 'series', 'standings', 'teams', 'live-scores'].includes(cleanPath)) {
+            switchPlatformView(cleanPath === 'live-scores' ? 'live' : (cleanPath === 'standings' ? 'series' : cleanPath));
+        }
+    }
 }
 
 async function fetchSeriesData() {
@@ -158,15 +169,44 @@ async function fetchMatches(silent = false) {
 
         // Intelligent Persistent Match Selection on Page Refresh/Reload
         let targetMatch = null;
-        const urlHash = window.location.hash || '';
-        const matchHashMatch = urlHash.match(/#match-([a-zA-Z0-9_\-]+)/);
-        
-        if (matchHashMatch) {
-            const hashEventId = matchHashMatch[1];
-            targetMatch = (appState.matches || []).find(m => String(m.id) === String(hashEventId));
+
+        // Priority 1: Injected SSR initial match
+        if (window.__INITIAL_MATCH__ && window.__INITIAL_MATCH__.eventId) {
+            const initEid = String(window.__INITIAL_MATCH__.eventId);
+            targetMatch = (appState.matches || []).find(m => String(m.id) === initEid);
+            if (!targetMatch) {
+                targetMatch = {
+                    id: initEid,
+                    leagueId: window.__INITIAL_MATCH__.leagueId || '0'
+                };
+            }
+        }
+
+        // Priority 2: Clean URL path (/match/:leagueId/:eventId or /match/:eventId)
+        if (!targetMatch) {
+            const pathMatch = window.location.pathname.match(/\/match\/(?:([0-9a-zA-Z_\-]+)\/)?([0-9a-zA-Z_\-]+)/);
+            if (pathMatch) {
+                const pathLeagueId = pathMatch[1] || '0';
+                const pathEventId = pathMatch[2];
+                targetMatch = (appState.matches || []).find(m => String(m.id) === String(pathEventId));
+                if (!targetMatch && pathEventId) {
+                    targetMatch = { id: pathEventId, leagueId: pathLeagueId };
+                }
+            }
+        }
+
+        // Priority 3: Legacy URL hash (#match-12345)
+        if (!targetMatch) {
+            const urlHash = window.location.hash || '';
+            const matchHashMatch = urlHash.match(/#match-([a-zA-Z0-9_\-]+)/);
+            if (matchHashMatch) {
+                const hashEventId = matchHashMatch[1];
+                targetMatch = (appState.matches || []).find(m => String(m.id) === String(hashEventId));
+            }
         }
         
-        if (!targetMatch) {
+        // Priority 4: Stored match (only if on root path without other match specified)
+        if (!targetMatch && (window.location.pathname === '/' || window.location.pathname === '') && !window.location.hash) {
             try {
                 const savedMatchRaw = localStorage.getItem('sports_dynasty_selected_match');
                 if (savedMatchRaw) {
@@ -477,11 +517,136 @@ function clearSeriesFilter() {
     renderMatchList();
 }
 
+// ============================================================
+// UPCOMING MATCHES - IST TIME FORMATTER & ANTICLOCKWISE TIMER
+// ============================================================
+
+function parseMatchDate(dateStr) {
+    if (!dateStr) return null;
+    try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return null;
+        return d;
+    } catch(e) {
+        return null;
+    }
+}
+
+function formatMatchTimeIST(dateStr) {
+    const d = parseMatchDate(dateStr);
+    if (!d) return 'Upcoming';
+
+    try {
+        const timeStr = d.toLocaleTimeString('en-US', {
+            timeZone: 'Asia/Kolkata',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
+
+        const now = new Date();
+        const istDateStr = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+        const nowIstDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+
+        const nowIst = new Date(nowIstDateStr + 'T00:00:00');
+        const matchIst = new Date(istDateStr + 'T00:00:00');
+        const diffDays = Math.round((matchIst - nowIst) / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) {
+            return `Today, ${timeStr} IST`;
+        } else if (diffDays === 1) {
+            return `Tomorrow, ${timeStr} IST`;
+        } else {
+            const datePart = d.toLocaleDateString('en-US', {
+                timeZone: 'Asia/Kolkata',
+                day: '2-digit',
+                month: 'short'
+            });
+            return `${datePart}, ${timeStr} IST`;
+        }
+    } catch(e) {
+        return 'Upcoming';
+    }
+}
+
+function computeAnticlockwiseCountdown(dateStr) {
+    const d = parseMatchDate(dateStr);
+    if (!d) return { text: 'Upcoming', isLiveNow: false };
+
+    const nowMs = Date.now();
+    const diffMs = d.getTime() - nowMs;
+
+    if (diffMs <= 0) {
+        return { text: 'Starting Soon', isLiveNow: true };
+    }
+
+    const totalSec = Math.floor(diffMs / 1000);
+    const sec = totalSec % 60;
+    const totalMin = Math.floor(totalSec / 60);
+    const min = totalMin % 60;
+    const totalHours = Math.floor(totalMin / 60);
+    const hours = totalHours % 24;
+    const days = Math.floor(totalHours / 24);
+
+    const pad = (n) => String(n).padStart(2, '0');
+
+    if (days > 0) {
+        return { text: `${days}d ${pad(hours)}h ${pad(min)}m`, isLiveNow: false };
+    }
+    return { text: `${pad(hours)}h : ${pad(min)}m : ${pad(sec)}s`, isLiveNow: false };
+}
+
+let upcomingTimerInterval = null;
+function startUpcomingCountdowns() {
+    if (upcomingTimerInterval) return;
+    upcomingTimerInterval = setInterval(() => {
+        // Update countdown badges on match cards
+        const badges = document.querySelectorAll('.upcoming-countdown-badge');
+        badges.forEach(el => {
+            const dateStr = el.getAttribute('data-match-date');
+            if (dateStr) {
+                const cd = computeAnticlockwiseCountdown(dateStr);
+                const textEl = el.querySelector('.countdown-timer-text');
+                if (textEl) {
+                    textEl.textContent = cd.text;
+                    if (cd.isLiveNow) {
+                        el.classList.add('animate-pulse');
+                    }
+                }
+            }
+        });
+
+        // Update countdown box on hero match banner
+        const heroCd = document.querySelectorAll('.upcoming-hero-countdown');
+        heroCd.forEach(el => {
+            const dateStr = el.getAttribute('data-match-date');
+            if (dateStr) {
+                const cd = computeAnticlockwiseCountdown(dateStr);
+                const textEl = el.querySelector('.countdown-hero-text');
+                if (textEl) {
+                    textEl.textContent = cd.isLiveNow ? 'Match Starting Soon' : `Starts in: ${cd.text}`;
+                    if (cd.isLiveNow) {
+                        el.classList.add('animate-pulse');
+                    }
+                }
+            }
+        });
+    }, 1000);
+}
+
 function renderSingleMatchCard(m) {
     const isActive = (m.id === appState.selectedEventId);
     const isLive = m.isLive;
     const statusText = m.statusDetail || (isLive ? '● LIVE' : 'Scheduled');
     const isStumps = statusText.toLowerCase().includes('stumps') || statusText.toLowerCase().includes('tea') || statusText.toLowerCase().includes('lunch');
+
+    const isMatchDone = Boolean(m.state && ['post', 'final', 'completed'].includes(m.state.toLowerCase()));
+    const isUpcoming = Boolean(
+        !isLive && !isMatchDone &&
+        (m.state === 'pre' || 
+         (m.statusDetail && (m.statusDetail.toLowerCase().includes('scheduled') || m.statusDetail.toLowerCase().includes('starts'))) ||
+         (m.date && new Date(m.date).getTime() > Date.now()))
+    );
 
     let statusClass = 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40';
     let displayStatus = statusText;
@@ -492,15 +657,17 @@ function renderSingleMatchCard(m) {
     } else if (isLive) {
         statusClass = 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60';
         displayStatus = '● LIVE';
-    } else if (m.state && (m.state.toLowerCase().includes('post') || m.state.toLowerCase().includes('final'))) {
+    } else if (isMatchDone) {
         statusClass = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-gray-300 border border-slate-200 dark:border-gray-700';
         displayStatus = m.statusDetail || 'Final';
+    } else if (isUpcoming) {
+        statusClass = 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 font-mono font-bold';
+        displayStatus = m.date ? formatMatchTimeIST(m.date) : 'Upcoming';
     }
 
     const c1 = m.competitors && m.competitors[0] ? m.competitors[0] : { name: 'Team 1', score: '' };
     const c2 = m.competitors && m.competitors[1] ? m.competitors[1] : { name: 'Team 2', score: '' };
 
-    const isMatchDone = Boolean(m.state && ['post', 'final', 'completed'].includes(m.state.toLowerCase()));
     let cardSummaryText = m.summary || m.statusDetail || '';
     if (isMatchDone) {
         if (m.statusDetail && !m.statusDetail.toLowerCase().includes('lead by') && !m.statusDetail.toLowerCase().includes('trail by')) {
@@ -587,7 +754,21 @@ function renderSingleMatchCard(m) {
                 </div>
             </div>
 
-            ${cardRRR ? `
+            ${isUpcoming ? `
+                <div class="mt-2 pt-1.5 border-t border-slate-100 dark:border-gray-800/80 flex items-center justify-between text-[10.5px]">
+                    <span class="text-slate-500 dark:text-gray-400 font-sans font-medium flex items-center gap-1 truncate max-w-[140px]" title="Match Time: ${formatMatchTimeIST(m.date)}">
+                        <i data-lucide="clock" class="w-3.5 h-3.5 text-blue-500 shrink-0"></i>
+                        <span class="font-mono text-[10px] font-bold text-slate-700 dark:text-gray-300 truncate">${formatMatchTimeIST(m.date)}</span>
+                    </span>
+                    <span class="upcoming-countdown-badge px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40 font-black font-mono text-[10px] tracking-tight flex items-center gap-1.5 shrink-0" data-match-date="${m.date || ''}">
+                        <svg class="w-3.5 h-3.5 text-amber-500 animate-spin-reverse shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <circle cx="12" cy="12" r="10" stroke-dasharray="60" stroke-dashoffset="15"></circle>
+                            <polyline points="12 6 12 12 8 14"></polyline>
+                        </svg>
+                        <span class="countdown-timer-text">${computeAnticlockwiseCountdown(m.date).text}</span>
+                    </span>
+                </div>
+            ` : (cardRRR ? `
                 <div class="mt-2 pt-1.5 border-t border-slate-100 dark:border-gray-800/80 flex items-center justify-between text-[10px] font-mono font-bold">
                     <span class="text-rose-600 dark:text-[#ff4d6d] flex items-center gap-1 font-black">
                         <i data-lucide="target" class="w-3 h-3 text-rose-500 animate-pulse"></i> RRR: ${cardRRR}
@@ -608,7 +789,7 @@ function renderSingleMatchCard(m) {
                     <span class="w-1.5 h-1.5 rounded-full bg-[#059669] dark:bg-sky-400 shrink-0"></span>
                     <span>${cardSummaryText}</span>
                 </div>
-            ` : ''))}
+            ` : '')))}
 
             ${m.playerOfTheMatch ? `
                 <div class="mt-1.5 pt-1 border-t border-amber-500/20 text-[10.5px] text-amber-700 dark:text-amber-400 font-bold truncate flex items-center gap-1.5">
@@ -840,6 +1021,7 @@ function renderMatchList() {
     }
 
     safeCreateIcons();
+    startUpcomingCountdowns();
 }
 
 function isMobileLayoutActive() {
@@ -886,8 +1068,9 @@ function selectMatch(leagueId, eventId, autoScroll = false) {
         safeCreateIcons();
 
         try {
-            if (window.location.hash !== `#match-${eventId}`) {
-                history.pushState({ matchView: eventId }, '', `#match-${eventId}`);
+            const cleanUrl = `/match/${leagueId}/${eventId}`;
+            if (window.location.pathname !== cleanUrl) {
+                history.pushState({ matchView: eventId, leagueId: leagueId }, '', cleanUrl);
             }
         } catch(e) {}
     } else {
@@ -900,8 +1083,9 @@ function selectMatch(leagueId, eventId, autoScroll = false) {
         }
 
         try {
-            if (window.location.hash !== `#match-${eventId}`) {
-                history.replaceState({ matchView: eventId }, '', `#match-${eventId}`);
+            const cleanUrl = `/match/${leagueId}/${eventId}`;
+            if (window.location.pathname !== cleanUrl) {
+                history.replaceState({ matchView: eventId, leagueId: leagueId }, '', cleanUrl);
             }
         } catch(e) {}
 
@@ -951,7 +1135,9 @@ function backToMatchList() {
     safeCreateIcons();
 
     try {
-        if (window.location.hash.startsWith('#match-')) {
+        if (window.location.pathname.startsWith('/match/')) {
+            history.pushState(null, '', '/');
+        } else if (window.location.hash.startsWith('#match-')) {
             history.pushState(null, '', window.location.pathname);
         }
     } catch(e) {}
@@ -1155,8 +1341,24 @@ function renderHeroBanner(data) {
         const c1Score = String(c1.score || '');
         const c2Score = String(c2.score || '');
 
+        let matchDate = data.date;
+        if (!matchDate) {
+            const matchObj = (appState.matches || []).find(m => String(m.id) === String(data.matchId || data.id || appState.selectedEventId));
+            if (matchObj && matchObj.date) {
+                matchDate = matchObj.date;
+            }
+        }
+        data.date = matchDate;
+
         const statusDetail = String(data.statusDetail || 'LIVE');
         const isLive = data.state ? (data.state.toLowerCase() === 'in' || data.state.toLowerCase() === 'live') : false;
+        const isCompleted = data.state ? (data.state.toLowerCase() === 'post' || data.state.toLowerCase() === 'final' || data.state.toLowerCase() === 'completed') : false;
+        const isUpcoming = Boolean(
+            !isLive && !isCompleted && 
+            (data.state === 'pre' || 
+             (statusDetail.toLowerCase().includes('scheduled') || statusDetail.toLowerCase().includes('starts')) ||
+             (data.date && new Date(data.date).getTime() > Date.now()))
+        );
         const isStumps = statusDetail.toLowerCase().includes('stumps') || statusDetail.toLowerCase().includes('tea') || statusDetail.toLowerCase().includes('lunch');
 
         let statusPill = '';
@@ -1164,23 +1366,49 @@ function renderHeroBanner(data) {
             statusPill = `<span class="text-[11px] font-black uppercase px-3 py-1 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/50 shadow-[0_0_12px_rgba(245,158,11,0.4)] flex items-center gap-1.5"><i data-lucide="moon" class="w-3.5 h-3.5"></i> ${statusDetail}</span>`;
         } else if (isLive) {
             statusPill = `<span class="pulse-live-badge text-[11px] font-black uppercase px-3 py-1 rounded-full flex items-center gap-1.5 shadow-[0_0_15px_rgba(239,68,68,0.7)] animate-broadcast-pulse"><span class="w-2 h-2 rounded-full bg-white animate-ping"></span> 3D LIVE ON AIR</span>`;
+        } else if (isUpcoming) {
+            const istTimeStr = formatMatchTimeIST(data.date);
+            statusPill = `<span class="text-[11px] font-black uppercase px-3 py-1 rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/40 shadow-sm flex items-center gap-1.5 font-mono"><i data-lucide="clock" class="w-3.5 h-3.5 text-blue-500"></i> ${istTimeStr}</span>`;
         } else {
             statusPill = `<span class="text-[11px] font-black uppercase px-3 py-1 rounded-full bg-slate-200 dark:bg-dark-800 text-slate-800 dark:text-emerald-300 border border-slate-300 dark:border-emerald-500/40 shadow-sm">${statusDetail}</span>`;
         }
 
-        const isCompleted = data.state ? (data.state.toLowerCase() === 'post' || data.state.toLowerCase() === 'final' || data.state.toLowerCase() === 'completed') : false;
         let situationBanner = String(data.leadSummary || data.statusDetail || 'In Progress');
 
         // Sync sticky mobile back bar details
         const backTitle = document.getElementById('mobile-back-match-title');
         const backStatus = document.getElementById('mobile-back-match-status');
         if (backTitle) backTitle.textContent = `${c1Name} vs ${c2Name}`;
-        if (backStatus) backStatus.textContent = situationBanner || statusDetail || '⚡ Live Match';
+        if (backStatus) {
+            if (isUpcoming) {
+                backStatus.textContent = `Starts: ${formatMatchTimeIST(data.date)}`;
+            } else {
+                backStatus.textContent = situationBanner || statusDetail || '⚡ Live Match';
+            }
+        }
 
         const c1Winner = String(c1.isWinner) === 'true';
         const c2Winner = String(c2.isWinner) === 'true';
 
-        if (isCompleted || statusDetail.toLowerCase().includes('won by') || statusDetail.toLowerCase().includes('drawn') || statusDetail.toLowerCase().includes('tied') || statusDetail.toLowerCase().includes('abandoned') || statusDetail.toLowerCase().includes('no result') || situationBanner.toLowerCase().includes('won by') || situationBanner.toLowerCase().includes('drawn')) {
+        if (isUpcoming) {
+            const istTimeStr = formatMatchTimeIST(data.date);
+            const cd = computeAnticlockwiseCountdown(data.date);
+            situationBanner = `
+                <div class="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+                    <span class="text-xs sm:text-sm font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                        <i data-lucide="calendar" class="w-4 h-4 text-emerald-500"></i>
+                        Match Time: <span class="text-emerald-600 dark:text-[#00ff88] font-mono font-black">${istTimeStr}</span>
+                    </span>
+                    <div class="upcoming-hero-countdown flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-700 dark:text-amber-300 font-mono font-black text-xs shadow-sm" data-match-date="${data.date || ''}">
+                        <svg class="w-4 h-4 text-amber-500 animate-spin-reverse shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <circle cx="12" cy="12" r="10" stroke-dasharray="60" stroke-dashoffset="15"></circle>
+                            <polyline points="12 6 12 12 8 14"></polyline>
+                        </svg>
+                        <span class="countdown-hero-text">${cd.isLiveNow ? 'Match Starting Soon' : `Starts in: ${cd.text}`}</span>
+                    </div>
+                </div>
+            `;
+        } else if (isCompleted || statusDetail.toLowerCase().includes('won by') || statusDetail.toLowerCase().includes('drawn') || statusDetail.toLowerCase().includes('tied') || statusDetail.toLowerCase().includes('abandoned') || statusDetail.toLowerCase().includes('no result') || situationBanner.toLowerCase().includes('won by') || situationBanner.toLowerCase().includes('drawn')) {
             if (data.leadSummary && !data.leadSummary.toLowerCase().includes('lead by') && !data.leadSummary.toLowerCase().includes('trail by')) {
                 situationBanner = data.leadSummary;
             } else if (statusDetail.toLowerCase().includes('won by') || statusDetail.toLowerCase().includes('drawn') || statusDetail.toLowerCase().includes('tied') || statusDetail.toLowerCase().includes('abandoned') || statusDetail.toLowerCase().includes('no result')) {
@@ -1354,21 +1582,27 @@ function renderHeroBanner(data) {
                 </div>
             </div>
         `;
+        safeCreateIcons();
+        startUpcomingCountdowns();
     } catch(err) {
         console.error("renderHeroBanner execution error:", err);
     }
 }
 
 window.shareActiveMatchWhatsApp = function(title, scoreText, sitText) {
-    const url = 'https://sportsdynasty.in';
-    const text = `🏏 *${title}* Live Scorecard\n📊 ${scoreText}\n⚡ ${sitText}\n👉 Watch Live Ball-by-Ball Scorecard on Sports Dynasty:\n${url}`;
+    const matchUrl = appState.selectedLeagueId && appState.selectedEventId 
+        ? `https://sportsdynasty.in/match/${appState.selectedLeagueId}/${appState.selectedEventId}` 
+        : 'https://sportsdynasty.in';
+    const text = `🏏 *${title}* Live Scorecard\n📊 ${scoreText}\n⚡ ${sitText}\n👉 Watch Live Ball-by-Ball Scorecard on Sports Dynasty:\n${matchUrl}`;
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
 };
 
 window.shareActiveMatchTelegram = function(title, scoreText, sitText) {
-    const url = 'https://sportsdynasty.in';
-    const text = `🏏 ${title} | ${scoreText} • ${sitText} - Live on Sports Dynasty`;
-    window.open(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`, '_blank');
+    const matchUrl = appState.selectedLeagueId && appState.selectedEventId 
+        ? `https://sportsdynasty.in/match/${appState.selectedLeagueId}/${appState.selectedEventId}` 
+        : 'https://sportsdynasty.in';
+    const text = `🏏 ${title} | ${scoreText} • ${sitText} - Live on Sports Dynasty\n👉 ${matchUrl}`;
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(matchUrl)}&text=${encodeURIComponent(text)}`, '_blank');
 };
 
 // -------------------------------------------------------------
@@ -3714,6 +3948,13 @@ function switchPlatformView(viewName) {
 
     safeCreateIcons();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    try {
+        const targetPath = viewName === 'live' ? '/' : `/${viewName}`;
+        if (window.location.pathname !== targetPath && !window.location.pathname.startsWith('/match/')) {
+            history.pushState({ platformView: viewName }, '', targetPath);
+        }
+    } catch(e) {}
 }
 
 // -------------------------------------------------------------
@@ -3881,13 +4122,15 @@ async function fetchSeries() {
             }).map(m => {
                 const c1 = m.competitors && m.competitors[0] ? m.competitors[0] : {};
                 const c2 = m.competitors && m.competitors[1] ? m.competitors[1] : {};
+                const istFormatted = m.date ? formatMatchTimeIST(m.date) : (m.statusDetail || 'Upcoming');
                 return {
                     match: m.description || m.leagueName || 'Upcoming Match',
                     team1: c1.name || 'Team 1',
                     team2: c2.name || 'Team 2',
-                    date: m.statusText || (m.date ? new Date(m.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Scheduled'),
-                    time: m.statusDetail || 'Upcoming',
-                    venue: m.location || 'Stadium'
+                    date: istFormatted,
+                    time: istFormatted,
+                    venue: m.location || 'Stadium',
+                    rawDate: m.date || ''
                 };
             });
 
@@ -4058,7 +4301,15 @@ async function fetchSeries() {
                                                 <i data-lucide="map-pin" class="w-3 h-3 text-slate-400"></i>
                                                 ${m.venue || ''}
                                             </span>
-                                            <span class="font-mono text-[10px] font-bold text-slate-700 dark:text-gray-300 shrink-0">${m.date || ''}</span>
+                                            ${m.rawDate ? `
+                                                <span class="upcoming-countdown-badge px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40 font-black font-mono text-[10px] tracking-tight flex items-center gap-1 shrink-0" data-match-date="${m.rawDate}">
+                                                    <svg class="w-3 h-3 text-amber-500 animate-spin-reverse shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                                        <circle cx="12" cy="12" r="10" stroke-dasharray="60" stroke-dashoffset="15"></circle>
+                                                        <polyline points="12 6 12 12 8 14"></polyline>
+                                                    </svg>
+                                                    <span class="countdown-timer-text">${computeAnticlockwiseCountdown(m.rawDate).text}</span>
+                                                </span>
+                                            ` : `<span class="font-mono text-[10px] font-bold text-slate-700 dark:text-gray-300 shrink-0">${m.date || ''}</span>`}
                                         </div>
                                     </div>
                                 `).join('')}

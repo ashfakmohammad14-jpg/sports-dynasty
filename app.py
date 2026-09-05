@@ -3,10 +3,12 @@ import sys
 import json
 import time
 import hashlib
-from datetime import datetime
+import re
+from datetime import datetime, timezone
+from xml.sax.saxutils import escape
 import uvicorn
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, Response, RedirectResponse
 from fastapi.middleware.gzip import GZipMiddleware
 from espn_client import espn_service
 
@@ -141,6 +143,167 @@ def get_file_content(filename: str, subfolder: str = "") -> tuple[str, str]:
                 pass
     return "", ""
 
+def clean_meta_attr(text: str) -> str:
+    """Escape strings safely for HTML attributes (e.g. meta content)."""
+    return str(text or "").replace('&', '&amp;').replace('"', '&quot;').replace('<', '&lt;').replace('>', '&gt;')
+
+def render_ssr_match_page(league_id: str, event_id: str, request: Request) -> HTMLResponse:
+    content, _ = get_file_content("index.html", "templates")
+    if not content:
+        content = """<!DOCTYPE html><html><head><title>Sports Dynasty</title></head><body><h2>Sports Dynasty</h2></body></html>"""
+
+    # 1. Quick lookup in live matches
+    match_info = None
+    try:
+        live_data = espn_service.get_live_matches()
+        for m in live_data.get("matches", []):
+            if str(m.get("id")) == str(event_id):
+                match_info = m
+                if not league_id or league_id == "0":
+                    league_id = str(m.get("leagueId") or "0")
+                break
+    except Exception:
+        pass
+
+    # 2. Summary fallback if not found in current live list
+    match_summary = None
+    if not match_info:
+        try:
+            match_summary = espn_service.get_match_summary(league_id, event_id)
+        except Exception:
+            pass
+
+    title = ""
+    teams = []
+    scores = []
+    status_text = ""
+    league_name = ""
+    logo_url = "https://a.espncdn.com/i/teamlogos/cricket/500/6.png"
+
+    if match_info:
+        title = match_info.get("name") or match_info.get("shortName") or "Cricket Match"
+        league_name = match_info.get("leagueName") or match_info.get("description") or "Live Cricket"
+        status_text = match_info.get("statusText") or match_info.get("statusDetail") or "Live Coverage"
+        competitors = match_info.get("competitors") or []
+        for c in competitors:
+            c_name = c.get("name", "")
+            c_score = c.get("score", "")
+            if c_name:
+                teams.append(c_name)
+            if c_score:
+                scores.append(f"{c_name} {c_score}")
+            if c.get("logo"):
+                logo_url = c.get("logo")
+    elif match_summary:
+        title = match_summary.get("title") or match_summary.get("shortName") or "Cricket Match"
+        league_name = match_summary.get("description") or "Live Cricket"
+        status_text = match_summary.get("statusDetail") or match_summary.get("leadSummary") or "Live Coverage"
+        competitors = match_summary.get("competitors") or []
+        for c in competitors:
+            c_name = c.get("name", "")
+            c_score = c.get("score", "")
+            if c_name:
+                teams.append(c_name)
+            if c_score:
+                scores.append(f"{c_name} {c_score}")
+            if c.get("logo"):
+                logo_url = c.get("logo")
+
+    if not title:
+        title = "Live Cricket Match"
+
+    teams_str = " vs ".join(teams) if teams else title
+    score_str = " vs ".join(scores) if scores else teams_str
+
+    seo_title = f"{teams_str} Live Cricket Score, Scorecard & Ball-by-Ball Commentary | Sports Dynasty"
+    seo_description = f"Live Score: {score_str}. {status_text}. Follow real-time ball-by-ball commentary, full scorecard, player stats, and live telemetry on Sports Dynasty."
+    canonical_url = f"https://sportsdynasty.in/match/{league_id}/{event_id}"
+
+    schema_ld = {
+        "@context": "https://schema.org",
+        "@type": "SportsEvent",
+        "name": f"{teams_str} Live Cricket Match",
+        "description": seo_description,
+        "sport": "Cricket",
+        "url": canonical_url,
+        "competitor": [{"@type": "SportsTeam", "name": t} for t in teams],
+        "organizer": {
+            "@type": "SportsOrganization",
+            "name": "Sports Dynasty",
+            "url": "https://sportsdynasty.in"
+        }
+    }
+    schema_json_str = json.dumps(schema_ld, ensure_ascii=False)
+
+    seo_body_block = f"""
+    <!-- Googlebot & Search Engine SSR Crawl Anchor -->
+    <div id="ssr-crawl-content" class="sr-only" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;">
+        <h1>{clean_meta_attr(seo_title)}</h1>
+        <h2>{clean_meta_attr(teams_str)} - {clean_meta_attr(league_name)}</h2>
+        <p>{clean_meta_attr(seo_description)}</p>
+        <p>Live status: {clean_meta_attr(status_text)}. Full match scorecard, live telemetry, and player performance.</p>
+    </div>
+    """
+
+    hydration_script = f"""
+    <script>
+        window.__INITIAL_MATCH__ = {{
+            leagueId: "{clean_meta_attr(str(league_id))}",
+            eventId: "{clean_meta_attr(str(event_id))}"
+        }};
+    </script>
+    """
+
+    content = re.sub(r'<title>.*?</title>', f'<title>{clean_meta_attr(seo_title)}</title>', content, count=1)
+    content = re.sub(r'<meta\s+name=["\']description["\']\s+content=["\'][^"\']*["\']', f'<meta name="description" content="{clean_meta_attr(seo_description)}"', content, count=1)
+    content = re.sub(r'<link\s+rel=["\']canonical["\']\s+href=["\'][^"\']*["\']', f'<link rel="canonical" href="{canonical_url}"', content, count=1)
+    
+    content = re.sub(r'<meta\s+property=["\']og:title["\']\s+content=["\'][^"\']*["\']', f'<meta property="og:title" content="{clean_meta_attr(seo_title)}"', content, count=1)
+    content = re.sub(r'<meta\s+property=["\']og:description["\']\s+content=["\'][^"\']*["\']', f'<meta property="og:description" content="{clean_meta_attr(seo_description)}"', content, count=1)
+    content = re.sub(r'<meta\s+property=["\']og:url["\']\s+content=["\'][^"\']*["\']', f'<meta property="og:url" content="{canonical_url}"', content, count=1)
+    content = re.sub(r'<meta\s+property=["\']og:image["\']\s+content=["\'][^"\']*["\']', f'<meta property="og:image" content="{logo_url}"', content, count=1)
+
+    content = re.sub(r'<meta\s+name=["\']twitter:title["\']\s+content=["\'][^"\']*["\']', f'<meta name="twitter:title" content="{clean_meta_attr(seo_title)}"', content, count=1)
+    content = re.sub(r'<meta\s+name=["\']twitter:description["\']\s+content=["\'][^"\']*["\']', f'<meta name="twitter:description" content="{clean_meta_attr(seo_description)}"', content, count=1)
+    content = re.sub(r'<meta\s+name=["\']twitter:image["\']\s+content=["\'][^"\']*["\']', f'<meta name="twitter:image" content="{logo_url}"', content, count=1)
+
+    content = content.replace('</head>', f'<script type="application/ld+json">{schema_json_str}</script>\n</head>', 1)
+
+    if '<body' in content:
+        body_end = content.find('>', content.find('<body')) + 1
+        content = content[:body_end] + "\n" + seo_body_block + "\n" + hydration_script + content[body_end:]
+
+    return HTMLResponse(content=content, media_type="text/html; charset=utf-8")
+
+def render_hub_page(view_name: str, title: str, description: str, path: str) -> HTMLResponse:
+    content, _ = get_file_content("index.html", "templates")
+    if not content:
+        content = """<!DOCTYPE html><html><head><title>Sports Dynasty</title></head><body><h2>Sports Dynasty</h2></body></html>"""
+    
+    canonical_url = f"https://sportsdynasty.in{path}"
+    
+    content = re.sub(r'<title>.*?</title>', f'<title>{clean_meta_attr(title)}</title>', content, count=1)
+    content = re.sub(r'<meta\s+name=["\']description["\']\s+content=["\'][^"\']*["\']', f'<meta name="description" content="{clean_meta_attr(description)}"', content, count=1)
+    content = re.sub(r'<link\s+rel=["\']canonical["\']\s+href=["\'][^"\']*["\']', f'<link rel="canonical" href="{canonical_url}"', content, count=1)
+    
+    content = re.sub(r'<meta\s+property=["\']og:title["\']\s+content=["\'][^"\']*["\']', f'<meta property="og:title" content="{clean_meta_attr(title)}"', content, count=1)
+    content = re.sub(r'<meta\s+property=["\']og:description["\']\s+content=["\'][^"\']*["\']', f'<meta property="og:description" content="{clean_meta_attr(description)}"', content, count=1)
+    content = re.sub(r'<meta\s+property=["\']og:url["\']\s+content=["\'][^"\']*["\']', f'<meta property="og:url" content="{canonical_url}"', content, count=1)
+
+    content = re.sub(r'<meta\s+name=["\']twitter:title["\']\s+content=["\'][^"\']*["\']', f'<meta name="twitter:title" content="{clean_meta_attr(title)}"', content, count=1)
+    content = re.sub(r'<meta\s+name=["\']twitter:description["\']\s+content=["\'][^"\']*["\']', f'<meta name="twitter:description" content="{clean_meta_attr(description)}"', content, count=1)
+
+    hydration_script = f"""
+    <script>
+        window.__INITIAL_VIEW__ = "{clean_meta_attr(view_name)}";
+    </script>
+    """
+    if '<body' in content:
+        body_end = content.find('>', content.find('<body')) + 1
+        content = content[:body_end] + "\n" + hydration_script + content[body_end:]
+
+    return HTMLResponse(content=content, media_type="text/html; charset=utf-8")
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_dashboard(request: Request):
     """Serve the Sports Dynasty Cricket Web Platform."""
@@ -148,6 +311,62 @@ async def serve_dashboard(request: Request):
     if content:
         return HTMLResponse(content=content, media_type="text/html; charset=utf-8")
     return HTMLResponse(content="""<!DOCTYPE html><html><head><title>Sports Dynasty</title></head><body style="background:#064e3b;color:#fff;font-family:sans-serif;text-align:center;padding:50px;"><h2>Sports Dynasty Cricket Platform</h2><p>Loading application resources...</p></body></html>""")
+
+@app.get("/match/{league_id}/{event_id}", response_class=HTMLResponse)
+async def serve_match_ssr(league_id: str, event_id: str, request: Request):
+    """Clean SEO-Optimized Match URL with Dynamic Metadata & Structured Schema."""
+    return render_ssr_match_page(league_id, event_id, request)
+
+@app.get("/match/{event_id}", response_class=HTMLResponse)
+async def serve_match_ssr_short(event_id: str, request: Request):
+    """Short Match URL route (auto-resolves league ID)."""
+    return render_ssr_match_page("0", event_id, request)
+
+@app.get("/live-scores", response_class=HTMLResponse)
+async def serve_live_scores_hub(request: Request):
+    return render_hub_page(
+        "live",
+        "Live Cricket Score Today • Ball by Ball Commentary & Scorecard | Sports Dynasty",
+        "Check fastest live cricket scores today, ball by ball commentary, real-time match telemetry, partnerships, and wagon wheels on Sports Dynasty.",
+        "/live-scores"
+    )
+
+@app.get("/news", response_class=HTMLResponse)
+async def serve_news_hub(request: Request):
+    return render_hub_page(
+        "news",
+        "Latest Cricket News, Match Reports & Exclusive Analysis | Sports Dynasty",
+        "Breaking cricket news, tournament previews, match analysis, player interviews, and post-match press reports on Sports Dynasty.",
+        "/news"
+    )
+
+@app.get("/series", response_class=HTMLResponse)
+@app.get("/standings", response_class=HTMLResponse)
+async def serve_series_hub(request: Request):
+    return render_hub_page(
+        "series",
+        "Cricket Series, Tournaments & Points Table Standings 2026 | Sports Dynasty",
+        "Track upcoming series schedules, tournament fixtures, and updated team standings & points tables on Sports Dynasty.",
+        "/series"
+    )
+
+@app.get("/teams", response_class=HTMLResponse)
+async def serve_teams_hub(request: Request):
+    return render_hub_page(
+        "teams",
+        "International Cricket Teams Directory, Squads & Stats | Sports Dynasty",
+        "Explore international and domestic cricket teams, player rosters, recent form, and team statistics on Sports Dynasty.",
+        "/teams"
+    )
+
+@app.get("/rankings", response_class=HTMLResponse)
+async def serve_rankings_hub(request: Request):
+    return render_hub_page(
+        "rankings",
+        "Official ICC Cricket Rankings 2026 - Teams, Batters & Bowlers | Sports Dynasty",
+        "Latest official ICC Rankings for Test, ODI, and T20I cricket. Check top ranked teams, batters, bowlers, and all-rounders.",
+        "/rankings"
+    )
 
 @app.get("/static/js/{path:path}")
 @app.get("/js/{path:path}")
@@ -301,42 +520,62 @@ Sitemap: https://sportsdynasty.in/sitemap.xml
 
 @app.get("/sitemap.xml")
 async def get_sitemap():
-    now_iso = datetime.utcnow().strftime("%Y-%m-%d")
-    xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-    <url>
-        <loc>https://sportsdynasty.in/</loc>
-        <lastmod>{now_iso}</lastmod>
-        <changefreq>always</changefreq>
-        <priority>1.0</priority>
-    </url>
-    <url>
-        <loc>https://sportsdynasty.in/#tab-live</loc>
-        <lastmod>{now_iso}</lastmod>
-        <changefreq>always</changefreq>
-        <priority>0.9</priority>
-    </url>
-    <url>
-        <loc>https://sportsdynasty.in/#tab-scorecard</loc>
-        <lastmod>{now_iso}</lastmod>
-        <changefreq>always</changefreq>
-        <priority>0.8</priority>
-    </url>
-    <url>
-        <loc>https://sportsdynasty.in/#tab-rankings</loc>
-        <lastmod>{now_iso}</lastmod>
-        <changefreq>daily</changefreq>
-        <priority>0.7</priority>
-    </url>
-    <url>
-        <loc>https://sportsdynasty.in/#tab-news</loc>
-        <lastmod>{now_iso}</lastmod>
-        <changefreq>hourly</changefreq>
-        <priority>0.8</priority>
-    </url>
-</urlset>
-"""
-    return Response(content=xml_content, media_type="application/xml")
+    """Dynamic XML Sitemap generating clean URLs for all live, recent, and upcoming matches."""
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    urls = [
+        ("https://sportsdynasty.in/", now_iso, "always", "1.0"),
+        ("https://sportsdynasty.in/live-scores", now_iso, "always", "0.9"),
+        ("https://sportsdynasty.in/news", now_iso, "hourly", "0.8"),
+        ("https://sportsdynasty.in/series", now_iso, "daily", "0.8"),
+        ("https://sportsdynasty.in/rankings", now_iso, "daily", "0.8"),
+        ("https://sportsdynasty.in/teams", now_iso, "weekly", "0.7"),
+    ]
+
+    try:
+        live_data = espn_service.get_live_matches()
+        for m in live_data.get("matches", []):
+            eid = str(m.get("id", ""))
+            lid = str(m.get("leagueId", "0"))
+            if not eid:
+                continue
+            is_live = bool(m.get("isLive"))
+            cf = "always" if is_live else "daily"
+            prio = "0.9" if is_live else "0.8"
+            urls.append((f"https://sportsdynasty.in/match/{lid}/{eid}", now_iso, cf, prio))
+    except Exception:
+        pass
+
+    xml_lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+    ]
+    for loc, lastmod, cf, prio in urls:
+        xml_lines.append(f"""    <url>
+        <loc>{escape(loc)}</loc>
+        <lastmod>{lastmod}</lastmod>
+        <changefreq>{cf}</changefreq>
+        <priority>{prio}</priority>
+    </url>""")
+    xml_lines.append('</urlset>')
+    xml_content = "\n".join(xml_lines)
+    return Response(content=xml_content, media_type="application/xml; charset=utf-8")
+
+@app.exception_handler(404)
+async def custom_404_handler(request: Request, exc):
+    """Fallback handler: For browser navigation requests, serve the dashboard SPA or SSR match page seamlessly."""
+    accept = request.headers.get("accept", "")
+    path = request.url.path
+    if "text/html" in accept or "*/*" in accept:
+        match_route = re.match(r'^/match/([^/]+)(?:/([^/]+))?/?$', path)
+        if match_route:
+            p1 = match_route.group(1)
+            p2 = match_route.group(2)
+            if p2:
+                return render_ssr_match_page(p1, p2, request)
+            else:
+                return render_ssr_match_page("0", p1, request)
+        return await serve_dashboard(request)
+    return JSONResponse(status_code=404, content={"detail": "Not Found"})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))

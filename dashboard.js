@@ -257,6 +257,10 @@ async function fetchMatchDetails(leagueId, eventId, silent = false, retryCount =
                         }
                     }
                 });
+                if (data.playerOfTheMatch && !mObj.playerOfTheMatch) {
+                    mObj.playerOfTheMatch = data.playerOfTheMatch;
+                    changed = true;
+                }
                 if (changed) renderMatchList();
             }
         }
@@ -605,6 +609,13 @@ function renderSingleMatchCard(m) {
                     <span>${cardSummaryText}</span>
                 </div>
             ` : ''))}
+
+            ${m.playerOfTheMatch ? `
+                <div class="mt-1.5 pt-1 border-t border-amber-500/20 text-[10.5px] text-amber-700 dark:text-amber-400 font-bold truncate flex items-center gap-1.5">
+                    <span class="shrink-0 text-xs">🏆</span>
+                    <span class="truncate">POTM: <span class="text-slate-900 dark:text-white font-black">${escapeQuotes(m.playerOfTheMatch.name)}</span>${m.playerOfTheMatch.performance ? ` <span class="font-normal opacity-90 font-mono text-[9.5px]">(${escapeQuotes(m.playerOfTheMatch.performance)})</span>` : ''}</span>
+                </div>
+            ` : ''}
         </div>
     `;
 }
@@ -1306,6 +1317,41 @@ function renderHeroBanner(data) {
                         ${last10 ? `<span class="bg-white/80 dark:bg-dark-900/90 px-3 py-1 rounded-lg border border-emerald-500/30 shadow-sm">Last 10: <span class="font-mono font-bold text-slate-800 dark:text-gray-200">${last10}</span></span>` : ''}
                     </div>
                 </div>
+
+                ${data.playerOfTheMatch ? `
+                    <!-- Player of the Match Banner -->
+                    <div class="mt-2.5 p-2.5 sm:p-3 rounded-xl bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent dark:from-amber-950/40 dark:via-dark-900/80 dark:to-dark-900 border border-amber-500/30 shadow-xs flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="relative shrink-0">
+                                <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 border-amber-400 shadow-md bg-white dark:bg-dark-800 flex items-center justify-center">
+                                    <img src="${data.playerOfTheMatch.headshot || 'https://a.espncdn.com/i/headshots/cricket/players/default-player-logo-500.png'}" 
+                                         alt="${escapeQuotes(data.playerOfTheMatch.name)}" 
+                                         class="w-full h-full object-cover object-top" 
+                                         onerror="this.src='https://a.espncdn.com/i/headshots/cricket/players/default-player-logo-500.png';">
+                                </div>
+                                <span class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] shadow-sm font-bold">🏆</span>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="text-[10.5px] font-mono font-black uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                                        <i data-lucide="award" class="w-3.5 h-3.5 text-amber-500"></i>
+                                        <span>${escapeQuotes(data.playerOfTheMatch.title || 'Player of the Match')}</span>
+                                    </span>
+                                    ${data.playerOfTheMatch.teamName ? `<span class="text-[10px] text-slate-500 dark:text-gray-400 font-medium truncate">• ${escapeQuotes(data.playerOfTheMatch.teamName)}</span>` : ''}
+                                </div>
+                                <div class="text-sm sm:text-base font-black text-slate-900 dark:text-white flex items-center gap-2 mt-0.5 truncate">
+                                    <span class="truncate">${escapeQuotes(data.playerOfTheMatch.name)}</span>
+                                    ${data.playerOfTheMatch.performance ? `<span class="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30 shrink-0">${escapeQuotes(data.playerOfTheMatch.performance)}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        ${data.playerOfTheMatch.teamLogo ? `
+                            <div class="shrink-0 hidden sm:block">
+                                <img src="${data.playerOfTheMatch.teamLogo}" alt="" class="w-9 h-9 object-contain rounded-lg p-0.5 bg-white/80 dark:bg-dark-800 border border-slate-200 dark:border-gray-700 shadow-xs" onerror="this.style.display='none'">
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : ''}
             </div>
         `;
     } catch(err) {
@@ -3037,8 +3083,43 @@ function renderMatchInfoTab(data) {
     const container = document.getElementById('match-info-content');
     if (!container) return;
 
+    const potm = data.playerOfTheMatch;
+
     container.innerHTML = `
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            ${potm ? `
+                <div class="col-span-1 sm:col-span-2 p-3.5 sm:p-4 rounded-xl bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent dark:from-amber-950/40 dark:via-dark-900/80 dark:to-dark-900 border border-amber-500/40 shadow-xs flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-3.5 min-w-0">
+                        <div class="relative shrink-0">
+                            <div class="w-13 h-13 sm:w-14 sm:h-14 rounded-full overflow-hidden border-2 border-amber-400 shadow-md bg-white dark:bg-dark-800 flex items-center justify-center">
+                                <img src="${potm.headshot || 'https://a.espncdn.com/i/headshots/cricket/players/default-player-logo-500.png'}" 
+                                     alt="${escapeQuotes(potm.name)}" 
+                                     class="w-full h-full object-cover object-top" 
+                                     onerror="this.src='https://a.espncdn.com/i/headshots/cricket/players/default-player-logo-500.png';">
+                            </div>
+                            <span class="absolute -bottom-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] sm:text-xs shadow-sm font-bold">🏆</span>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-xs font-mono font-black uppercase tracking-wider text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                                    <i data-lucide="award" class="w-4 h-4 text-amber-500"></i>
+                                    <span>${escapeQuotes(potm.title || 'Player of the Match')}</span>
+                                </span>
+                                ${potm.teamName ? `<span class="text-xs text-slate-500 dark:text-gray-400 font-medium truncate">• ${escapeQuotes(potm.teamName)}</span>` : ''}
+                            </div>
+                            <div class="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2.5 mt-0.5 truncate">
+                                <span class="truncate">${escapeQuotes(potm.name)}</span>
+                                ${potm.performance ? `<span class="text-xs font-mono font-bold px-2.5 py-0.5 rounded-md bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30 shrink-0">${escapeQuotes(potm.performance)}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    ${potm.teamLogo ? `
+                        <div class="shrink-0 hidden sm:block">
+                            <img src="${potm.teamLogo}" alt="" class="w-11 h-11 sm:w-12 sm:h-12 object-contain rounded-xl p-1 bg-white/80 dark:bg-dark-800 border border-slate-200 dark:border-gray-700 shadow-xs" onerror="this.style.display='none'">
+                        </div>
+                    ` : ''}
+                </div>
+            ` : ''}
             <div class="bg-white dark:bg-dark-800/80 p-3.5 rounded-xl border border-slate-200 dark:border-gray-800">
                 <span class="text-slate-500 dark:text-gray-400 font-medium block mb-1">Match Title</span>
                 <span class="font-bold text-slate-800 dark:text-gray-200">${data.title}</span>
@@ -3057,6 +3138,7 @@ function renderMatchInfoTab(data) {
             </div>
         </div>
     `;
+    safeCreateIcons();
 }
 
 // -------------------------------------------------------------

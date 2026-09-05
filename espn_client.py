@@ -2053,9 +2053,16 @@ class ESPNClient:
                     "performance": " • ".join(perf_list)
                 }))
 
-            if ranked:
-                ranked.sort(key=lambda x: x[0], reverse=True)
-                player_of_the_match = ranked[0][1]
+        # Extract Toss info from notes or lead_summary
+        toss_info = ""
+        for note in all_notes_list:
+            note_txt = note.get("text", "") if isinstance(note, dict) else str(note)
+            note_type = note.get("type", "") if isinstance(note, dict) else ""
+            if note_type == "toss" or "won the toss" in note_txt.lower() or "opted to" in note_txt.lower():
+                toss_info = note_txt
+                break
+        if not toss_info and lead_summary and ("toss" in lead_summary.lower() or "batted" in lead_summary.lower() or "fielded" in lead_summary.lower()):
+            toss_info = lead_summary
 
         result = {
             "matchId": event_id,
@@ -2065,9 +2072,11 @@ class ESPNClient:
             "description": header.get("description", ""),
             "location": game_info.get("venue", {}).get("fullName", header.get("location", "")),
             "city": game_info.get("venue", {}).get("address", {}).get("city", ""),
+            "date": competitions.get("date") or header.get("date") or "",
             "state": match_state,
             "statusDetail": raw_status_detail,
             "leadSummary": lead_summary,
+            "toss": toss_info,
             "currentInnings": current_innings_info,
             "session": session_text,
             "isTestMatch": is_test_match,
@@ -3785,6 +3794,44 @@ class ESPNClient:
                 "players": playing_xi,
                 "fullSquad": playing_xi + bench_players
             })
+
+        # Fallback: If rosters list was empty, populate from full_squads
+        if not squads and full_squads:
+            for sq in full_squads:
+                team_info = sq.get("team", {})
+                team_id = str(team_info.get("id", ""))
+                team_name = team_info.get("displayName", team_info.get("name", "Team"))
+                team_logo = team_info.get("logo", "")
+                if not team_logo and team_info.get("logos"):
+                    team_logo = team_info["logos"][0].get("href", "")
+                athletes = sq.get("athletes", [])
+                p_list = []
+                for ath in athletes:
+                    pos = ath.get("position", {})
+                    pos_id = pos.get("id", "") if isinstance(pos, dict) else ""
+                    pos_name = pos.get("name", "Player") if isinstance(pos, dict) else str(pos)
+                    if pos_name in ["Unknown", "UKN"]:
+                        pos_name = "Player"
+                    p_list.append({
+                        "id": str(ath.get("id", "")),
+                        "name": ath.get("displayName", ath.get("name", "Player")),
+                        "shortName": ath.get("shortName", ""),
+                        "jersey": ath.get("jersey", ""),
+                        "role": pos_name,
+                        "captain": bool(ath.get("captain")),
+                        "wicketKeeper": bool(ath.get("keeper") or pos_id in ["WK", "WBT"] or "wicketkeeper" in str(pos_name).lower()),
+                        "headshot": ath.get("headshot", {}).get("href", "") if isinstance(ath.get("headshot"), dict) else str(ath.get("headshot") or "")
+                    })
+                squads.append({
+                    "teamId": team_id,
+                    "teamName": team_name,
+                    "teamLogo": team_logo,
+                    "playingXI": p_list[:11],
+                    "bench": p_list[11:],
+                    "players": p_list[:11],
+                    "fullSquad": p_list
+                })
+
         return squads
 
     def _generate_analytics(self, innings_data: Dict[str, Any], competitors: List[Dict[str, Any]], squads: List[Dict[str, Any]]) -> Dict[str, Any]:

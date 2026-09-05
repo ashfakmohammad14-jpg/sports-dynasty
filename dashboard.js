@@ -2000,11 +2000,208 @@ window.toggleStrike = function(leagueId, matchId, batterName) {
     }
 };
 
+function renderLivePlayingXI(data, isPreMatchOnly = false) {
+    if (!data) return '';
+    const squads = (data.squads && data.squads.length > 0) ? data.squads : [];
+    const tossText = data.toss || (data.leadSummary && /toss|opted|batted|fielded|elected/i.test(data.leadSummary) ? data.leadSummary : '') || '';
+    const matchState = String(data.state || '').toLowerCase();
+    const isUpcoming = matchState === 'pre' || Boolean(data.date && new Date(data.date).getTime() > Date.now());
+    const istTimeStr = data.date ? formatMatchTimeIST(data.date) : '';
+    const cd = data.date ? computeAnticlockwiseCountdown(data.date) : null;
+
+    if (squads.length === 0) {
+        if (isPreMatchOnly) {
+            return `
+                <div class="hud-glass-panel rounded-2xl p-6 border border-emerald-500/30 text-center space-y-4">
+                    <div class="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-500 mx-auto flex items-center justify-center shadow-lg">
+                        <i data-lucide="coins" class="w-7 h-7 animate-bounce"></i>
+                    </div>
+                    <div class="space-y-1">
+                        <h3 class="text-base font-black text-slate-900 dark:text-white uppercase tracking-wider font-mono">
+                            ${tossText ? 'Toss Result Announced' : 'Toss & Official Playing XI'}
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-gray-400 max-w-lg mx-auto">
+                            ${tossText ? 'Playing 11 is being finalized and will refresh here automatically.' : 'Both teams will announce their official Playing 11 immediately after the coin toss (approx. 30 minutes before match start).'}
+                        </p>
+                    </div>
+
+                    ${tossText ? `
+                        <div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-500/50 text-amber-800 dark:text-amber-300 font-bold text-xs sm:text-sm shadow-sm font-sans">
+                            <i data-lucide="check-circle-2" class="w-4 h-4 text-amber-500 shrink-0"></i>
+                            <span>${tossText}</span>
+                        </div>
+                    ` : ''}
+
+                    ${isUpcoming && istTimeStr ? `
+                        <div class="pt-2 flex items-center justify-center gap-3 flex-wrap text-xs">
+                            <span class="px-3 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-[#00ff88] font-mono font-bold">
+                                <i data-lucide="calendar" class="w-3.5 h-3.5 inline mr-1 text-emerald-500"></i> ${istTimeStr}
+                            </span>
+                            ${cd && !cd.isLiveNow ? `
+                                <span class="px-3 py-1 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-700 dark:text-blue-300 font-mono font-black">
+                                    Starts in: ${cd.text}
+                                </span>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        return '';
+    }
+
+    const teamCardsHtml = squads.slice(0, 2).map((sq, sqIdx) => {
+        const playingXI = (sq.playingXI && sq.playingXI.length > 0) ? sq.playingXI : (sq.players || []).slice(0, 11);
+        const bench = (sq.bench && sq.bench.length > 0) ? sq.bench : (sq.fullSquad ? sq.fullSquad.slice(11) : (sq.players || []).slice(11));
+
+        return `
+            <div class="hud-glass-panel rounded-2xl p-3.5 sm:p-4 border border-slate-200 dark:border-emerald-500/30 shadow-md space-y-3 flex flex-col bg-white dark:bg-dark-900/90">
+                <!-- Team Header Bar -->
+                <div class="flex items-center justify-between pb-2.5 border-b border-slate-200 dark:border-gray-800">
+                    <div class="flex items-center space-x-2.5 min-w-0">
+                        ${sq.teamLogo ? `
+                            <img src="${sq.teamLogo}" class="w-8 h-8 object-contain rounded-lg p-0.5 bg-slate-50 dark:bg-dark-800 border border-slate-200 dark:border-gray-700 shrink-0" onerror="this.style.display='none'">
+                        ` : ''}
+                        <div class="min-w-0">
+                            <h4 class="font-black text-slate-900 dark:text-white text-sm sm:text-base truncate leading-tight">${sq.teamName}</h4>
+                            <span class="text-[10px] text-slate-500 dark:text-gray-400 font-mono">Playing 11 (${playingXI.length})</span>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-mono font-black px-2.5 py-0.5 rounded-full bg-[#00ff88]/15 text-emerald-800 dark:text-[#00ff88] border border-[#00ff88]/40 shadow-2xs shrink-0">
+                        PLAYING XI
+                    </span>
+                </div>
+
+                <!-- 11 Players Grid List -->
+                <div class="space-y-1.5 flex-1">
+                    ${playingXI.map((p, pIdx) => {
+                        const isC = Boolean(p.captain || p.isCaptain || /\(c\)/i.test(p.name) || /\(c\s*&/i.test(p.name));
+                        const isWk = Boolean(p.wicketKeeper || p.isWicketKeeper || /\(wk\)/i.test(p.name) || /&\s*wk\)/i.test(p.name));
+                        const cleanPName = p.name.replace(/\s*\([^\)]*\)/g, '').trim();
+                        let tag = '';
+                        if (isC && isWk) {
+                            tag = '<span class="text-[9px] px-1.5 py-0.2 rounded font-black font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c & wk)</span>';
+                        } else if (isC) {
+                            tag = '<span class="text-[9px] px-1.5 py-0.2 rounded font-black font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c)</span>';
+                        } else if (isWk) {
+                            tag = '<span class="text-[9px] px-1.5 py-0.2 rounded font-black font-mono bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 shrink-0 select-none">(wk)</span>';
+                        }
+
+                        return `
+                            <div onclick="openPlayerProfile('${p.id || ''}', '${cleanPName.replace(/'/g, "\\'")}')" 
+                                 class="flex items-center justify-between p-1.5 sm:p-2 rounded-xl bg-slate-50/80 dark:bg-dark-800/60 border border-slate-200/80 dark:border-gray-800/90 hover:border-emerald-500/60 dark:hover:border-[#00ff88]/60 hover:shadow-xs transition cursor-pointer group/p11" title="View Profile & Stats of ${cleanPName}">
+                                <div class="flex items-center space-x-2 truncate min-w-0">
+                                    <span class="w-5 h-5 rounded-md bg-slate-200/60 dark:bg-dark-900 border border-slate-300/60 dark:border-gray-700 flex items-center justify-center font-mono text-[10px] font-bold text-slate-500 dark:text-gray-400 shrink-0">${pIdx + 1}</span>
+                                    ${renderPlayerAvatar(cleanPName, p.headshot, 'w-6 h-6 rounded-full ring-1 ring-slate-200 dark:ring-gray-700 shrink-0')}
+                                    <div class="flex items-center gap-1 truncate min-w-0">
+                                        <span class="font-bold text-slate-900 dark:text-white group-hover/p11:text-[#00ff88] group-hover/p11:underline truncate text-xs">${cleanPName}</span>
+                                        ${tag}
+                                    </div>
+                                </div>
+                                <span class="text-[10px] text-slate-500 dark:text-gray-400 font-mono font-medium shrink-0 ml-1.5">${p.role || 'Player'}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+
+                <!-- Bench / Substitutes Section (Collapsible Accordion) -->
+                ${bench.length > 0 ? `
+                    <div class="pt-2 border-t border-slate-200 dark:border-gray-800">
+                        <details class="text-xs group/bench">
+                            <summary class="cursor-pointer font-bold text-slate-600 dark:text-gray-300 hover:text-emerald-500 flex items-center justify-between py-1 px-2 rounded-lg bg-slate-100/70 dark:bg-dark-800/40 border border-slate-200/80 dark:border-gray-700/60 transition select-none">
+                                <span class="flex items-center gap-1.5 font-mono text-[11px]">
+                                    <i data-lucide="armchair" class="w-3.5 h-3.5 text-slate-400"></i>
+                                    Bench (${bench.length})
+                                </span>
+                                <span class="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 group-open/bench:rotate-180 transition-transform">▼</span>
+                            </summary>
+                            <div class="mt-1.5 space-y-1 pl-1 max-h-[180px] overflow-y-auto custom-scrollbar">
+                                ${bench.map(p => {
+                                    const cleanPName = p.name.replace(/\s*\([^\)]*\)/g, '').trim();
+                                    return `
+                                        <div onclick="openPlayerProfile('${p.id || ''}', '${cleanPName.replace(/'/g, "\\'")}')"
+                                             class="flex items-center justify-between p-1.5 rounded-lg bg-slate-50/50 dark:bg-dark-900/40 border border-slate-100 dark:border-gray-800/60 hover:border-slate-300 dark:hover:border-gray-700 transition cursor-pointer text-xs group/bn">
+                                            <div class="flex items-center space-x-2 truncate">
+                                                ${renderPlayerAvatar(cleanPName, p.headshot, 'w-5 h-5 rounded-full opacity-80 shrink-0')}
+                                                <span class="font-medium text-slate-700 dark:text-gray-300 group-hover/bn:text-emerald-500 truncate text-[11px]">${cleanPName}</span>
+                                            </div>
+                                            <span class="text-[9px] text-slate-400 font-mono shrink-0 ml-1.5">${p.role || 'Player'}</span>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </details>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="hud-glass-panel rounded-2xl p-3 sm:p-4 border border-emerald-500/30 shadow-md space-y-3.5">
+            <!-- Header with Coin Toss Update -->
+            <div class="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-emerald-500/20">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-7 h-7 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-black shadow-[0_0_12px_rgba(251,191,36,0.6)]">
+                        <i data-lucide="coins" class="w-4 h-4 text-slate-950"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xs sm:text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider font-mono flex items-center gap-2">
+                            <span>Official Playing XI & Toss</span>
+                            ${isUpcoming ? '<span class="text-[9px] px-2 py-0.2 rounded-full bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30 font-mono">Toss Done</span>' : ''}
+                        </h3>
+                        ${tossText ? `
+                            <p class="text-xs font-bold text-amber-700 dark:text-amber-300 mt-0.5 font-sans">
+                                🪙 ${tossText}
+                            </p>
+                        ` : `
+                            <p class="text-[11px] text-slate-500 dark:text-gray-400 font-sans">Official match day squads announced</p>
+                        `}
+                    </div>
+                </div>
+
+                ${isUpcoming && istTimeStr ? `
+                    <div class="flex items-center gap-2">
+                        <span class="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-[#00ff88] font-mono font-bold text-xs">
+                            <i data-lucide="calendar" class="w-3 h-3 inline mr-1 text-emerald-500"></i> ${istTimeStr}
+                        </span>
+                        ${cd && !cd.isLiveNow ? `
+                            <div class="upcoming-countdown-badge px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-700 dark:text-amber-300 font-mono font-black text-xs shadow-xs" data-match-date="${data.date || ''}">
+                                <span class="countdown-timer-text">${cd.text}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : ''}
+            </div>
+
+            <!-- Two-Column Playing XI Arena -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                ${teamCardsHtml}
+            </div>
+        </div>
+    `;
+}
+
 function renderCricinfoLiveTab(data) {
     const container = document.getElementById('cricinfo-live-crease-table-container');
     if (!container) return;
 
     const crease = data.liveCrease;
+    const hasBatters = Boolean(crease && crease.batters && crease.batters.length > 0);
+    const hasBowler = Boolean(crease && (crease.activeBowler || crease.bowler || (crease.bowlers && crease.bowlers.length > 0)));
+    const hasRecentDeliveries = Boolean(crease && crease.recentDeliveries && crease.recentDeliveries.length > 0);
+    const hasActivePlay = hasBatters || hasBowler || hasRecentDeliveries;
+    const isCompleted = Boolean(data.state && (data.state.toLowerCase() === 'post' || data.state.toLowerCase() === 'final' || data.state.toLowerCase() === 'completed'));
+
+    if (!hasActivePlay && !isCompleted) {
+        // Pre-Match or Toss Just Announced: Show the Official Playing XI & Toss as the main centerpiece!
+        container.innerHTML = renderLivePlayingXI(data, true);
+        const p11Sub = document.getElementById('cricinfo-live-playing11-container');
+        if (p11Sub) p11Sub.innerHTML = '';
+        safeCreateIcons();
+        return;
+    }
+
     if (!crease) return;
 
     const batters = crease.batters || [];
@@ -2455,6 +2652,12 @@ function renderCricinfoLiveTab(data) {
             </div>
         </div>
     `;
+
+    const p11Sub = document.getElementById('cricinfo-live-playing11-container');
+    if (p11Sub) {
+        p11Sub.innerHTML = renderLivePlayingXI(data, false);
+    }
+    safeCreateIcons();
 }
 
 function renderRecentOversHTML(data) {
@@ -3635,7 +3838,9 @@ function viewMatchPointsTable(leagueId, eventId) {
 // -------------------------------------------------------------
 
 function switchMainTab(targetTab) {
-    if (!targetTab) targetTab = 'live';
+    if (!targetTab || ['coverage', 'commentary', 'analytics'].includes(targetTab)) {
+        targetTab = 'live';
+    }
     const tabButtons = document.querySelectorAll('.cricinfo-tab-btn, .main-tab-btn');
     tabButtons.forEach(b => {
         const tabAttr = b.getAttribute('data-tab');
@@ -3657,12 +3862,14 @@ function switchMainTab(targetTab) {
     const activePane = document.getElementById(`tab-${targetTab}`);
     if (activePane) activePane.classList.remove('hidden');
 
-    if (targetTab === 'analytics' && appState.currentMatchData) {
-        renderAnalyticsTab(appState.currentMatchData);
-    } else if (targetTab === 'scorecard' && appState.currentMatchData) {
+    if (targetTab === 'scorecard' && appState.currentMatchData) {
         renderScorecardTab(appState.currentMatchData);
     } else if (targetTab === 'standings' && appState.currentMatchData) {
         renderMatchPointsTableTab(appState.currentMatchData);
+    } else if (targetTab === 'squads' && appState.currentMatchData) {
+        renderSquadsTab(appState.currentMatchData);
+    } else if (targetTab === 'live' && appState.currentMatchData) {
+        renderCricinfoLiveTab(appState.currentMatchData);
     }
     safeCreateIcons();
 }

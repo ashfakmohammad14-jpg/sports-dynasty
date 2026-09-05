@@ -104,7 +104,7 @@
     </script>
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="/custom.css?v=3.0.0">
+    <link rel="stylesheet" href="/custom.css?v=3.1.0">
 
     <!-- Google AdSense Official Script -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9257478787714323"
@@ -303,15 +303,6 @@
                     <button class="main-tab-btn cricinfo-tab flex items-center gap-1.5" data-tab="scorecard">
                         <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> Scorecard
                     </button>
-                    <button class="main-tab-btn cricinfo-tab flex items-center gap-1.5" data-tab="coverage">
-                        <i data-lucide="newspaper" class="w-3.5 h-3.5"></i> Match Coverage
-                    </button>
-                    <button class="main-tab-btn cricinfo-tab flex items-center gap-1.5" data-tab="commentary">
-                        <i data-lucide="message-square" class="w-3.5 h-3.5"></i> Commentary
-                    </button>
-                    <button class="main-tab-btn cricinfo-tab flex items-center gap-1.5" data-tab="analytics">
-                        <i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i> Analysis & Charts
-                    </button>
                     <button class="main-tab-btn cricinfo-tab flex items-center gap-1.5" data-tab="squads">
                         <i data-lucide="users" class="w-3.5 h-3.5"></i> Squads
                     </button>
@@ -335,6 +326,11 @@
                             <div class="text-center py-6 text-slate-400 text-xs">
                                 <p>Loading live crease statistics...</p>
                             </div>
+                        </div>
+
+                        <!-- Toss & Official Playing XI Section (Live / Pre-Match) -->
+                        <div id="cricinfo-live-playing11-container" class="mt-2.5">
+                            <!-- Injected dynamically via renderLivePlayingXI -->
                         </div>
 
                     </div>
@@ -422,74 +418,7 @@
                         </div>
                     </div>
 
-                    <!-- TAB 3: MATCH COVERAGE & NEWS (As in Screenshot) -->
-                    <div id="tab-coverage" class="tab-pane hidden space-y-4">
-                        <div class="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-gray-800">
-                            <h3 class="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider">
-                                Match Coverage & Headlines
-                            </h3>
-                            <span class="text-xs text-[#034b9d] dark:text-sky-400 font-semibold cursor-pointer">Live Updates</span>
-                        </div>
-                        <div id="match-coverage-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Injected dynamically -->
-                        </div>
-                    </div>
-
-                    <!-- TAB 4: COMMENTARY & DRS TIMELINE -->
-                    <div id="tab-commentary" class="tab-pane hidden space-y-3">
-                        <div class="flex flex-wrap gap-1.5 pb-2 border-b border-slate-200 dark:border-gray-800 text-xs">
-                            <button class="comm-filter-btn px-3 py-1 rounded-md bg-[#034b9d] text-white font-semibold transition" data-filter="all">All Events</button>
-                            <button class="comm-filter-btn px-3 py-1 rounded-md bg-slate-100 dark:bg-dark-900 border border-slate-200 dark:border-gray-800 text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white font-medium transition" data-filter="milestone">Milestones & 50s/100s</button>
-                            <button class="comm-filter-btn px-3 py-1 rounded-md bg-slate-100 dark:bg-dark-900 border border-slate-200 dark:border-gray-800 text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white font-medium transition" data-filter="review">DRS & Reviews</button>
-                            <button class="comm-filter-btn px-3 py-1 rounded-md bg-slate-100 dark:bg-dark-900 border border-slate-200 dark:border-gray-800 text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white font-medium transition" data-filter="break">Breaks & Stumps</button>
-                        </div>
-                        <div id="commentary-stream" class="space-y-2.5 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                            <!-- Injected dynamically -->
-                        </div>
-                    </div>
-
-                    <!-- TAB 5: ANALYTICS & CHARTS -->
-                    <div id="tab-analytics" class="tab-pane hidden space-y-5">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Chart 1: Partnership Bar Chart -->
-                            <div class="bg-slate-50 dark:bg-dark-900/80 p-4 rounded-xl border border-slate-200 dark:border-gray-800 shadow-sm">
-                                <h4 class="text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                    <i data-lucide="bar-chart" class="w-3.5 h-3.5 text-[#034b9d] dark:text-sky-400"></i> Partnerships by Wicket
-                                </h4>
-                                <div class="h-60 relative">
-                                    <canvas id="partnershipsChart"></canvas>
-                                </div>
-                            </div>
-
-                            <!-- Chart 2: Batsman Run Share Doughnut Chart -->
-                            <div class="bg-slate-50 dark:bg-dark-900/80 p-4 rounded-xl border border-slate-200 dark:border-gray-800 shadow-sm">
-                                <h4 class="text-xs font-bold text-slate-800 dark:text-gray-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                    <i data-lucide="pie-chart" class="w-3.5 h-3.5 text-teal-600 dark:text-teal-400"></i> Batting Run Share
-                                </h4>
-                                <div class="h-60 relative flex items-center justify-center">
-                                    <canvas id="runShareChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Top Performers -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-                            <div class="bg-slate-50 dark:bg-dark-900/80 p-3.5 rounded-xl border border-slate-200 dark:border-gray-800">
-                                <h4 class="text-xs font-bold text-[#034b9d] dark:text-sky-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                                    <i data-lucide="zap" class="w-3.5 h-3.5"></i> Top Batsmen
-                                </h4>
-                                <div id="top-batsmen-list" class="space-y-1.5 text-xs"></div>
-                            </div>
-                            <div class="bg-slate-50 dark:bg-dark-900/80 p-3.5 rounded-xl border border-slate-200 dark:border-gray-800">
-                                <h4 class="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                                    <i data-lucide="target" class="w-3.5 h-3.5"></i> Top Bowlers
-                                </h4>
-                                <div id="top-bowlers-list" class="space-y-1.5 text-xs"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- TAB 6: SQUADS & LINEUP -->
+                    <!-- TAB 3: SQUADS & LINEUP -->
                     <div id="tab-squads" class="tab-pane hidden space-y-4">
                         <div id="squads-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                     </div>
@@ -953,6 +882,6 @@
     </div>
 
     <!-- Custom JavaScript -->
-    <script src="/dashboard.js?v=10.2.0"></script>
+    <script src="/dashboard.js?v=11.0.0"></script>
 </body>
 </html>

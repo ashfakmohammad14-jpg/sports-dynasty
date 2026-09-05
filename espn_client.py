@@ -1302,7 +1302,7 @@ class ESPNClient:
                     break
             if not potm_obj:
                 for note in notes:
-                    txt = str(note.get("text", ""))
+                    txt = note.get("text", "") if isinstance(note, dict) else str(note)
                     m_potm = re.search(r"(?:player|man)\s+of\s+the\s+match\s*[:-]\s*([A-Za-z\s\.\'\-]+)", txt, re.I)
                     if m_potm:
                         potm_obj = {
@@ -1750,7 +1750,7 @@ class ESPNClient:
             (header.get("description") and any(k in header.get("description", "").lower() for k in ["test", "4-day", "5-day", "championship", "shield", "ranji", "trophy"]))
         )
         
-        all_notes_list = [str(n.get("text", "")) for n in header.get("notes", [])] + [str(n.get("text", "")) for n in notes_raw]
+        all_notes_list = [str(n.get("text", "") if isinstance(n, dict) else str(n)) for n in header.get("notes", [])] + [str(n.get("text", "") if isinstance(n, dict) else str(n)) for n in notes_raw]
         active_score_for_session = ""
 
         # Priority 1: latest innings from innings_data (has full overs e.g. "296-6 (69 Overs)")
@@ -1889,7 +1889,7 @@ class ESPNClient:
 
         if not player_of_the_match:
             for note in all_notes_list:
-                txt = str(note.get("text", ""))
+                txt = note.get("text", "") if isinstance(note, dict) else str(note)
                 m_potm = re.search(r"(?:player|man)\s+of\s+the\s+match\s*[:-]\s*([A-Za-z\s\.\'\-]+)", txt, re.I)
                 if m_potm:
                     p_name = m_potm.group(1).strip()
@@ -1925,55 +1925,137 @@ class ESPNClient:
                     break
 
         if not player_of_the_match and match_state in ["post", "final", "completed"]:
-            candidates = []
-            for c in competitors:
-                if c.get("isWinner"):
-                    w_name = c.get("name", "")
-                    w_clean = re.sub(r'[^a-z0-9]', '', w_name.lower())
-                    for inn in innings_data.values():
-                        inn_t = re.sub(r'[^a-z0-9]', '', str(inn.get("teamName", "")).lower())
-                        if w_clean and (w_clean in inn_t or inn_t in w_clean):
-                            for b in inn.get("batting", []):
-                                try:
-                                    r = int(b.get("runs", 0))
-                                    if r >= 35:
-                                        not_out = "*" if b.get("isNotOut") else ""
-                                        bl = b.get("balls", "")
-                                        candidates.append((r * 1.5, {
-                                            "id": b.get("id", ""),
-                                            "name": b.get("name", ""),
-                                            "shortName": b.get("name", "").split()[-1],
-                                            "headshot": b.get("headshot", "") or player_photo_map.get(b.get("name", "").lower(), ""),
-                                            "teamId": c.get("id", ""),
-                                            "teamName": w_name,
-                                            "teamLogo": c.get("logo", ""),
-                                            "title": "Top Performer",
-                                            "performance": f"{r}{not_out} ({bl}b)" if bl else f"{r}{not_out}"
-                                        }))
-                                except Exception:
-                                    pass
-                        else:
-                            for bw in inn.get("bowling", []):
-                                try:
-                                    w = int(bw.get("wickets", 0))
-                                    rn = bw.get("runs", 0)
-                                    if w >= 3:
-                                        candidates.append((w * 35 - int(rn) * 0.2, {
-                                            "id": bw.get("id", ""),
-                                            "name": bw.get("name", ""),
-                                            "shortName": bw.get("name", "").split()[-1],
-                                            "headshot": bw.get("headshot", "") or player_photo_map.get(bw.get("name", "").lower(), ""),
-                                            "teamId": c.get("id", ""),
-                                            "teamName": w_name,
-                                            "teamLogo": c.get("logo", ""),
-                                            "title": "Top Performer",
-                                            "performance": f"{w}/{rn}"
-                                        }))
-                                except Exception:
-                                    pass
-            if candidates:
-                candidates.sort(key=lambda x: x[0], reverse=True)
-                player_of_the_match = candidates[0][1]
+            winner_c = next((c for c in competitors if c.get("isWinner")), None)
+
+            def find_comp_for_team(t_str):
+                t_str_clean = re.sub(r'[^a-z0-9]', '', str(t_str).lower())
+                for c in competitors:
+                    cn = re.sub(r'[^a-z0-9]', '', c.get("name", "").lower())
+                    ca = re.sub(r'[^a-z0-9]', '', c.get("abbr", "").lower())
+                    if cn and (cn in t_str_clean or t_str_clean in cn):
+                        return c
+                    if ca and len(ca) >= 2 and (ca in t_str_clean or t_str_clean.startswith(ca)):
+                        return c
+                return None
+
+            player_pool = {}
+            for inn in innings_data.values():
+                inn_team = str(inn.get("teamName", "")).strip()
+                inn_comp = find_comp_for_team(inn_team)
+                is_inn_winner = bool(inn_comp and inn_comp.get("isWinner"))
+                opp_comp = next((c for c in competitors if c != inn_comp), None) if inn_comp else None
+                is_bowl_winner = bool(opp_comp and opp_comp.get("isWinner"))
+
+                for b in inn.get("batting", []):
+                    b_name = b.get("name", "").strip()
+                    if not b_name:
+                        continue
+                    b_hs = b.get("headshot", "") or player_photo_map.get(b_name.lower(), "")
+                    b_id = str(b.get("id", ""))
+                    if not b_id and b_hs:
+                        m_id = re.search(r'/(\d+)\.png', b_hs)
+                        if m_id:
+                            b_id = m_id.group(1)
+                    pkey = b_id or b_name.lower()
+                    if pkey not in player_pool:
+                        p_team_c = inn_comp or winner_c
+                        player_pool[pkey] = {
+                            "id": b_id,
+                            "name": b_name,
+                            "shortName": b_name.split()[-1],
+                            "headshot": b_hs or (f"https://a.espncdn.com/i/headshots/cricket/players/full/{b_id}.png" if b_id else "https://a.espncdn.com/i/headshots/cricket/players/default-player-logo-500.png"),
+                            "teamId": str(p_team_c.get("id", "")) if p_team_c else "",
+                            "teamName": p_team_c.get("name", inn_team) if p_team_c else inn_team,
+                            "teamLogo": p_team_c.get("logo", "") if p_team_c else "",
+                            "runs": 0,
+                            "bat_perfs": [],
+                            "wkts": 0,
+                            "bowl_runs": 0,
+                            "bowl_perfs": [],
+                            "is_winner": is_inn_winner
+                        }
+                    try:
+                        r_val = int(b.get("runs") or 0)
+                        bl_val = b.get("balls", "")
+                        not_out = "*" if b.get("isNotOut") else ""
+                        player_pool[pkey]["runs"] += r_val
+                        if r_val > 0 or bl_val:
+                            player_pool[pkey]["bat_perfs"].append(f"{r_val}{not_out}" + (f" ({bl_val}b)" if bl_val else ""))
+                    except Exception:
+                        pass
+
+                for bw in inn.get("bowling", []):
+                    bw_name = bw.get("name", "").strip()
+                    if not bw_name:
+                        continue
+                    bw_hs = bw.get("headshot", "") or player_photo_map.get(bw_name.lower(), "")
+                    bw_id = str(bw.get("id", ""))
+                    if not bw_id and bw_hs:
+                        m_id = re.search(r'/(\d+)\.png', bw_hs)
+                        if m_id:
+                            bw_id = m_id.group(1)
+                    pkey = bw_id or bw_name.lower()
+                    if pkey not in player_pool:
+                        bw_team_c = opp_comp or (next((c for c in competitors if not c.get("isWinner")), None) if not is_bowl_winner else winner_c)
+                        player_pool[pkey] = {
+                            "id": bw_id,
+                            "name": bw_name,
+                            "shortName": bw_name.split()[-1],
+                            "headshot": bw_hs or (f"https://a.espncdn.com/i/headshots/cricket/players/full/{bw_id}.png" if bw_id else "https://a.espncdn.com/i/headshots/cricket/players/default-player-logo-500.png"),
+                            "teamId": str(bw_team_c.get("id", "")) if bw_team_c else "",
+                            "teamName": bw_team_c.get("name", "") if bw_team_c else "",
+                            "teamLogo": bw_team_c.get("logo", "") if bw_team_c else "",
+                            "runs": 0,
+                            "bat_perfs": [],
+                            "wkts": 0,
+                            "bowl_runs": 0,
+                            "bowl_perfs": [],
+                            "is_winner": is_bowl_winner
+                        }
+                    try:
+                        w_val = int(bw.get("wickets") or 0)
+                        rn_val = int(bw.get("runs") or 0)
+                        player_pool[pkey]["wkts"] += w_val
+                        player_pool[pkey]["bowl_runs"] += rn_val
+                        if w_val > 0 or rn_val > 0:
+                            player_pool[pkey]["bowl_perfs"].append(f"{w_val}/{rn_val}")
+                    except Exception:
+                        pass
+
+            ranked = []
+            for p in player_pool.values():
+                r = p["runs"]
+                w = p["wkts"]
+                br = p["bowl_runs"]
+                score = (r * 1.0) + (w * 25.0) - (br * 0.05)
+                if r >= 100: score += 40
+                elif r >= 50: score += 20
+                if w >= 5: score += 45
+                elif w >= 3: score += 20
+                if p["is_winner"]:
+                    score *= 1.4
+
+                perf_list = []
+                if p["bat_perfs"]:
+                    perf_list.append(" & ".join(p["bat_perfs"]))
+                if p["bowl_perfs"]:
+                    perf_list.append(" & ".join(p["bowl_perfs"]))
+
+                ranked.append((score, {
+                    "id": p["id"],
+                    "name": p["name"],
+                    "shortName": p["shortName"],
+                    "headshot": p["headshot"] or (f"https://a.espncdn.com/i/headshots/cricket/players/full/{p['id']}.png" if p["id"] else "https://a.espncdn.com/i/headshots/cricket/players/default-player-logo-500.png"),
+                    "teamId": p["teamId"],
+                    "teamName": p["teamName"],
+                    "teamLogo": p["teamLogo"],
+                    "title": "Player of the Match",
+                    "performance": " • ".join(perf_list)
+                }))
+
+            if ranked:
+                ranked.sort(key=lambda x: x[0], reverse=True)
+                player_of_the_match = ranked[0][1]
 
         result = {
             "matchId": event_id,

@@ -414,7 +414,7 @@ function isTeamCurrentlyBatting(competitor, data) {
 
 function renderMultiInningsScoreHTML(scoreStr, isTeamBattingNow = false, isLiveMatch = false, crrStr = "", isSecondInnings = false) {
     const cleanStr = cleanScoreString(scoreStr);
-    if (!cleanStr || cleanStr === '-' || /^\s*\(?\s*\d+(?:\.\d+)?\s*(?:ov|overs)?\s*\)?\s*$/i.test(cleanStr)) {
+    if (!cleanStr || cleanStr === '-' || (/^\s*\(?\s*\d+(?:\.\d+)?\s*(?:ov|overs)\s*\)?\s*$/i.test(cleanStr) && !cleanStr.includes('/'))) {
         return `
             <div class="bg-slate-100/90 dark:bg-dark-900/90 border border-slate-200 dark:border-emerald-500/30 rounded-lg px-2.5 py-1 shadow-2xs text-right shrink-0">
                 <div class="font-mono font-bold text-xs sm:text-sm text-slate-400 dark:text-gray-500">Yet to bat</div>
@@ -1317,6 +1317,28 @@ function renderCompactWinProbBadge(winProb, c1, c2, isTestMatch) {
     `;
 }
 
+function resolveTeamScoreFromInnings(competitor, innings) {
+    if (!competitor || !innings) return '';
+    const compName = String(competitor.name || '').toLowerCase();
+    const compAbbr = String(competitor.abbr || '').toLowerCase();
+    const parts = [];
+    const intKeys = Object.keys(innings).filter(k => /^\d+$/.test(k)).map(Number).sort((a, b) => a - b);
+    for (const k of intKeys) {
+        const inn = innings[String(k)];
+        if (!inn) continue;
+        const innTeam = String(inn.teamName || inn.team || '').toLowerCase();
+        const isMatch = (compAbbr && innTeam.includes(compAbbr)) ||
+                        (compName && (innTeam.includes(compName.split(' ')[0]) || compName.includes(innTeam.split(' ')[0])));
+        if (isMatch) {
+            const tot = String(inn.total || inn.runs || '').trim();
+            if (tot && tot !== '-') {
+                parts.push(tot);
+            }
+        }
+    }
+    return parts.join(' & ');
+}
+
 function renderHeroBanner(data) {
     const container = document.getElementById('match-hero-content');
     if (!container) return;
@@ -1338,8 +1360,16 @@ function renderHeroBanner(data) {
         const c2Name = String(c2.name || 'Team 2');
         const c1Abbr = String(c1.abbr || 'TM1');
         const c2Abbr = String(c2.abbr || 'TM2');
-        const c1Score = String(c1.score || '');
-        const c2Score = String(c2.score || '');
+        let c1Score = String(c1.score || '');
+        let c2Score = String(c2.score || '');
+
+        // Fallback: If score is missing or "-", resolve directly from scorecard innings
+        if ((!c1Score || c1Score === '-') && data.innings) {
+            c1Score = resolveTeamScoreFromInnings(c1, data.innings) || c1Score;
+        }
+        if ((!c2Score || c2Score === '-') && data.innings) {
+            c2Score = resolveTeamScoreFromInnings(c2, data.innings) || c2Score;
+        }
 
         let matchDate = data.date;
         if (!matchDate) {

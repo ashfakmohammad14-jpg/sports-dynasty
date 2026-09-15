@@ -368,6 +368,275 @@ async def serve_rankings_hub(request: Request):
         "/rankings"
     )
 
+def render_legal_document(title: str, description: str, path: str, doc_title: str, doc_body: str) -> HTMLResponse:
+    canonical_url = f"https://sportsdynasty.in{path}"
+    html = f"""<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{clean_meta_attr(title)} | Sports Dynasty</title>
+    <meta name="description" content="{clean_meta_attr(description)}">
+    <link rel="canonical" href="{canonical_url}">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#064e3b">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Sports Dynasty">
+    <meta property="og:title" content="{clean_meta_attr(title)}">
+    <meta property="og:description" content="{clean_meta_attr(description)}">
+    <meta property="og:url" content="{canonical_url}">
+    <link rel="icon" type="image/png" href="https://a.espncdn.com/i/teamlogos/cricket/500/6.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {{
+            darkMode: 'class',
+            theme: {{
+                extend: {{
+                    colors: {{
+                        brand: {{ green: '#059669', darkgreen: '#064e3b', emerald: '#10b981', light: '#34d399' }},
+                        dark: {{ 900: '#0b0f19', 800: '#111827', 700: '#1f2937', 600: '#374151' }}
+                    }}
+                }}
+            }}
+        }}
+    </script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9257478787714323" crossorigin="anonymous"></script>
+</head>
+<body class="bg-[#0b0f19] text-gray-100 font-sans min-h-screen flex flex-col antialiased">
+    <header class="sticky top-0 z-40 bg-[#064e3b] border-b border-emerald-500/30 shadow-md">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <a href="/" class="flex items-center gap-2.5 text-white font-black text-lg sm:text-xl tracking-tight">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white shadow text-sm">
+                    🏏
+                </div>
+                <span>Sports Dynasty</span>
+            </a>
+            <nav class="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm font-bold text-white/90">
+                <a href="/" class="hover:text-[#00ff88] transition">Live Scores</a>
+                <a href="/news" class="hover:text-[#00ff88] transition">News</a>
+                <a href="/series" class="hover:text-[#00ff88] transition">Series</a>
+                <a href="/rankings" class="hover:text-[#00ff88] transition">Rankings</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 py-8 sm:py-12 flex-1 w-full">
+        <article class="bg-gray-900/90 border border-emerald-500/20 rounded-2xl p-6 sm:p-10 shadow-2xl space-y-6">
+            <header class="border-b border-gray-800 pb-4">
+                <h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight">{doc_title}</h1>
+                <p class="text-xs text-emerald-400 font-mono mt-1">Official Legal Documentation • Sports Dynasty</p>
+            </header>
+            <div class="text-slate-300 space-y-4 text-sm sm:text-base leading-relaxed">
+                {doc_body}
+            </div>
+            <div class="pt-6 border-t border-gray-800 text-xs text-slate-500 flex flex-wrap justify-between items-center gap-2">
+                <span>Last Updated: September 2026</span>
+                <a href="/" class="text-[#00ff88] hover:underline font-bold flex items-center gap-1">← Return to Live Match Arena</a>
+            </div>
+        </article>
+    </main>
+
+    <footer class="border-t border-gray-800 bg-gray-950 py-6 text-xs text-gray-400">
+        <div class="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p>© 2026 Sports Dynasty • Real-Time Cricket Telemetry. All rights reserved.</p>
+            <div class="flex flex-wrap items-center gap-3 text-gray-400">
+                <a href="/privacy-policy" class="hover:text-[#00ff88] transition">Privacy Policy</a>
+                <span>•</span>
+                <a href="/terms" class="hover:text-[#00ff88] transition">Terms</a>
+                <span>•</span>
+                <a href="/about" class="hover:text-[#00ff88] transition">About Us</a>
+                <span>•</span>
+                <a href="/contact" class="hover:text-[#00ff88] transition">Contact</a>
+                <span>•</span>
+                <a href="/disclaimer" class="hover:text-[#00ff88] transition">Disclaimer</a>
+            </div>
+        </div>
+    </footer>
+    <script>if (window.lucide) lucide.createIcons();</script>
+</body>
+</html>"""
+    return HTMLResponse(content=html, media_type="text/html; charset=utf-8")
+
+@app.get("/privacy-policy", response_class=HTMLResponse)
+@app.get("/privacy", response_class=HTMLResponse)
+async def serve_privacy_policy():
+    body = """
+<h2 class="text-xl font-bold text-white mb-2">1. Introduction</h2>
+<p>Welcome to <strong>Sports Dynasty</strong> (accessible at <a href="https://sportsdynasty.in" class="text-emerald-400 underline">https://sportsdynasty.in</a>). At Sports Dynasty, the privacy of our visitors is of paramount importance to us. This Privacy Policy outlines the types of information collected and how it is used.</p>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">2. Information We Collect</h2>
+<p>Sports Dynasty provides free, real-time live cricket scorecards, ball-by-ball telemetry, ICC rankings, and sports news. We do not require visitors to register, create accounts, or provide sensitive personal details such as passwords or credit card numbers to access our core cricket coverage.</p>
+<p>Like most modern web platforms, our servers may automatically log non-personally identifiable diagnostic data including:</p>
+<ul class="list-disc pl-5 space-y-1">
+    <li>Internet Protocol (IP) address</li>
+    <li>Browser type, device classification, and operating system</li>
+    <li>Referring/exit pages and timestamps</li>
+    <li>Aggregated pageview and session telemetry to optimize low-latency live score delivery</li>
+</ul>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">3. Google AdSense & Third-Party Advertising (Cookie Policy)</h2>
+<p>Sports Dynasty partners with trusted third-party advertising vendors, including <strong>Google AdSense</strong>, to serve advertisements when you visit our website. These third-party vendors use cookies and web beacons to serve ads based on your prior visits to our website or other sites on the Internet.</p>
+<p><strong>DoubleClick Cookie:</strong> Google's use of advertising cookies enables it and its partners to serve personalized ads to our visitors based on their visit to sportsdynasty.in and/or other sites on the Internet.</p>
+<p><strong>Opting Out:</strong> Visitors may choose to opt out of personalized advertising at any time by visiting the official <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener" class="text-emerald-400 underline">Google Ads Settings</a> page. Alternatively, you can opt out of third-party vendors' use of cookies for personalized advertising by visiting <a href="https://www.aboutads.info" target="_blank" rel="noopener" class="text-emerald-400 underline">www.aboutads.info</a>.</p>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">4. Log Files & Analytics</h2>
+<p>Sports Dynasty utilizes standard web server logs and lightweight, privacy-preserving session metrics. The information gathered is strictly used for analyzing traffic trends, administering the site, tracking real-time concurrent active users during live matches, and maintaining server availability.</p>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">5. GDPR & CCPA Compliance</h2>
+<p>We respect international privacy rights including the European Union General Data Protection Regulation (GDPR) and the California Consumer Privacy Act (CCPA):</p>
+<ul class="list-disc pl-5 space-y-1">
+    <li>You have the right to request information about diagnostic data collected.</li>
+    <li>You have the right to request deletion of non-essential records.</li>
+    <li>We never sell, rent, or trade personal data to third parties.</li>
+</ul>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">6. Children's Privacy (COPPA)</h2>
+<p>Sports Dynasty does not knowingly collect any personal identifiable information from children under the age of 13. If you believe your child has provided personal information on our site, please contact us immediately and we will promptly remove such records.</p>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">7. Contact Information</h2>
+<p>If you have questions, feedback, or concerns regarding our Privacy Policy, please contact our administrative team at:</p>
+<p class="font-mono text-emerald-400 font-bold">Email: support@sportsdynasty.in | ashfaq261190@gmail.com</p>
+"""
+    return render_legal_document(
+        "Privacy Policy",
+        "Sports Dynasty Privacy Policy: Learn how we collect, protect, and respect your data, including Google AdSense cookies and opt-out information.",
+        "/privacy-policy",
+        "Privacy Policy",
+        body
+    )
+
+@app.get("/terms", response_class=HTMLResponse)
+@app.get("/terms-of-service", response_class=HTMLResponse)
+async def serve_terms():
+    body = """
+<h2 class="text-xl font-bold text-white mb-2">1. Agreement to Terms</h2>
+<p>By accessing and using <strong>Sports Dynasty</strong> (<a href="https://sportsdynasty.in" class="text-emerald-400 underline">https://sportsdynasty.in</a>), you accept and agree to be bound by the terms and provisions of this agreement. If you do not agree to abide by these terms, please do not use this service.</p>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">2. Description of Service</h2>
+<p>Sports Dynasty provides real-time live cricket scorecards, ball-by-ball telemetry, player statistics, tournament schedules, points tables, and official ICC rankings for informational and sports entertainment purposes.</p>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">3. Intellectual Property & Fair Use</h2>
+<p>All proprietary code, brand design, graphical interfaces, and telemetry calculation algorithms developed by Sports Dynasty are the intellectual property of Sports Dynasty.</p>
+<p>Live scores, match facts, player career statistics, and team fixtures are public domain facts and news information aggregated for sports journalistic commentary and fair fan engagement.</p>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">4. User Conduct</h2>
+<p>Users agree not to:</p>
+<ul class="list-disc pl-5 space-y-1">
+    <li>Use automated scrapers, bots, or spiders to overload or degrade the performance of our live telemetry servers.</li>
+    <li>Attempt to decompile, reverse engineer, or disrupt the operation of the web dashboard.</li>
+    <li>Use the platform for any unlawful purpose or in violation of local, state, national, or international law.</li>
+</ul>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">5. Disclaimer of Warranties</h2>
+<p>The service is provided on an "as is" and "as available" basis. While Sports Dynasty strives for millisecond-level telemetry accuracy, we make no representations or warranties regarding the continuous availability or absolute error-free operation of third-party sports data feeds.</p>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">6. Contact Us</h2>
+<p>For inquiries regarding these Terms of Service, contact: <span class="font-mono text-emerald-400 font-bold">support@sportsdynasty.in</span></p>
+"""
+    return render_legal_document(
+        "Terms of Service",
+        "Sports Dynasty Terms of Service: Read our terms and conditions for accessing live cricket scores, statistics, and editorial content.",
+        "/terms",
+        "Terms of Service",
+        body
+    )
+
+@app.get("/about", response_class=HTMLResponse)
+@app.get("/about-us", response_class=HTMLResponse)
+async def serve_about():
+    body = """
+<h2 class="text-xl font-bold text-white mb-2">Welcome to Sports Dynasty</h2>
+<p><strong>Sports Dynasty</strong> is a next-generation digital cricket center built to give cricket fans worldwide the fastest, cleanest, and most immersive ball-by-ball live match experience.</p>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">Our Mission</h2>
+<p>Traditional sports portals are often cluttered with intrusive distractions, slow reload times, and confusing navigation. Our mission is simple: <strong>deliver ultra-fast live cricket scores, comprehensive scorecards, and advanced telemetry directly to fans without friction.</strong></p>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">What We Cover</h2>
+<ul class="list-disc pl-5 space-y-2">
+    <li><strong>International Bilateral Cricket:</strong> Full coverage of ICC Men's & Women's Test Matches, One Day Internationals (ODIs), and Twenty20 Internationals (T20Is).</li>
+    <li><strong>Global Franchise Leagues:</strong> Indian Premier League (IPL), Big Bash League (BBL), Caribbean Premier League (CPL), Pakistan Super League (PSL), The Hundred, SA20, and MLC.</li>
+    <li><strong>Major Tournaments:</strong> ICC Men's & Women's Cricket World Cups, ICC Champions Trophy, ICC T20 World Cup, and ICC World Test Championship (WTC).</li>
+    <li><strong>First-Class & Domestic Circuits:</strong> English County Championship, Ranji Trophy, Sheffield Shield, and Under-19 Youth International fixtures.</li>
+</ul>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">Advanced Real-Time Features</h2>
+<p>Sports Dynasty incorporates live Current Run Rate (CRR) calculations, Required Run Rate (RRR) chase telemetry, active partnerships, Fall of Wickets timelines, and official Playing XI alerts directly following the toss.</p>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">Editorial & Operations Team</h2>
+<p>Our sports desk and technical infrastructure are headquartered online with 24/7 global match monitoring.</p>
+<p>For partnerships, feedback, or press queries: <span class="font-mono text-emerald-400 font-bold">support@sportsdynasty.in</span></p>
+"""
+    return render_legal_document(
+        "About Us",
+        "About Sports Dynasty: Discover our mission to provide the fastest live cricket scores, ball-by-ball telemetry, and comprehensive global tournament coverage.",
+        "/about",
+        "About Sports Dynasty",
+        body
+    )
+
+@app.get("/contact", response_class=HTMLResponse)
+@app.get("/contact-us", response_class=HTMLResponse)
+async def serve_contact():
+    body = """
+<h2 class="text-xl font-bold text-white mb-2">Get in Touch with Sports Dynasty</h2>
+<p>We welcome feedback, suggestions, error reports, and business inquiries from cricket fans, journalists, and partners around the globe.</p>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
+    <div class="bg-gray-800/80 border border-emerald-500/30 rounded-xl p-4 space-y-2">
+        <h3 class="text-sm font-bold text-emerald-400 uppercase tracking-wider font-mono">General Support & Feedback</h3>
+        <p class="text-xs text-slate-300">Questions regarding match scores, statistics, or website features.</p>
+        <p class="font-mono text-white font-bold text-sm">support@sportsdynasty.in</p>
+    </div>
+    <div class="bg-gray-800/80 border border-emerald-500/30 rounded-xl p-4 space-y-2">
+        <h3 class="text-sm font-bold text-emerald-400 uppercase tracking-wider font-mono">Editorial & Administration</h3>
+        <p class="text-xs text-slate-300">Official administration, data corrections, and publisher correspondence.</p>
+        <p class="font-mono text-white font-bold text-sm">ashfaq261190@gmail.com</p>
+    </div>
+</div>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">Response Turnaround</h2>
+<p>Our operations team monitors all incoming messages actively. We endeavor to respond to all legitimate technical, editorial, and partnership inquiries within <strong>24 to 48 business hours</strong>.</p>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">Digital Office</h2>
+<p class="text-slate-300">Sports Dynasty Online Publishing<br>Website: <a href="https://sportsdynasty.in" class="text-emerald-400 underline">https://sportsdynasty.in</a><br>Platform: Live Cricket Analytics & Digital Broadcast Operations</p>
+"""
+    return render_legal_document(
+        "Contact Us",
+        "Contact Sports Dynasty: Get in touch with our editorial and technical teams for support, feedback, and business inquiries.",
+        "/contact",
+        "Contact Us",
+        body
+    )
+
+@app.get("/disclaimer", response_class=HTMLResponse)
+async def serve_disclaimer():
+    body = """
+<h2 class="text-xl font-bold text-white mb-2">Legal & Sports Data Disclaimer</h2>
+<p><strong>Sports Dynasty</strong> (<a href="https://sportsdynasty.in" class="text-emerald-400 underline">https://sportsdynasty.in</a>) is an independent cricket news, live score reporting, and match analytics service.</p>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">1. Non-Affiliation Notice</h2>
+<p>Sports Dynasty is not affiliated with, authorized, sponsored, or endorsed by the International Cricket Council (ICC), the Board of Control for Cricket in India (BCCI), the England and Wales Cricket Board (ECB), Cricket Australia (CA), the Pakistan Cricket Board (PCB), or any other national or regional cricket administration body.</p>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">2. Trademarks & Logos</h2>
+<p>All cricket team names, logos, tournament emblems, and player likenesses displayed on Sports Dynasty are the registered trademarks and copyrights of their respective owners. They are used on this platform strictly for identification, news reporting, and sports fan commentary under the Fair Use provisions of applicable copyright law.</p>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">3. Accuracy of Live Data</h2>
+<p>While our automated synchronization systems track ball-by-ball updates from verified international sports feeds, Sports Dynasty does not guarantee that data displayed will be 100% uninterrupted or free from delays caused by transmission latencies. Users should not use this platform as the sole basis for critical financial or sports wagering decisions.</p>
+
+<h2 class="text-xl font-bold text-white mt-6 mb-2">4. External Links</h2>
+<p>Sports Dynasty may contain links to third-party websites (such as Google Ads Settings). We do not control or endorse the content or privacy practices of any third-party websites.</p>
+
+<p class="pt-4 text-xs text-slate-400">Questions? Contact: <span class="font-mono text-emerald-400 font-bold">support@sportsdynasty.in</span></p>
+"""
+    return render_legal_document(
+        "Disclaimer",
+        "Sports Dynasty Disclaimer: Legal information regarding cricket trademarks, third-party data accuracy, and fair use policies.",
+        "/disclaimer",
+        "Sports Data & Legal Disclaimer",
+        body
+    )
+
 @app.get("/static/js/{path:path}")
 @app.get("/js/{path:path}")
 @app.get("/dashboard.js")
@@ -529,6 +798,11 @@ async def get_sitemap():
         ("https://sportsdynasty.in/series", now_iso, "daily", "0.8"),
         ("https://sportsdynasty.in/rankings", now_iso, "daily", "0.8"),
         ("https://sportsdynasty.in/teams", now_iso, "weekly", "0.7"),
+        ("https://sportsdynasty.in/privacy-policy", now_iso, "monthly", "0.7"),
+        ("https://sportsdynasty.in/terms", now_iso, "monthly", "0.7"),
+        ("https://sportsdynasty.in/about", now_iso, "monthly", "0.7"),
+        ("https://sportsdynasty.in/contact", now_iso, "monthly", "0.7"),
+        ("https://sportsdynasty.in/disclaimer", now_iso, "monthly", "0.7"),
     ]
 
     try:

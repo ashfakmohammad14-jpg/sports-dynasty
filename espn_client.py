@@ -1,12 +1,16 @@
 import time
 import math
 import re
+import logging
 import requests
 import urllib3
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Set
 from bs4 import BeautifulSoup
+from concurrent.futures import ThreadPoolExecutor
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+logger = logging.getLogger(__name__)
+
 
 def clean_player_name(raw: str) -> str:
     s = re.sub(r'\(.*?\)', '', str(raw)).strip()
@@ -474,10 +478,33 @@ def get_team_aliases(team_name: str) -> List[str]:
 
     return list(set(a for a in aliases if a and a not in STOP_WORDS))
 
-def match_teams_in_cricbuzz_href(href: str, t1_aliases: List[str], t2_aliases: List[str]) -> bool:
+def match_teams_in_cricbuzz_href(href: str, t1_aliases: List[str], t2_aliases: List[str], team1_name: str = "", team2_name: str = "") -> bool:
     h = href.lower().replace("_", "-")
     tokens = set(re.split(r'[/.\-_]', h))
-    
+    t1_lower = (team1_name or "").lower()
+    t2_lower = (team2_name or "").lower()
+    combined_teams = f"{t1_lower} {t2_lower}"
+
+    # 1. Under-19 / Youth category protection
+    is_u19 = any(k in combined_teams for k in ["u19", "under-19", "under 19", "u-19", "youth", "under19"])
+    href_is_u19 = any(k in h for k in ["u19", "under-19", "u-19", "youth", "under19"])
+    if is_u19 != href_is_u19:
+        return False
+
+    # 2. Women category protection
+    is_women = any(k in combined_teams for k in ["women", "wmn", "womens", "women's"])
+    href_is_women = any(k in h for k in ["women", "wmn", "womens"]) or any(tok.endswith("w") and len(tok) in [4, 5] for tok in tokens)
+    if is_women != href_is_women:
+        return False
+
+    # 3. 'A' Team category protection (e.g. South Africa A, India A)
+    is_a_team = any(re.search(r'\b[a-z]+\s+a\b', t) for t in [t1_lower, t2_lower])
+    href_is_a_team = any(tok.endswith("a") and len(tok) in [4, 5] for tok in tokens) or "-a-vs-" in h or "-vs-" in h and ("-a-" in h)
+    if is_a_team and not href_is_a_team:
+        return False
+    if not is_a_team and href_is_a_team and not is_u19 and not is_women:
+        return False
+
     def alias_matches(alias: str) -> bool:
         a = alias.lower().strip()
         if not a or a in STOP_WORDS:
@@ -1042,8 +1069,88 @@ class ESPNClient:
     def _set_cached(self, key: str, data: Any):
         self._cache[key] = {"time": time.time(), "data": data}
 
+    def _get_active_series_list(self) -> List[Dict[str, str]]:
+        """Return list of currently active bilateral tours and featured tournaments."""
+        cache_key = "active_series_list"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
+        # Pinned major active bilateral series and tournaments to guarantee they are never missed
+        pinned = [
+            {"id": "24677", "name": "Afghanistan tour of India [Sep 2026] 2026"},
+            {"id": "1496567", "name": "Sri Lanka tour of England 2026"},
+            {"id": "1530201", "name": "Australia tour of Zimbabwe 2026"},
+            {"id": "1552314", "name": "Pakistan Under-19s tour of England 2026"},
+            {"id": "1552017", "name": "Australia A Women tour of India 2026"}
+        ]
+        series_map = {item["id"]: item for item in pinned}
+
+        # Dynamically discover any active series from Cricinfo live scores page
+        try:
+            r = self.session.get("https://www.espncricinfo.com/live-cricket-score", timeout=5)
+            if r.status_code == 200:
+                soup = BeautifulSoup(r.text, "html.parser")
+                int_keywords = [
+                    "india", "afghanistan", "australia", "england", "pakistan", "south-africa",
+                    "new-zealand", "sri-lanka", "west-indies", "bangladesh", "zimbabwe", "ireland",
+                    "t20", "odi", "cup", "trophy", "caribbean", "cpl"
+                ]
+                for a in soup.find_all("a", href=True):
+                    href = a.get("href", "")
+                    m = re.search(r'/series/([a-z0-9\-]+)-(\d+)', href)
+                    if m:
+                        slug, s_id = m.group(1), m.group(2)
+                        if any(k in slug.lower() for k in int_keywords):
+                            if s_id not in series_map:
+                                clean_name = slug.replace("-", " ").title()
+                                series_map[s_id] = {"id": s_id, "name": clean_name}
+        except Exception as e:
+            logger.warning(f"Could not auto-discover active series: {e}")
+
+        result = list(series_map.values())
+        # Cache active series list for 10 minutes (600s)
+        self._cache[cache_key] = {"time": time.time() + 590, "data": result}
+        return result
+
+    def _fetch_series_matches(self, series_id: str, series_name: str = "") -> List[Dict[str, Any]]:
+        """Fetch all matches for a specific series/tour from ESPN site scoreboard."""
+        cache_key = f"series_matches_{series_id}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
+        series_matches = []
+        year = time.strftime("%Y")
+        urls = [
+            f"https://site.web.api.espn.com/apis/site/v2/sports/cricket/{series_id}/scoreboard?dates={year}",
+            f"https://site.web.api.espn.com/apis/site/v2/sports/cricket/{series_id}/scoreboard"
+        ]
+
+        for url in urls:
+            try:
+                resp = self.session.get(url, timeout=5)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    leagues = data.get("leagues", [])
+                    actual_league_id = leagues[0].get("id", series_id) if leagues else series_id
+                    actual_league_name = leagues[0].get("name", series_name) if leagues else series_name
+                    events = data.get("events", [])
+                    for ev in events:
+                        parsed = self._parse_event(ev, actual_league_id, actual_league_name)
+                        if parsed:
+                            series_matches.append(parsed)
+                    if series_matches:
+                        break
+            except Exception as e:
+                logger.warning(f"Error fetching series {series_id} from {url}: {e}")
+
+        # Cache series matches for 60 seconds
+        self._cache[cache_key] = {"time": time.time(), "data": series_matches}
+        return series_matches
+
     def get_live_matches(self) -> Dict[str, Any]:
-        """Fetch all ongoing, recent, and upcoming cricket matches from ESPN."""
+        """Fetch all ongoing, recent, and upcoming cricket matches from ESPN, enriched with active series."""
         cache_key = "scoreboard_cricket"
         cached = self._get_cached(cache_key)
         if cached:
@@ -1053,31 +1160,67 @@ class ESPNClient:
         live_list = []
         recent_list = []
         upcoming_list = []
+        seen_event_ids = set()
 
+        # 1. Fetch ESPN rolling scoreboard/header (today's active / scheduled matches)
         url = "https://site.web.api.espn.com/apis/v2/scoreboard/header?sport=cricket"
         try:
-            resp = self.session.get(url, timeout=12)
-            resp.raise_for_status()
-            data = resp.json()
-            sports = data.get("sports", [])
-            for sport in sports:
-                for league in sport.get("leagues", []):
-                    league_id = league.get("id", "")
-                    league_name = league.get("name", "Cricket League")
+            resp = self.session.get(url, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                sports = data.get("sports", [])
+                for sport in sports:
+                    for league in sport.get("leagues", []):
+                        league_id = league.get("id", "")
+                        league_name = league.get("name", "Cricket League")
 
-                    for event in league.get("events", []):
-                        parsed_event = self._parse_event(event, league_id, league_name)
-                        if parsed_event:
-                            matches.append(parsed_event)
-                            state = parsed_event["state"].lower()
-                            if state in ["in", "live"]:
-                                live_list.append(parsed_event)
-                            elif state in ["post", "final", "completed"]:
-                                recent_list.append(parsed_event)
-                            else:
-                                upcoming_list.append(parsed_event)
+                        for event in league.get("events", []):
+                            parsed_event = self._parse_event(event, league_id, league_name)
+                            if parsed_event:
+                                eid = str(parsed_event.get("id", ""))
+                                if eid and eid not in seen_event_ids:
+                                    seen_event_ids.add(eid)
+                                    state = parsed_event["state"].lower()
+                                    if state in ["in", "live"]:
+                                        live_list.append(parsed_event)
+                                    elif state in ["post", "final", "completed"]:
+                                        recent_list.append(parsed_event)
+                                    else:
+                                        upcoming_list.append(parsed_event)
         except Exception as e:
             logger.error(f"Error fetching ESPN scoreboard: {e}")
+
+        # 2. Enrich with active ongoing bilateral series / tours (prevents missing matches on rest days)
+        try:
+            active_series = self._get_active_series_list()
+            def _fetch_helper(s_item):
+                return self._fetch_series_matches(s_item["id"], s_item.get("name", ""))
+
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                series_results = list(executor.map(_fetch_helper, active_series[:6]))
+
+            for s_matches in series_results:
+                for parsed_event in s_matches:
+                    eid = str(parsed_event.get("id", ""))
+                    if eid and eid not in seen_event_ids:
+                        seen_event_ids.add(eid)
+                        state = parsed_event["state"].lower()
+                        if state in ["in", "live"]:
+                            live_list.append(parsed_event)
+                        elif state in ["post", "final", "completed"]:
+                            recent_list.append(parsed_event)
+                        else:
+                            upcoming_list.append(parsed_event)
+        except Exception as e:
+            logger.error(f"Error enriching with active series: {e}")
+
+        # Sort recent matches by date descending (latest match first)
+        recent_list.sort(key=lambda m: str(m.get("date", "")), reverse=True)
+        # Sort upcoming matches by date ascending (closest upcoming match first)
+        upcoming_list.sort(key=lambda m: str(m.get("date", "")))
+
+        # Combined matches: live first, then recent, then upcoming
+        matches = live_list + recent_list + upcoming_list
 
         result = {
             "total": len(matches),
@@ -1092,6 +1235,7 @@ class ESPNClient:
 
         self._set_cached(cache_key, result)
         return result
+
 
     def _is_second_xi_match(self, league_name: str, name: str, desc: str, competitors: List[Dict[str, Any]]) -> bool:
         check_text = f"{league_name} {name} {desc}".lower()
@@ -1117,26 +1261,40 @@ class ESPNClient:
 
     def _parse_event(self, event: Dict[str, Any], league_id: str, league_name: str) -> Optional[Dict[str, Any]]:
         try:
-            event_id = event.get("id")
+            event_id = str(event.get("id", ""))
             if not event_id:
                 return None
 
+            comp_obj = event.get("competitions", [{}])[0] if event.get("competitions") else {}
+
             name = event.get("name", "Match")
             short_name = event.get("shortName", name)
-            description = event.get("description", "")
-            location = event.get("location", "")
+            description = event.get("description", "") or comp_obj.get("description", "")
+            location = event.get("location", "") or comp_obj.get("venue", {}).get("fullName", "")
             date_str = event.get("date", "")
             event_type = event.get("eventType", "Match")
 
-            competitors_raw = event.get("competitors", [])
+            competitors_raw = event.get("competitors", []) or comp_obj.get("competitors", [])
             # Filter out County Second XI / 2nd XI matches
             if self._is_second_xi_match(league_name, name, description, competitors_raw):
                 return None
             
-            full_status = event.get("fullStatus", {})
+            full_status = event.get("fullStatus") or event.get("status") or comp_obj.get("status", {})
+            if not isinstance(full_status, dict):
+                full_status = {}
             status_type = full_status.get("type", {})
-            state = status_type.get("state", event.get("status", "pre"))
-            status_detail = status_type.get("detail", full_status.get("summary", "Scheduled"))
+            if isinstance(status_type, dict):
+                state = status_type.get("state", "")
+                status_detail = status_type.get("detail", full_status.get("summary", "Scheduled"))
+            else:
+                state = str(status_type)
+                status_detail = str(full_status.get("summary", "Scheduled"))
+
+            if not state and isinstance(event.get("status"), str):
+                state = event.get("status")
+            elif not state:
+                state = "pre"
+            state = str(state)
             
             # Use longSummary or summary if available (contains lead / trail info)
             long_summary = full_status.get("longSummary") or full_status.get("summary") or event.get("summary", "")
@@ -1156,11 +1314,12 @@ class ESPNClient:
             competitors_raw = sorted(competitors_raw, key=comp_sort_key)
             competitors = []
             for comp in competitors_raw:
-                c_id = str(comp.get("id", ""))
-                c_team = comp.get("displayName", comp.get("name", "Team"))
-                c_abbr = comp.get("abbreviation", "")
+                t = comp.get("team", {}) if isinstance(comp.get("team"), dict) else {}
+                c_id = str(comp.get("id", "") or t.get("id", ""))
+                c_team = comp.get("displayName") or comp.get("name") or t.get("displayName") or t.get("name", "Team")
+                c_abbr = comp.get("abbreviation") or t.get("abbreviation", "")
                 c_score = normalize_competitor_score_from_raw(comp)
-                c_logo = comp.get("logo", "")
+                c_logo = comp.get("logo", "") or t.get("logo", "")
                 if not c_logo and comp.get("logos"):
                     c_logo = comp["logos"][0].get("href", "")
                 if not c_logo and c_id:
@@ -1182,10 +1341,10 @@ class ESPNClient:
 
             is_live = (state.lower() in ["in", "live"]) or event.get("liveAvailable", False)
 
-            notes = event.get("notes", [])
+            notes = event.get("notes", []) or comp_obj.get("notes", [])
             toss_info = ""
             for note in notes:
-                if note.get("type") == "toss":
+                if isinstance(note, dict) and note.get("type") == "toss":
                     toss_info = note.get("text", "")
                     break
 
@@ -1212,10 +1371,10 @@ class ESPNClient:
                 event_inn_label = "1st Innings"
 
             # Accurate Stumps / Day Break check (Trigger ONLY when day's play has ended)
-            st_desc = str(status_type.get("description", "")).strip()
-            st_det = str(status_type.get("detail", "")).strip()
-            st_state = str(status_type.get("state", state)).strip().lower()
-            event_notes = event.get("notes", [])
+            st_desc = str(status_type.get("description", "")).strip() if isinstance(status_type, dict) else ""
+            st_det = str(status_type.get("detail", "")).strip() if isinstance(status_type, dict) else ""
+            st_state = str(status_type.get("state", state)).strip().lower() if isinstance(status_type, dict) else state.lower()
+            event_notes = notes
 
             is_stumps = (
                 "stumps" in st_desc.lower() or 
@@ -1237,7 +1396,7 @@ class ESPNClient:
                 if day_m:
                     day_num = day_m.group(1)
             if not day_num and is_stumps:
-                day_notes = [str(n.get("text", "")) for n in event_notes if re.search(r'day\s*(\d+)', str(n.get("text", "")), re.I)]
+                day_notes = [str(n.get("text", "")) for n in event_notes if isinstance(n, dict) and re.search(r'day\s*(\d+)', str(n.get("text", "")), re.I)]
                 if day_notes:
                     last_m = re.search(r'day\s*(\d+)', day_notes[-1], re.I)
                     if last_m:
@@ -1285,9 +1444,9 @@ class ESPNClient:
             }
 
             potm_obj = None
-            fa_list = event.get("featuredAthletes", []) or full_status.get("featuredAthletes", [])
+            fa_list = event.get("featuredAthletes", []) or full_status.get("featuredAthletes", []) or comp_obj.get("leaders", [])
             for fa in fa_list:
-                if "playerOfTheMatch" in fa.get("name", "") or "player" in fa.get("displayName", "").lower():
+                if isinstance(fa, dict) and ("playerOfTheMatch" in fa.get("name", "") or "player" in fa.get("displayName", "").lower()):
                     ath = fa.get("athlete", {})
                     t_info = fa.get("team", {})
                     potm_obj = {
@@ -1315,7 +1474,8 @@ class ESPNClient:
 
             event_dict["winProbability"] = compute_win_probability(event_dict)
             return event_dict
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Error parsing event {event.get('id')}: {e}")
             return None
 
     def get_match_summary(self, league_id: str, event_id: str) -> Dict[str, Any]:
@@ -1387,6 +1547,19 @@ class ESPNClient:
                 "homeAway": c.get("homeAway", "neutral")
             })
 
+        # Collect expected player names from rosters_raw / full_squads_raw for cross-match sanity validation
+        expected_players = set()
+        for r in rosters_raw:
+            for a in r.get("roster", []):
+                p_disp = a.get("athlete", {}).get("displayName", "")
+                if p_disp:
+                    expected_players.add(p_disp.lower())
+        for s in full_squads_raw:
+            for a in s.get("athletes", []):
+                p_disp = a.get("displayName", "")
+                if p_disp:
+                    expected_players.add(p_disp.lower())
+
         # Process baseline ESPN scorecard
         espn_innings = self._process_matchcards(matchcards_raw)
 
@@ -1394,12 +1567,23 @@ class ESPNClient:
         team_names = [c["name"] for c in competitors if c.get("name")]
         full_innings = None
         if len(team_names) >= 2:
-            full_innings = self._fetch_cricbuzz_scorecard(team_names[0], team_names[1])
+            full_innings = self._fetch_cricbuzz_scorecard(team_names[0], team_names[1], expected_players=expected_players)
 
         if full_innings and self._is_scorecard_more_complete(full_innings, espn_innings):
             innings_data = full_innings
         else:
             innings_data = espn_innings
+
+        # 2.2 Fallback for U19, youth, or regional tours where ESPN API matchcards are missing:
+        # Fetch directly from ESPN India mobile/desktop live HTML scorecard
+        web_crease_data = None
+        cur_bat_count = sum(len(inn.get("batting", [])) for inn in innings_data.values()) if innings_data else 0
+        if not innings_data or cur_bat_count == 0:
+            web_innings, web_crease = self._fetch_espn_web_scorecard(league_id, event_id)
+            if web_innings:
+                innings_data = web_innings
+            if web_crease and web_crease.get("hasLiveCrease"):
+                web_crease_data = web_crease
 
         # 2.5 Always fetch playbyplay for live timeline, full scorecards, and all innings
         pbp_innings, pbp_crease, pbp_commentary = self._fetch_playbyplay_data(league_id, event_id, header)
@@ -1491,14 +1675,15 @@ class ESPNClient:
 
         # 4. Extract Live Crease & Ball-by-Ball Summary
         live_crease = self._extract_live_crease(league_id, event_id, header, innings_data)
-        if (not live_crease or not live_crease.get("hasLiveCrease") or not live_crease.get("batters") or not live_crease.get("recentDeliveries")):
-            if pbp_crease is None:
+        if (not live_crease or not live_crease.get("hasLiveCrease") or not live_crease.get("batters")):
+            if web_crease_data and web_crease_data.get("hasLiveCrease"):
+                live_crease = web_crease_data
+            elif pbp_crease is None:
                 _, pbp_crease, pbp_commentary = self._fetch_playbyplay_data(league_id, event_id, header)
-            if pbp_crease and pbp_crease.get("hasLiveCrease"):
-                if not live_crease or not live_crease.get("batters"):
-                    live_crease = pbp_crease
-                elif pbp_crease.get("recentDeliveries") and not live_crease.get("recentDeliveries"):
-                    live_crease["recentDeliveries"] = pbp_crease["recentDeliveries"]
+            if (not live_crease or not live_crease.get("batters")) and pbp_crease and pbp_crease.get("hasLiveCrease"):
+                live_crease = pbp_crease
+            elif pbp_crease and pbp_crease.get("recentDeliveries") and not live_crease.get("recentDeliveries"):
+                live_crease["recentDeliveries"] = pbp_crease["recentDeliveries"]
 
         # Sync competitor scores with live multi-innings totals
         if len(competitors) >= 2 and len(innings_data) >= 1:
@@ -3169,7 +3354,7 @@ class ESPNClient:
             return True
         return count_a >= count_b
 
-    def _fetch_cricbuzz_scorecard(self, team1: str, team2: str) -> Optional[Dict[str, Any]]:
+    def _fetch_cricbuzz_scorecard(self, team1: str, team2: str, expected_players: Optional[Set[str]] = None) -> Optional[Dict[str, Any]]:
         """Fetch and parse full multi-innings scorecard with exact dismissals (catcher + bowler) from Cricbuzz."""
         try:
             live_url = "https://www.cricbuzz.com/cricket-match/live-scores"
@@ -3184,7 +3369,7 @@ class ESPNClient:
             target_href = None
             for a in soup_live.find_all("a", href=re.compile(r"/live-cricket-scores/\d+/")):
                 href = a["href"]
-                if match_teams_in_cricbuzz_href(href, a1, a2):
+                if match_teams_in_cricbuzz_href(href, a1, a2, team1, team2):
                     target_href = href
                     break
 
@@ -3200,9 +3385,206 @@ class ESPNClient:
                 return None
 
             soup_sc = BeautifulSoup(r_sc.text, "html.parser")
-            return self._parse_cricbuzz_html(soup_sc)
+            parsed_data = self._parse_cricbuzz_html(soup_sc)
+            if not parsed_data:
+                return None
+
+            # Roster validation safeguard: ensure parsed players belong to this fixture
+            if expected_players and len(expected_players) >= 4:
+                parsed_names = set()
+                for inn in parsed_data.values():
+                    for b in inn.get("batting", []):
+                        parsed_names.add(b.get("name", "").lower())
+                    for bw in inn.get("bowling", []):
+                        parsed_names.add(bw.get("name", "").lower())
+
+                parsed_tokens = set()
+                for n in parsed_names:
+                    parsed_tokens.update(re.findall(r'[a-z]{3,}', n))
+
+                exp_tokens = set()
+                for n in expected_players:
+                    exp_tokens.update(re.findall(r'[a-z]{3,}', n))
+
+                # If there's 0 player overlap, this scorecard belongs to an entirely different match (e.g. senior test vs u19)
+                if not (parsed_tokens & exp_tokens):
+                    return None
+
+            return parsed_data
         except Exception:
             return None
+
+    def _fetch_espn_web_scorecard(self, league_id: str, event_id: str) -> tuple[Dict[str, Any], Dict[str, Any]]:
+        """Fetch and parse live HTML scorecard from ESPN India mobile/desktop site as reliable fallback for U19/youth/domestic fixtures."""
+        try:
+            url = f"https://www.espn.in/cricket/series/{league_id}/game/{event_id}/full-scorecard"
+            r = self.session.get(url, timeout=6)
+            if r.status_code != 200:
+                return {}, {}
+
+            soup = BeautifulSoup(r.text, "html.parser")
+            tables = soup.find_all("table")
+            if not tables:
+                return {}, {}
+
+            innings_data = {}
+            live_crease = {}
+            inn_index = 1
+
+            for t in tables:
+                rows = t.find_all("tr")
+                if not rows:
+                    continue
+                first_row = [td.get_text(strip=True) for td in rows[0].find_all(["th", "td"])]
+                title_str = " ".join(first_row).lower()
+
+                full_table_text = t.get_text(separator=" ", strip=True)
+                if "batsmen" in full_table_text.lower() and "bowlers" in full_table_text.lower():
+                    batters = []
+                    bowlers = []
+                    section = "batsmen"
+                    partner_text = ""
+                    last_bat_text = ""
+                    fow_text = ""
+                    recent_text = ""
+
+                    for tr in rows:
+                        cells = [td.get_text(strip=True) for td in tr.find_all(["th", "td"])]
+                        if not cells:
+                            continue
+                        c0 = cells[0].lower()
+                        row_str = " ".join(cells)
+
+                        if "bowlers" in c0:
+                            section = "bowlers"
+                            continue
+                        elif "partnership" in row_str.lower():
+                            p_m = re.search(r"P'SHIP\s*:\s*([^L]+)", row_str, re.I)
+                            if p_m: partner_text = p_m.group(1).strip()
+                            l_m = re.search(r"L'BAT\s*:\s*([^F]+)", row_str, re.I)
+                            if l_m: last_bat_text = l_m.group(1).strip()
+                            f_m = re.search(r"FoW\s*:\s*(.+)", row_str, re.I)
+                            if f_m: fow_text = f_m.group(1).strip()
+                            continue
+                        elif "recent" in c0:
+                            recent_text = cells[0].replace("Recent", "").strip() if len(cells) == 1 else cells[1]
+                            continue
+
+                        if section == "batsmen" and len(cells) >= 6 and cells[0] not in ["BATSMEN", ""]:
+                            raw_name = cells[0]
+                            clean_name = raw_name.split("*")[0].split("(")[0].strip()
+                            half_len = len(clean_name) // 2
+                            if half_len > 3 and clean_name[:half_len] == clean_name[half_len:]:
+                                clean_name = clean_name[:half_len]
+                            batters.append({
+                                "name": clean_name,
+                                "runs": cells[1],
+                                "balls": cells[2],
+                                "fours": cells[3],
+                                "sixes": cells[4],
+                                "strikeRate": cells[5],
+                                "onStrike": "*" in raw_name
+                            })
+                        elif section == "bowlers" and len(cells) >= 6 and cells[0] not in ["BOWLERS", ""]:
+                            raw_name = cells[0]
+                            clean_name = raw_name.split("(")[0].strip()
+                            half_len = len(clean_name) // 2
+                            if half_len > 3 and clean_name[:half_len] == clean_name[half_len:]:
+                                clean_name = clean_name[:half_len]
+                            bowlers.append({
+                                "name": clean_name,
+                                "overs": cells[1],
+                                "maidens": cells[2],
+                                "runs": cells[3],
+                                "wickets": cells[4],
+                                "economy": cells[5]
+                            })
+
+                    if batters or bowlers:
+                        live_crease = {
+                            "hasLiveCrease": True,
+                            "batters": batters,
+                            "bowlers": bowlers,
+                            "partnership": partner_text,
+                            "lastBatterOut": last_bat_text,
+                            "fow": fow_text,
+                            "recentDeliveries": recent_text
+                        }
+
+                elif "innings" in title_str:
+                    team_match = re.search(r'([a-z0-9\s\-]+?)\s*innings', title_str, re.I)
+                    raw_team_name = team_match.group(1).strip().title() if team_match else f"Innings {inn_index}"
+                    inn_key = str(inn_index)
+                    inn_index += 1
+
+                    batting = []
+                    extras = ""
+                    total = ""
+
+                    for tr in rows[1:]:
+                        cells = [td.get_text(strip=True) for td in tr.find_all(["th", "td"])]
+                        if not cells:
+                            continue
+                        c0 = cells[0].lower()
+                        if "extras" in c0:
+                            extras = cells[1] if len(cells) > 1 else ""
+                        elif "total" in c0:
+                            total = cells[1] if len(cells) > 1 else ""
+                        elif len(cells) >= 3 and cells[0] and not any(k in c0 for k in ["did not bat", "yet to bat", "fall of wickets"]):
+                            name = cells[0]
+                            clean_name = re.sub(r'[\*\†]', '', name).strip()
+                            dismissal = cells[1] if len(cells) > 1 else ""
+                            runs = cells[2] if len(cells) > 2 else "0"
+                            balls = cells[3] if len(cells) > 3 else "0"
+                            fours = cells[4] if len(cells) > 4 else "0"
+                            sixes = cells[5] if len(cells) > 5 else "0"
+                            sr = cells[6] if len(cells) > 6 else "-"
+                            if runs != "":
+                                batting.append({
+                                    "name": clean_name,
+                                    "dismissal": dismissal,
+                                    "runs": runs,
+                                    "balls": balls,
+                                    "fours": fours,
+                                    "sixes": sixes,
+                                    "strikeRate": sr,
+                                    "active": "not out" in dismissal.lower()
+                                })
+
+                    innings_data[inn_key] = {
+                        "team": raw_team_name,
+                        "batting": batting,
+                        "bowling": [],
+                        "extras": extras,
+                        "total": total,
+                        "fow": []
+                    }
+
+                elif "bowling" in title_str and innings_data:
+                    latest_key = list(innings_data.keys())[-1]
+                    bowling = []
+                    for tr in rows[1:]:
+                        cells = [td.get_text(strip=True) for td in tr.find_all(["th", "td"])]
+                        if len(cells) >= 5 and cells[0]:
+                            name = cells[0]
+                            overs = cells[1] if len(cells) > 1 else "0"
+                            maidens = cells[2] if len(cells) > 2 else "0"
+                            runs = cells[3] if len(cells) > 3 else "0"
+                            wickets = cells[4] if len(cells) > 4 else "0"
+                            econ = cells[5] if len(cells) > 5 else "0.0"
+                            bowling.append({
+                                "name": name,
+                                "overs": overs,
+                                "maidens": maidens,
+                                "runs": runs,
+                                "wickets": wickets,
+                                "economy": econ
+                            })
+                    innings_data[latest_key]["bowling"] = bowling
+
+            return innings_data, live_crease
+        except Exception:
+            return {}, {}
 
     def _parse_cricbuzz_html(self, soup: BeautifulSoup) -> Dict[str, Any]:
         """Parse clean HTML tables and grids from Cricbuzz scorecard."""

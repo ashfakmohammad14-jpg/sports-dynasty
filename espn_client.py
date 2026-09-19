@@ -1444,33 +1444,70 @@ class ESPNClient:
             }
 
             potm_obj = None
-            fa_list = event.get("featuredAthletes", []) or full_status.get("featuredAthletes", []) or comp_obj.get("leaders", [])
+            pots_obj = None
+            fa_list = (
+                event.get("featuredAthletes", []) or 
+                full_status.get("featuredAthletes", []) or 
+                comp_obj.get("status", {}).get("featuredAthletes", []) or 
+                comp_obj.get("featuredAthletes", []) or 
+                comp_obj.get("leaders", [])
+            )
             for fa in fa_list:
-                if isinstance(fa, dict) and ("playerOfTheMatch" in fa.get("name", "") or "player" in fa.get("displayName", "").lower()):
-                    ath = fa.get("athlete", {})
-                    t_info = fa.get("team", {})
+                if not isinstance(fa, dict):
+                    continue
+                d_name = str(fa.get("displayName", "")).lower()
+                f_name = str(fa.get("name", "")).lower()
+                ath = fa.get("athlete", {})
+                t_info = fa.get("team", {})
+
+                # Player of the Series / Tournament
+                if not pots_obj and any(k in d_name or k in f_name for k in ["series", "tournament", "pots", "pott"]):
+                    hshot = ath.get("headshot", {}).get("href", "") if isinstance(ath.get("headshot"), dict) else str(ath.get("headshot") or "")
+                    pots_obj = {
+                        "id": str(ath.get("id", "")),
+                        "name": ath.get("displayName", ath.get("name", "")),
+                        "shortName": ath.get("shortName", ""),
+                        "headshot": hshot,
+                        "teamId": str(t_info.get("id", "")),
+                        "teamName": t_info.get("name", t_info.get("displayName", "")),
+                        "title": fa.get("displayName", "Player of the Series")
+                    }
+                # Player of the Match
+                elif not potm_obj and any(k in d_name or k in f_name for k in ["match", "potm"]):
+                    hshot = ath.get("headshot", {}).get("href", "") if isinstance(ath.get("headshot"), dict) else str(ath.get("headshot") or "")
                     potm_obj = {
                         "id": str(ath.get("id", "")),
                         "name": ath.get("displayName", ath.get("name", "")),
                         "shortName": ath.get("shortName", ""),
-                        "headshot": ath.get("headshot", {}).get("href", ""),
+                        "headshot": hshot,
                         "teamId": str(t_info.get("id", "")),
                         "teamName": t_info.get("name", t_info.get("displayName", "")),
                         "title": fa.get("displayName", "Player of the Match")
                     }
-                    break
-            if not potm_obj:
+
+            if not potm_obj or not pots_obj:
                 for note in notes:
                     txt = note.get("text", "") if isinstance(note, dict) else str(note)
-                    m_potm = re.search(r"(?:player|man)\s+of\s+the\s+match\s*[:-]\s*([A-Za-z\s\.\'\-]+)", txt, re.I)
-                    if m_potm:
-                        potm_obj = {
-                            "name": m_potm.group(1).strip(),
-                            "title": "Player of the Match"
-                        }
-                        break
+                    if not potm_obj:
+                        m_potm = re.search(r"(?:player|man)\s+of\s+the\s+match\s*[:-]\s*([A-Za-z\s\.\'\-]+)", txt, re.I)
+                        if m_potm:
+                            potm_obj = {
+                                "name": m_potm.group(1).strip(),
+                                "title": "Player of the Match"
+                            }
+                    if not pots_obj:
+                        m_pots = re.search(r"(?:player|man)\s+of\s+the\s+(series|tournament)\s*[:-]\s*([A-Za-z\s\.\'\-]+)", txt, re.I)
+                        if m_pots:
+                            award_name = m_pots.group(1).capitalize()
+                            pots_obj = {
+                                "name": m_pots.group(2).strip(),
+                                "title": f"Player of the {award_name}"
+                            }
+
             if potm_obj:
                 event_dict["playerOfTheMatch"] = potm_obj
+            if pots_obj:
+                event_dict["playerOfTheSeries"] = pots_obj
 
             event_dict["winProbability"] = compute_win_probability(event_dict)
             return event_dict
@@ -2027,20 +2064,37 @@ class ESPNClient:
                         "teams": flat_teams
                     })
 
-        # Extract Player of the Match (featuredAthletes / notes / top performer)
+        # Extract Player of the Match & Player of the Series/Tournament (featuredAthletes / notes / top performer)
         player_of_the_match = None
+        player_of_the_series = None
         featured_athletes = status_info.get("featuredAthletes", [])
         for fa in featured_athletes:
+            if not isinstance(fa, dict):
+                continue
             d_name = str(fa.get("displayName", "")).lower()
             f_name = str(fa.get("name", "")).lower()
-            if "match" in d_name or "match" in f_name or "player" in d_name or "potm" in f_name:
-                ath = fa.get("athlete", {})
-                t_info = fa.get("team", {})
-                p_id = str(ath.get("id", ""))
-                p_name = ath.get("displayName", ath.get("name", "Player"))
-                headshot_url = ath.get("headshot", {}).get("href", "") if isinstance(ath.get("headshot"), dict) else str(ath.get("headshot") or "")
-                team_logo_url = t_info.get("logos", [{}])[0].get("href", "") if t_info.get("logos") else ""
-                
+            ath = fa.get("athlete", {})
+            t_info = fa.get("team", {})
+            p_id = str(ath.get("id", ""))
+            p_name = ath.get("displayName", ath.get("name", "Player"))
+            headshot_url = ath.get("headshot", {}).get("href", "") if isinstance(ath.get("headshot"), dict) else str(ath.get("headshot") or "")
+            team_logo_url = t_info.get("logos", [{}])[0].get("href", "") if t_info.get("logos") else ""
+
+            # Check Player of the Series / Tournament
+            if not player_of_the_series and any(k in d_name or k in f_name for k in ["series", "tournament", "pots", "pott"]):
+                player_of_the_series = {
+                    "id": p_id,
+                    "name": p_name,
+                    "shortName": ath.get("shortName", p_name.split()[-1] if p_name else ""),
+                    "headshot": headshot_url or player_photo_map.get(p_name.lower(), ""),
+                    "teamId": str(t_info.get("id", "")),
+                    "teamName": t_info.get("name", t_info.get("displayName", "")),
+                    "teamLogo": team_logo_url,
+                    "title": fa.get("displayName", "Player of the Series")
+                }
+
+            # Check Player of the Match
+            elif not player_of_the_match and any(k in d_name or k in f_name for k in ["match", "potm"]):
                 perf_parts = []
                 for inn in innings_data.values():
                     for b in inn.get("batting", []):
@@ -2070,44 +2124,59 @@ class ESPNClient:
                     "title": fa.get("displayName", "Player of the Match"),
                     "performance": " & ".join(perf_parts)
                 }
-                break
 
-        if not player_of_the_match:
+        if not player_of_the_match or not player_of_the_series:
             for note in all_notes_list:
                 txt = note.get("text", "") if isinstance(note, dict) else str(note)
-                m_potm = re.search(r"(?:player|man)\s+of\s+the\s+match\s*[:-]\s*([A-Za-z\s\.\'\-]+)", txt, re.I)
-                if m_potm:
-                    p_name = m_potm.group(1).strip()
-                    perf_parts = []
-                    p_clean = p_name.lower()
-                    for inn in innings_data.values():
-                        for b in inn.get("batting", []):
-                            if is_same_player(b.get("name", ""), p_name):
-                                r = b.get("runs", "")
-                                bl = b.get("balls", "")
-                                not_out = "*" if b.get("isNotOut") else ""
-                                if r != "":
-                                    perf_parts.append(f"{r}{not_out} ({bl}b)" if bl else f"{r}{not_out}")
-                                break
-                        for bw in inn.get("bowling", []):
-                            if is_same_player(bw.get("name", ""), p_name):
-                                wk = bw.get("wickets", "")
-                                rn = bw.get("runs", "")
-                                if wk != "":
-                                    perf_parts.append(f"{wk}/{rn}")
-                                break
-                    player_of_the_match = {
-                        "id": "",
-                        "name": p_name,
-                        "shortName": p_name.split()[-1] if p_name else "",
-                        "headshot": player_photo_map.get(p_clean, ""),
-                        "teamId": "",
-                        "teamName": "",
-                        "teamLogo": "",
-                        "title": "Player of the Match",
-                        "performance": " & ".join(perf_parts)
-                    }
-                    break
+                if not player_of_the_match:
+                    m_potm = re.search(r"(?:player|man)\s+of\s+the\s+match\s*[:-]\s*([A-Za-z\s\.\'\-]+)", txt, re.I)
+                    if m_potm:
+                        p_name = m_potm.group(1).strip()
+                        perf_parts = []
+                        p_clean = p_name.lower()
+                        for inn in innings_data.values():
+                            for b in inn.get("batting", []):
+                                if is_same_player(b.get("name", ""), p_name):
+                                    r = b.get("runs", "")
+                                    bl = b.get("balls", "")
+                                    not_out = "*" if b.get("isNotOut") else ""
+                                    if r != "":
+                                        perf_parts.append(f"{r}{not_out} ({bl}b)" if bl else f"{r}{not_out}")
+                                    break
+                            for bw in inn.get("bowling", []):
+                                if is_same_player(bw.get("name", ""), p_name):
+                                    wk = bw.get("wickets", "")
+                                    rn = bw.get("runs", "")
+                                    if wk != "":
+                                        perf_parts.append(f"{wk}/{rn}")
+                                    break
+                        player_of_the_match = {
+                            "id": "",
+                            "name": p_name,
+                            "shortName": p_name.split()[-1] if p_name else "",
+                            "headshot": player_photo_map.get(p_clean, ""),
+                            "teamId": "",
+                            "teamName": "",
+                            "teamLogo": "",
+                            "title": "Player of the Match",
+                            "performance": " & ".join(perf_parts)
+                        }
+                if not player_of_the_series:
+                    m_pots = re.search(r"(?:player|man)\s+of\s+the\s+(series|tournament)\s*[:-]\s*([A-Za-z\s\.\'\-]+)", txt, re.I)
+                    if m_pots:
+                        award_name = m_pots.group(1).capitalize()
+                        p_name = m_pots.group(2).strip()
+                        p_clean = p_name.lower()
+                        player_of_the_series = {
+                            "id": "",
+                            "name": p_name,
+                            "shortName": p_name.split()[-1] if p_name else "",
+                            "headshot": player_photo_map.get(p_clean, ""),
+                            "teamId": "",
+                            "teamName": "",
+                            "teamLogo": "",
+                            "title": f"Player of the {award_name}"
+                        }
 
         if not player_of_the_match and match_state in ["post", "final", "completed"]:
             winner_c = next((c for c in competitors if c.get("isWinner")), None)
@@ -2279,6 +2348,7 @@ class ESPNClient:
             "odds": odds_raw,
             "leaders": leaders_raw,
             "playerOfTheMatch": player_of_the_match,
+            "playerOfTheSeries": player_of_the_series,
             "lastUpdated": time.strftime("%Y-%m-%d %H:%M:%S")
         }
 
@@ -4088,9 +4158,10 @@ class ESPNClient:
                 if pos_name in ["Unknown", "UKN"]:
                     pos_name = "Player"
 
+                explicit_keeper = bool(athlete_item.get("keeper") or ath.get("keeper"))
                 is_capt = bool(athlete_item.get("captain") or ath.get("captain"))
                 is_wk = bool(
-                    athlete_item.get("keeper") or ath.get("keeper") or 
+                    explicit_keeper or 
                     ath.get("wicketKeeper") or pos_id in ["WK", "WBT"] or 
                     "wicketkeeper" in str(pos_name).lower()
                 )
@@ -4112,7 +4183,9 @@ class ESPNClient:
                     "role": pos_name,
                     "captain": is_capt,
                     "wicketKeeper": is_wk,
-                    "headshot": headshot
+                    "headshot": headshot,
+                    "_explicit_keeper": explicit_keeper,
+                    "_pos_id": pos_id
                 })
 
             # Strict cap: Playing XI must have exactly 11 players (move excess substitutes to bench)
@@ -4144,6 +4217,7 @@ class ESPNClient:
                                     px["captain"] = True
                                 if ath.get("keeper"):
                                     px["wicketKeeper"] = True
+                                    px["_explicit_keeper"] = True
                         continue
 
                     pos = ath.get("position", {})
@@ -4166,6 +4240,26 @@ class ESPNClient:
                         "wicketKeeper": is_wk,
                         "headshot": headshot
                     })
+
+            # Strict cricket rule: Each team has strictly at most ONE official wicketkeeper in the Playing XI!
+            keepers_in_xi = [p for p in playing_xi if p.get("wicketKeeper")]
+            if len(keepers_in_xi) > 1:
+                # 1. Prefer player with explicit keeper flag from match roster (athlete_item.get('keeper') is True)
+                # 2. Prefer specific 'WK' (Wicketkeeper) role over 'WBT' (Wicketkeeper-batter) / Allrounder
+                # 3. Fallback to first keeper in the XI
+                primary_wk = next((p for p in keepers_in_xi if p.get("_explicit_keeper")), None)
+                if not primary_wk:
+                    primary_wk = next((p for p in keepers_in_xi if p.get("_pos_id") == "WK"), None)
+                chosen_wk = primary_wk or keepers_in_xi[0]
+
+                for p in playing_xi:
+                    if p.get("wicketKeeper") and p is not chosen_wk:
+                        p["wicketKeeper"] = False
+
+            # Clean up internal helper flags
+            for p in playing_xi:
+                p.pop("_explicit_keeper", None)
+                p.pop("_pos_id", None)
 
             squads.append({
                 "teamId": team_id,
@@ -4204,15 +4298,32 @@ class ESPNClient:
                         "wicketKeeper": bool(ath.get("keeper") or pos_id in ["WK", "WBT"] or "wicketkeeper" in str(pos_name).lower()),
                         "headshot": ath.get("headshot", {}).get("href", "") if isinstance(ath.get("headshot"), dict) else str(ath.get("headshot") or "")
                     })
+                
+                px_fallback = p_list[:11]
+                keepers_fb = [p for p in px_fallback if p.get("wicketKeeper")]
+                if len(keepers_fb) > 1:
+                    chosen_fb = next((p for p in keepers_fb if p.get("role") == "Wicketkeeper"), keepers_fb[0])
+                    for p in px_fallback:
+                        if p.get("wicketKeeper") and p is not chosen_fb:
+                            p["wicketKeeper"] = False
+
                 squads.append({
                     "teamId": team_id,
                     "teamName": team_name,
                     "teamLogo": team_logo,
-                    "playingXI": p_list[:11],
+                    "playingXI": px_fallback,
                     "bench": p_list[11:],
-                    "players": p_list[:11],
+                    "players": px_fallback,
                     "fullSquad": p_list
                 })
+
+        # Global sanity check: Guarantee no team's playingXI has multiple wicketkeepers
+        for sq in squads:
+            px = sq.get("playingXI", [])
+            wks = [p for p in px if p.get("wicketKeeper")]
+            if len(wks) > 1:
+                for p in wks[1:]:
+                    p["wicketKeeper"] = False
 
         return squads
 

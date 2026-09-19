@@ -301,6 +301,10 @@ async function fetchMatchDetails(leagueId, eventId, silent = false, retryCount =
                     mObj.playerOfTheMatch = data.playerOfTheMatch;
                     changed = true;
                 }
+                if (data.playerOfTheSeries && !mObj.playerOfTheSeries) {
+                    mObj.playerOfTheSeries = data.playerOfTheSeries;
+                    changed = true;
+                }
                 if (changed) renderMatchList();
             }
         }
@@ -795,6 +799,13 @@ function renderSingleMatchCard(m) {
                 <div class="mt-1.5 pt-1 border-t border-amber-500/20 text-[10.5px] text-amber-700 dark:text-amber-400 font-bold truncate flex items-center gap-1.5">
                     <span class="shrink-0 text-xs">🏆</span>
                     <span class="truncate">POTM: <span class="text-slate-900 dark:text-white font-black">${escapeQuotes(m.playerOfTheMatch.name)}</span>${m.playerOfTheMatch.performance ? ` <span class="font-normal opacity-90 font-mono text-[9.5px]">(${escapeQuotes(m.playerOfTheMatch.performance)})</span>` : ''}</span>
+                </div>
+            ` : ''}
+
+            ${m.playerOfTheSeries ? `
+                <div class="mt-1 pt-1 border-t border-purple-500/20 text-[10.5px] text-purple-700 dark:text-purple-400 font-bold truncate flex items-center gap-1.5">
+                    <span class="shrink-0 text-xs">🎖️</span>
+                    <span class="truncate">${escapeQuotes(m.playerOfTheSeries.title || 'POTS')}: <span class="text-slate-900 dark:text-white font-black">${escapeQuotes(m.playerOfTheSeries.name)}</span>${m.playerOfTheSeries.teamName ? ` <span class="font-normal opacity-90 text-[9.5px]">(${escapeQuotes(m.playerOfTheSeries.teamName)})</span>` : ''}</span>
                 </div>
             ` : ''}
         </div>
@@ -1597,6 +1608,38 @@ function renderHeroBanner(data) {
                                 </div>
                             </div>
                         ` : ''}
+
+                        ${data.playerOfTheSeries ? `
+                            <!-- Player of the Series/Tournament Chip -->
+                            <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-xl bg-gradient-to-r from-purple-500/20 via-purple-500/10 to-transparent dark:from-purple-950/60 dark:to-dark-900 border border-purple-500/40 shadow-xs">
+                                <div class="relative shrink-0 flex items-center">
+                                    <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden border border-purple-400 bg-white dark:bg-dark-800 flex items-center justify-center shadow-xs">
+                                        <img src="${data.playerOfTheSeries.headshot || 'https://a.espncdn.com/i/headshots/cricket/players/default-player-logo-500.png'}" 
+                                             alt="${escapeQuotes(data.playerOfTheSeries.name)}" 
+                                             class="w-full h-full object-cover object-top" 
+                                             onerror="this.src='https://a.espncdn.com/i/headshots/cricket/players/default-player-logo-500.png';">
+                                    </div>
+                                    <span class="absolute -bottom-1 -right-1 text-[9px] leading-none">🎖️</span>
+                                </div>
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="text-[10.5px] font-mono font-black uppercase tracking-wider text-purple-700 dark:text-purple-400 flex items-center gap-0.5">
+                                        <i data-lucide="award" class="w-3.5 h-3.5 text-purple-500"></i>
+                                        <span>${escapeQuotes(data.playerOfTheSeries.title || 'Player of the Series')}:</span>
+                                    </span>
+                                    <span class="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
+                                        ${escapeQuotes(data.playerOfTheSeries.name)}
+                                    </span>
+                                    ${data.playerOfTheSeries.teamName ? `
+                                        <span class="text-[10.5px] text-slate-500 dark:text-gray-400 font-bold">(${escapeQuotes(data.playerOfTheSeries.teamName)})</span>
+                                    ` : ''}
+                                    ${data.playerOfTheSeries.performance ? `
+                                        <span class="text-[10px] sm:text-[10.5px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-purple-500/20 text-purple-800 dark:text-purple-300 border border-purple-500/30">
+                                            ${escapeQuotes(data.playerOfTheSeries.performance)}
+                                        </span>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
                     </div>
 
                     <div class="text-[11px] sm:text-xs text-slate-600 dark:text-gray-300 font-bold flex flex-wrap items-center gap-2">
@@ -2104,20 +2147,29 @@ function renderLivePlayingXI(data, isPreMatchOnly = false) {
 
                 <!-- 11 Players Grid List -->
                 <div class="space-y-1.5 flex-1">
-                    ${playingXI.map((p, pIdx) => {
-                        const isC = Boolean(p.captain || p.isCaptain || /\(c\)/i.test(p.name) || /\(c\s*&/i.test(p.name));
-                        const isWk = Boolean(p.wicketKeeper || p.isWicketKeeper || /\(wk\)/i.test(p.name) || /&\s*wk\)/i.test(p.name));
-                        const cleanPName = p.name.replace(/\s*\([^\)]*\)/g, '').trim();
-                        let tag = '';
-                        if (isC && isWk) {
-                            tag = '<span class="text-[9px] px-1.5 py-0.2 rounded font-black font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c & wk)</span>';
-                        } else if (isC) {
-                            tag = '<span class="text-[9px] px-1.5 py-0.2 rounded font-black font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c)</span>';
-                        } else if (isWk) {
-                            tag = '<span class="text-[9px] px-1.5 py-0.2 rounded font-black font-mono bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 shrink-0 select-none">(wk)</span>';
-                        }
+                    ${(() => {
+                        let teamWkFound = false;
+                        return playingXI.map((p, pIdx) => {
+                            const isC = Boolean(p.captain || p.isCaptain || /\(c\)/i.test(p.name) || /\(c\s*&/i.test(p.name));
+                            let isWk = Boolean(p.wicketKeeper || p.isWicketKeeper || /\(wk\)/i.test(p.name) || /&\s*wk\)/i.test(p.name));
+                            if (isWk) {
+                                if (!teamWkFound) {
+                                    teamWkFound = true;
+                                } else {
+                                    isWk = false;
+                                }
+                            }
+                            const cleanPName = p.name.replace(/\s*\([^\)]*\)/g, '').trim();
+                            let tag = '';
+                            if (isC && isWk) {
+                                tag = '<span class="text-[9px] px-1.5 py-0.2 rounded font-black font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c & wk)</span>';
+                            } else if (isC) {
+                                tag = '<span class="text-[9px] px-1.5 py-0.2 rounded font-black font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c)</span>';
+                            } else if (isWk) {
+                                tag = '<span class="text-[9px] px-1.5 py-0.2 rounded font-black font-mono bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 shrink-0 select-none">(wk)</span>';
+                            }
 
-                        return `
+                            return `
                             <div onclick="openPlayerProfile('${p.id || ''}', '${cleanPName.replace(/'/g, "\\'")}')" 
                                  class="flex items-center justify-between p-1.5 sm:p-2 rounded-xl bg-slate-50/80 dark:bg-dark-800/60 border border-slate-200/80 dark:border-gray-800/90 hover:border-emerald-500/60 dark:hover:border-[#00ff88]/60 hover:shadow-xs transition cursor-pointer group/p11" title="View Profile & Stats of ${cleanPName}">
                                 <div class="flex items-center space-x-2 truncate min-w-0">
@@ -2131,7 +2183,8 @@ function renderLivePlayingXI(data, isPreMatchOnly = false) {
                                 <span class="text-[10px] text-slate-500 dark:text-gray-400 font-mono font-medium shrink-0 ml-1.5">${p.role || 'Player'}</span>
                             </div>
                         `;
-                    }).join('')}
+                        }).join('');
+                    })()}
                 </div>
 
                 <!-- Bench / Substitutes Section (Collapsible Accordion) -->
@@ -2918,22 +2971,31 @@ function renderActiveInningsScorecard(inn, matchData) {
         if (!inn.batting || inn.batting.length === 0) {
             batBody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-400 text-sm font-medium">No batting records for this innings.</td></tr>`;
         } else {
-            batBody.innerHTML = inn.batting.map(b => {
-                const sr = (b.strikeRate && b.strikeRate !== '0.00') ? b.strikeRate : computeStrikeRate(b.runs, b.balls);
-                const dismissalHtml = formatDismissalHTML(b.dismissal, b.isNotOut);
-                const safeName = escapeQuotes(b.name);
+            batBody.innerHTML = (() => {
+                let batWkFound = false;
+                return inn.batting.map(b => {
+                    const sr = (b.strikeRate && b.strikeRate !== '0.00') ? b.strikeRate : computeStrikeRate(b.runs, b.balls);
+                    const dismissalHtml = formatDismissalHTML(b.dismissal, b.isNotOut);
+                    const safeName = escapeQuotes(b.name);
 
-                const isC = Boolean(b.isCaptain || b.captain || /\(c\)/i.test(b.name) || /\(c\s*&/i.test(b.name));
-                const isWk = Boolean(b.isWicketKeeper || b.wicketKeeper || /\(wk\)/i.test(b.name) || /&\s*wk\)/i.test(b.name));
-                const cleanDisplayName = b.name.replace(/\s*\([^\)]*\)/g, '').trim();
-                let roleTag = '';
-                if (isC && isWk) {
-                    roleTag = '<span class="text-[9.5px] font-mono font-black px-1 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none ml-1">(c & wk)</span>';
-                } else if (isC) {
-                    roleTag = '<span class="text-[9.5px] font-mono font-black px-1 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none ml-1">(c)</span>';
-                } else if (isWk) {
-                    roleTag = '<span class="text-[9.5px] font-mono font-black px-1 py-0.2 rounded bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 shrink-0 select-none ml-1">(wk)</span>';
-                }
+                    const isC = Boolean(b.isCaptain || b.captain || /\(c\)/i.test(b.name) || /\(c\s*&/i.test(b.name));
+                    let isWk = Boolean(b.isWicketKeeper || b.wicketKeeper || /\(wk\)/i.test(b.name) || /&\s*wk\)/i.test(b.name));
+                    if (isWk) {
+                        if (!batWkFound) {
+                            batWkFound = true;
+                        } else {
+                            isWk = false;
+                        }
+                    }
+                    const cleanDisplayName = b.name.replace(/\s*\([^\)]*\)/g, '').trim();
+                    let roleTag = '';
+                    if (isC && isWk) {
+                        roleTag = '<span class="text-[9.5px] font-mono font-black px-1 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none ml-1">(c & wk)</span>';
+                    } else if (isC) {
+                        roleTag = '<span class="text-[9.5px] font-mono font-black px-1 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none ml-1">(c)</span>';
+                    } else if (isWk) {
+                        roleTag = '<span class="text-[9.5px] font-mono font-black px-1 py-0.2 rounded bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 shrink-0 select-none ml-1">(wk)</span>';
+                    }
 
                 return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-dark-900/60 transition border-b border-slate-100 dark:border-gray-800/80">
@@ -2963,6 +3025,7 @@ function renderActiveInningsScorecard(inn, matchData) {
                     </tr>
                 `;
             }).join('');
+            })();
         }
     }
 
@@ -3042,19 +3105,28 @@ function renderActiveInningsScorecard(inn, matchData) {
                         <span class="text-[10px] text-slate-400 font-mono">Playing 11</span>
                     </div>
                     <div class="flex flex-wrap items-center gap-1.5">
-                        ${ytbList.map(p => {
-                            const isC = Boolean(p.isCaptain || p.captain || /\(c\)/i.test(p.name));
-                            const isWk = Boolean(p.isWicketKeeper || p.wicketKeeper || /\(wk\)/i.test(p.name));
-                            const cleanPName = p.name.replace(/\s*\([^\)]*\)/g, '').trim();
-                            let ytbTag = '';
-                            if (isC && isWk) {
-                                ytbTag = '<span class="text-[9px] font-mono font-black px-1 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c & wk)</span>';
-                            } else if (isC) {
-                                ytbTag = '<span class="text-[9px] font-mono font-black px-1 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c)</span>';
-                            } else if (isWk) {
-                                ytbTag = '<span class="text-[9px] font-mono font-black px-1 py-0.2 rounded bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 shrink-0 select-none">(wk)</span>';
-                            }
-                            return `
+                        ${(() => {
+                            let ytbWkFound = false;
+                            return ytbList.map(p => {
+                                const isC = Boolean(p.isCaptain || p.captain || /\(c\)/i.test(p.name));
+                                let isWk = Boolean(p.isWicketKeeper || p.wicketKeeper || /\(wk\)/i.test(p.name));
+                                if (isWk) {
+                                    if (!ytbWkFound) {
+                                        ytbWkFound = true;
+                                    } else {
+                                        isWk = false;
+                                    }
+                                }
+                                const cleanPName = p.name.replace(/\s*\([^\)]*\)/g, '').trim();
+                                let ytbTag = '';
+                                if (isC && isWk) {
+                                    ytbTag = '<span class="text-[9px] font-mono font-black px-1 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c & wk)</span>';
+                                } else if (isC) {
+                                    ytbTag = '<span class="text-[9px] font-mono font-black px-1 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c)</span>';
+                                } else if (isWk) {
+                                    ytbTag = '<span class="text-[9px] font-mono font-black px-1 py-0.2 rounded bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 shrink-0 select-none">(wk)</span>';
+                                }
+                                return `
                                 <div onclick="openPlayerProfile('${p.id || ''}', '${cleanPName.replace(/'/g, "\\'")}')" 
                                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-dark-800 border border-slate-200/90 dark:border-gray-700/80 hover:border-emerald-500 hover:shadow-xs transition cursor-pointer group/ytb" 
                                      title="View Profile & Stats of ${cleanPName}">
@@ -3064,7 +3136,8 @@ function renderActiveInningsScorecard(inn, matchData) {
                                     ${p.role && p.role !== 'Player' ? `<span class="text-[9px] text-slate-400 font-mono">(${p.role})</span>` : ''}
                                 </div>
                             `;
-                        }).join('')}
+                            }).join('');
+                        })()}
                     </div>
                 </div>
             `;
@@ -3470,19 +3543,28 @@ function renderSquadsTab(data) {
                         <span class="text-[10px] font-mono text-slate-400">Match XI</span>
                     </div>
                     <div class="space-y-1.5 max-h-[420px] overflow-y-auto pr-1 custom-scrollbar text-xs">
-                        ${playingXI.map(p => {
-                            const isC = Boolean(p.captain || p.isCaptain || /\(c\)/i.test(p.name) || /\(c\s*&/i.test(p.name));
-                            const isWk = Boolean(p.wicketKeeper || p.isWicketKeeper || /\(wk\)/i.test(p.name) || /&\s*wk\)/i.test(p.name));
-                            const cleanPName = p.name.replace(/\s*\([^\)]*\)/g, '').trim();
-                            let tag = '';
-                            if (isC && isWk) {
-                                tag = '<span class="text-[9.5px] px-1.5 py-0.2 rounded font-black font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c & wk)</span>';
-                            } else if (isC) {
-                                tag = '<span class="text-[9.5px] px-1.5 py-0.2 rounded font-black font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c)</span>';
-                            } else if (isWk) {
-                                tag = '<span class="text-[9.5px] px-1.5 py-0.2 rounded font-black font-mono bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 shrink-0 select-none">(wk)</span>';
-                            }
-                            return `
+                        ${(() => {
+                            let teamWkFound = false;
+                            return playingXI.map(p => {
+                                const isC = Boolean(p.captain || p.isCaptain || /\(c\)/i.test(p.name) || /\(c\s*&/i.test(p.name));
+                                let isWk = Boolean(p.wicketKeeper || p.isWicketKeeper || /\(wk\)/i.test(p.name) || /&\s*wk\)/i.test(p.name));
+                                if (isWk) {
+                                    if (!teamWkFound) {
+                                        teamWkFound = true;
+                                    } else {
+                                        isWk = false;
+                                    }
+                                }
+                                const cleanPName = p.name.replace(/\s*\([^\)]*\)/g, '').trim();
+                                let tag = '';
+                                if (isC && isWk) {
+                                    tag = '<span class="text-[9.5px] px-1.5 py-0.2 rounded font-black font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c & wk)</span>';
+                                } else if (isC) {
+                                    tag = '<span class="text-[9.5px] px-1.5 py-0.2 rounded font-black font-mono bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0 select-none">(c)</span>';
+                                } else if (isWk) {
+                                    tag = '<span class="text-[9.5px] px-1.5 py-0.2 rounded font-black font-mono bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 shrink-0 select-none">(wk)</span>';
+                                }
+                                return `
                                 <div onclick="openPlayerProfile('${p.id || ''}', '${cleanPName.replace(/'/g, "\\'")}')" 
                                      class="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-dark-800/70 border border-slate-200/90 dark:border-gray-800 hover:border-emerald-500 dark:hover:border-emerald-500/70 transition cursor-pointer group/sq" title="View Profile & Stats of ${cleanPName}">
                                     <div class="flex items-center space-x-2.5 truncate">
@@ -3495,7 +3577,8 @@ function renderSquadsTab(data) {
                                     <span class="text-[10px] text-slate-500 dark:text-gray-400 group-hover/sq:text-emerald-400 font-mono font-semibold shrink-0 ml-2">${p.role || 'Player'}</span>
                                 </div>
                             `;
-                        }).join('')}
+                            }).join('');
+                        })()}
                     </div>
                 </div>
 
@@ -3551,6 +3634,7 @@ function renderMatchInfoTab(data) {
     if (!container) return;
 
     const potm = data.playerOfTheMatch;
+    const pots = data.playerOfTheSeries;
 
     container.innerHTML = `
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -3583,6 +3667,39 @@ function renderMatchInfoTab(data) {
                     ${potm.teamLogo ? `
                         <div class="shrink-0 hidden sm:block">
                             <img src="${potm.teamLogo}" alt="" class="w-11 h-11 sm:w-12 sm:h-12 object-contain rounded-xl p-1 bg-white/80 dark:bg-dark-800 border border-slate-200 dark:border-gray-700 shadow-xs" onerror="this.style.display='none'">
+                        </div>
+                    ` : ''}
+                </div>
+            ` : ''}
+            ${pots ? `
+                <div class="col-span-1 sm:col-span-2 p-3.5 sm:p-4 rounded-xl bg-gradient-to-r from-purple-500/15 via-purple-500/5 to-transparent dark:from-purple-950/40 dark:via-dark-900/80 dark:to-dark-900 border border-purple-500/40 shadow-xs flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-3.5 min-w-0">
+                        <div class="relative shrink-0">
+                            <div class="w-13 h-13 sm:w-14 sm:h-14 rounded-full overflow-hidden border-2 border-purple-400 shadow-md bg-white dark:bg-dark-800 flex items-center justify-center">
+                                <img src="${pots.headshot || 'https://a.espncdn.com/i/headshots/cricket/players/default-player-logo-500.png'}" 
+                                     alt="${escapeQuotes(pots.name)}" 
+                                     class="w-full h-full object-cover object-top" 
+                                     onerror="this.src='https://a.espncdn.com/i/headshots/cricket/players/default-player-logo-500.png';">
+                            </div>
+                            <span class="absolute -bottom-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] sm:text-xs shadow-sm font-bold">🎖️</span>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-xs font-mono font-black uppercase tracking-wider text-purple-700 dark:text-purple-400 flex items-center gap-1">
+                                    <i data-lucide="award" class="w-4 h-4 text-purple-500"></i>
+                                    <span>${escapeQuotes(pots.title || 'Player of the Series')}</span>
+                                </span>
+                                ${pots.teamName ? `<span class="text-xs text-slate-500 dark:text-gray-400 font-medium truncate">• ${escapeQuotes(pots.teamName)}</span>` : ''}
+                            </div>
+                            <div class="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2.5 mt-0.5 truncate">
+                                <span class="truncate">${escapeQuotes(pots.name)}</span>
+                                ${pots.performance ? `<span class="text-xs font-mono font-bold px-2.5 py-0.5 rounded-md bg-purple-500/20 text-purple-800 dark:text-purple-300 border border-purple-500/30 shrink-0">${escapeQuotes(pots.performance)}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    ${pots.teamLogo ? `
+                        <div class="shrink-0 hidden sm:block">
+                            <img src="${pots.teamLogo}" alt="" class="w-11 h-11 sm:w-12 sm:h-12 object-contain rounded-xl p-1 bg-white/80 dark:bg-dark-800 border border-slate-200 dark:border-gray-700 shadow-xs" onerror="this.style.display='none'">
                         </div>
                     ` : ''}
                 </div>

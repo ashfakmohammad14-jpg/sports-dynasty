@@ -466,9 +466,13 @@ TEAM_ALIAS_MAP: Dict[str, List[str]] = {
     "netherlands": ["netherlands", "ned"],
 }
 
-def get_team_aliases(team_name: str) -> List[str]:
+def get_team_aliases(team_name: str, abbr: str = "") -> List[str]:
     t_clean = re.sub(r'[^a-z0-9\s]', '', str(team_name).lower()).strip()
     aliases = [t_clean]
+    if abbr:
+        ab_c = re.sub(r'[^a-z0-9]', '', str(abbr).lower()).strip()
+        if ab_c and len(ab_c) >= 2 and ab_c not in STOP_WORDS:
+            aliases.append(ab_c)
 
     matched_map = False
     for k in sorted(TEAM_ALIAS_MAP.keys(), key=lambda x: -len(x)):
@@ -477,16 +481,22 @@ def get_team_aliases(team_name: str) -> List[str]:
             matched_map = True
             break
 
-    if not matched_map:
-        words = [w for w in t_clean.split() if w not in STOP_WORDS]
-        if len(words) >= 2:
-            aliases.append("-".join(words))
-            if "zone" in t_clean:
-                acro = "".join(w[0] for w in words) + "zone"
-                aliases.append(acro)
-        for word in words:
-            if len(word) >= 3 and word not in STOP_WORDS:
-                aliases.append(word)
+    words = [w for w in t_clean.split() if w not in STOP_WORDS]
+    if len(words) >= 2:
+        aliases.append("-".join(words))
+        # Initial letter of first word + second word (e.g. Northern Cape -> ncape, Western Province -> wprovince)
+        aliases.append(f"{words[0][0]}{words[1]}")
+        # Acronym (e.g. SNGPL, WAPDA, KRL, SBP, HEC, NC, WP, NW)
+        aliases.append("".join(w[0] for w in words))
+        if "zone" in t_clean:
+            acro = "".join(w[0] for w in words) + "zone"
+            aliases.append(acro)
+    for word in words:
+        if len(word) >= 3 and word not in STOP_WORDS:
+            aliases.append(word)
+        # Prefixes of multi-syllable names, e.g. Limpopo -> limpo
+        if len(word) >= 5:
+            aliases.append(word[:5])
 
     return list(set(a for a in aliases if a and a not in STOP_WORDS))
 
@@ -528,6 +538,9 @@ def match_teams_in_cricbuzz_href(href: str, t1_aliases: List[str], t2_aliases: L
         if "-" in a and a in h:
             return True
         if re.search(rf'(?:^|[-/]){re.escape(a)}(?:$|[-/])', h):
+            return True
+        # Match inside slug tokens if length >= 4 (e.g. 'limpo' in 'limpo-vs-ncape')
+        if len(a) >= 4 and any(tok.startswith(a) or a in tok for tok in tokens):
             return True
         return False
 
@@ -1614,9 +1627,12 @@ class ESPNClient:
 
         # 2. Check if a more comprehensive scorecard is available via Cricbuzz matching
         team_names = [c["name"] for c in competitors if c.get("name")]
+        team_abbrs = [c.get("abbr", "") for c in competitors]
         full_innings = None
         if len(team_names) >= 2:
-            full_innings = self._fetch_cricbuzz_scorecard(team_names[0], team_names[1], expected_players=expected_players)
+            abbr1 = team_abbrs[0] if len(team_abbrs) >= 1 else ""
+            abbr2 = team_abbrs[1] if len(team_abbrs) >= 2 else ""
+            full_innings = self._fetch_cricbuzz_scorecard(team_names[0], team_names[1], expected_players=expected_players, team1_abbr=abbr1, team2_abbr=abbr2)
 
         if full_innings and self._is_scorecard_more_complete(full_innings, espn_innings):
             innings_data = full_innings
@@ -2895,19 +2911,20 @@ class ESPNClient:
                         "summary": f"{current_pship_runs}* runs unbroken ({p1_name} & {p2_name})"
                     })
 
-            innings_data[inn_num] = {
-                "inningsNumber": inn_num,
-                "teamName": team_name,
-                "runs": tot_runs,
-                "wickets": str(tot_wkts) if tot_wkts is not None else str(len(fow)),
-                "overs": str(ov_str) if ov_str is not None else "",
-                "extras": extras_str,
-                "total": total_formatted,
-                "batting": batting_list,
-                "bowling": bowling_list,
-                "fow": fow,
-                "partnerships": pships_list
-            }
+            if len(batting_list) > 0 or len(bowling_list) > 0 or len(fow) > 0 or (tot_runs and tot_runs != "0"):
+                innings_data[inn_num] = {
+                    "inningsNumber": inn_num,
+                    "teamName": team_name,
+                    "runs": tot_runs,
+                    "wickets": str(tot_wkts) if tot_wkts is not None else str(len(fow)),
+                    "overs": str(ov_str) if ov_str is not None else "",
+                    "extras": extras_str,
+                    "total": total_formatted,
+                    "batting": batting_list,
+                    "bowling": bowling_list,
+                    "fow": fow,
+                    "partnerships": pships_list
+                }
 
         # Extract Live Crease
         latest_items = innings_dict[latest_inn_num]
@@ -3045,7 +3062,7 @@ class ESPNClient:
                     recent_deliveries.append(str(sc_val))
 
         # Calculate True Live Crease Partnership from last FoW
-        active_fow = innings_data[latest_inn_num].get("fow", [])
+        active_fow = innings_data.get(latest_inn_num, {}).get("fow", [])
         last_fow_runs = 0
         last_fow_balls = 0
         if active_fow:
@@ -3057,7 +3074,7 @@ class ESPNClient:
                 return int(m.group(1)) * 6 + (int(m.group(2)) if m.group(2) else 0)
             last_fow_balls = ov_to_balls_hlp(last_f.get("overs", "0"))
 
-        tot_m = re.search(r"(\d+)", str(innings_data[latest_inn_num].get("runs", 0)))
+        tot_m = re.search(r"(\d+)", str(innings_data.get(latest_inn_num, {}).get("runs", 0)))
         curr_inn_tot = int(tot_m.group(1)) if tot_m else 0
         tot_balls_curr = last_item.get("innings", {}).get("balls", 0)
 
@@ -3476,7 +3493,7 @@ class ESPNClient:
             return True
         return count_a >= count_b
 
-    def _fetch_cricbuzz_scorecard(self, team1: str, team2: str, expected_players: Optional[Set[str]] = None) -> Optional[Dict[str, Any]]:
+    def _fetch_cricbuzz_scorecard(self, team1: str, team2: str, expected_players: Optional[Set[str]] = None, team1_abbr: str = "", team2_abbr: str = "") -> Optional[Dict[str, Any]]:
         """Fetch and parse full multi-innings scorecard with exact dismissals (catcher + bowler) from Cricbuzz."""
         try:
             live_url = "https://www.cricbuzz.com/cricket-match/live-scores"
@@ -3485,8 +3502,8 @@ class ESPNClient:
                 return None
 
             soup_live = BeautifulSoup(r_live.text, "html.parser")
-            a1 = get_team_aliases(team1)
-            a2 = get_team_aliases(team2)
+            a1 = get_team_aliases(team1, team1_abbr)
+            a2 = get_team_aliases(team2, team2_abbr)
 
             target_href = None
             for a in soup_live.find_all("a", href=re.compile(r"/live-cricket-scores/\d+/")):
@@ -3716,96 +3733,116 @@ class ESPNClient:
         inn_count = 1
         for banner in banners:
             title_text = banner.get_text(separator=" ", strip=True)
-            if "innings" not in title_text.lower():
+            inn_container = banner.parent
+            if not inn_container:
                 continue
 
-            inn_container = banner.parent
+            batting_rows = inn_container.find_all("div", class_=re.compile(r"scorecard-bat-grid"))
+            if not batting_rows:
+                # If no modern grid, check if classic scorecard tables are present
+                classic_table = inn_container.find("table")
+                if not classic_table and ("innings" not in title_text.lower() and not re.search(r'\d+[\-/]\d+', title_text)):
+                    continue
+
             team_name = title_text
             if " Inning" in team_name:
                 parts = team_name.split("Inning")
                 team_name = parts[0].strip() + " Innings"
+            elif re.search(r'\d+[\-/]\d+', team_name):
+                m_tm = re.search(r'^(?:[A-Z]{2,4}\s+)?([A-Za-z\s]+?)\s+\d+[\-/]', team_name)
+                if m_tm:
+                    team_name = m_tm.group(1).strip()
 
-            # Batting
-            batting_rows = inn_container.find_all("div", class_=re.compile(r"scorecard-bat-grid"))
             batting = []
-            for row in batting_rows:
-                cols = row.find_all(recursive=False)
-                if len(cols) < 6:
-                    continue
-
-                first_col = cols[0]
-                for tag in first_col.find_all(["ul", "div", "li"], class_=lambda c: c and any(k in str(c) for k in ["z-1", "invisible", "list-none"])):
-                    tag.decompose()
-
-                sub_divs = [d.get_text(strip=True) for d in first_col.find_all(recursive=False) if d.get_text(strip=True)]
-                if not sub_divs:
-                    name = first_col.get_text(strip=True)
-                    dismissal = ""
-                elif len(sub_divs) == 1:
-                    name = sub_divs[0]
-                    dismissal = "not out"
-                else:
-                    name = sub_divs[0]
-                    dismissal = sub_divs[1]
-
-                if name in ["Batter", "BATSMEN", ""]:
-                    continue
-
-                runs_str = cols[1].get_text(strip=True)
-                balls_str = cols[2].get_text(strip=True)
-                fours_str = cols[3].get_text(strip=True)
-                sixes_str = cols[4].get_text(strip=True)
-                sr_str = cols[5].get_text(strip=True)
-
-                try:
-                    sr = float(sr_str)
-                except Exception:
-                    sr = 0.0
-
-                is_not_out = ("not out" in dismissal.lower() or "batting" in dismissal.lower())
-
-                batting.append({
-                    "name": name,
-                    "dismissal": dismissal,
-                    "isNotOut": is_not_out,
-                    "runs": runs_str,
-                    "balls": balls_str,
-                    "fours": fours_str,
-                    "sixes": sixes_str,
-                    "strikeRate": sr
-                })
-
-            # Bowling
-            bowling_rows = inn_container.find_all("div", class_=re.compile(r"scorecard-bowl-grid|scorecard-bwl-grid"))
             bowling = []
-            for row in bowling_rows:
-                cols = row.find_all(recursive=False)
-                if len(cols) < 6:
-                    continue
 
-                first_col = cols[0]
-                for tag in first_col.find_all(["ul", "div", "li"], class_=lambda c: c and any(k in str(c) for k in ["z-1", "invisible", "list-none"])):
-                    tag.decompose()
-                name = first_col.get_text(strip=True)
-                if name in ["Bowler", "BOWLERS", ""]:
-                    continue
+            # 1. Modern Cricbuzz Tailwind Grid
+            if batting_rows:
+                for row in batting_rows:
+                    cols = row.find_all(recursive=False)
+                    if len(cols) < 6:
+                        continue
 
-                overs = cols[1].get_text(strip=True)
-                maidens = cols[2].get_text(strip=True)
-                conceded = cols[3].get_text(strip=True)
-                wkts = cols[4].get_text(strip=True)
-                raw_econ = cols[7].get_text(strip=True) if len(cols) >= 8 else (cols[5].get_text(strip=True) if len(cols) >= 6 else "0.00")
-                calc_econ = compute_economy_rate(overs, conceded)
-                econ = calc_econ if (calc_econ != "0.00" or raw_econ == "0.00") else raw_econ
+                    first_col = cols[0]
+                    for tag in first_col.find_all(lambda t: t.get("role") == "menu" or (t.name in ["ul", "div", "li"] and any(k in str(t.get("class", [])) for k in ["z-1", "invisible", "list-none", "opacity-0"]))):
+                        tag.decompose()
+                    for ul in first_col.find_all("ul"):
+                        ul.decompose()
 
-                bowling.append({
-                    "name": name,
-                    "overs": overs,
-                    "maidens": maidens,
-                    "runs": conceded,
-                    "wickets": wkts,
-                    "economy": econ
-                })
+                    sub_divs = [d.get_text(strip=True) for d in first_col.find_all(recursive=False) if d.get_text(strip=True)]
+                    if not sub_divs:
+                        name = first_col.get_text(strip=True)
+                        dismissal = ""
+                    elif len(sub_divs) == 1:
+                        name = sub_divs[0]
+                        dismissal = "not out"
+                    else:
+                        name = sub_divs[0]
+                        dismissal = sub_divs[1]
+
+                    name = re.sub(r'View\s+match\s+performance|View\s+profile', '', name, flags=re.I).strip()
+                    dismissal = re.sub(r'View\s+match\s+performance|View\s+profile', '', dismissal, flags=re.I).strip()
+
+                    if name in ["Batter", "BATSMEN", ""]:
+                        continue
+
+                    runs_str = cols[1].get_text(strip=True)
+                    balls_str = cols[2].get_text(strip=True)
+                    fours_str = cols[3].get_text(strip=True)
+                    sixes_str = cols[4].get_text(strip=True)
+                    sr_str = cols[5].get_text(strip=True)
+
+                    try:
+                        sr = float(sr_str)
+                    except Exception:
+                        sr = 0.0
+
+                    is_not_out = ("not out" in dismissal.lower() or "batting" in dismissal.lower())
+
+                    batting.append({
+                        "name": name,
+                        "dismissal": dismissal,
+                        "isNotOut": is_not_out,
+                        "runs": runs_str,
+                        "balls": balls_str,
+                        "fours": fours_str,
+                        "sixes": sixes_str,
+                        "strikeRate": sr
+                    })
+
+                bowling_rows = inn_container.find_all("div", class_=re.compile(r"scorecard-bowl-grid|scorecard-bwl-grid"))
+                for row in bowling_rows:
+                    cols = row.find_all(recursive=False)
+                    if len(cols) < 6:
+                        continue
+
+                    first_col = cols[0]
+                    for tag in first_col.find_all(lambda t: t.get("role") == "menu" or (t.name in ["ul", "div", "li"] and any(k in str(t.get("class", [])) for k in ["z-1", "invisible", "list-none", "opacity-0"]))):
+                        tag.decompose()
+                    for ul in first_col.find_all("ul"):
+                        ul.decompose()
+
+                    name = first_col.get_text(strip=True)
+                    name = re.sub(r'View\s+match\s+performance|View\s+profile', '', name, flags=re.I).strip()
+                    if name in ["Bowler", "BOWLERS", ""]:
+                        continue
+
+                    overs = cols[1].get_text(strip=True)
+                    maidens = cols[2].get_text(strip=True)
+                    conceded = cols[3].get_text(strip=True)
+                    wkts = cols[4].get_text(strip=True)
+                    raw_econ = cols[7].get_text(strip=True) if len(cols) >= 8 else (cols[5].get_text(strip=True) if len(cols) >= 6 else "0.00")
+                    calc_econ = compute_economy_rate(overs, conceded)
+                    econ = calc_econ if (calc_econ != "0.00" or raw_econ == "0.00") else raw_econ
+
+                    bowling.append({
+                        "name": name,
+                        "overs": overs,
+                        "maidens": maidens,
+                        "runs": conceded,
+                        "wickets": wkts,
+                        "economy": econ
+                    })
 
             # Extras & Total
             extras_txt = ""
@@ -4798,7 +4835,7 @@ class ESPNClient:
                 "status": "Ongoing",
                 "teams": "8 Teams (Group A & B)",
                 "matchType": "t20i",
-                "keywords": ["women's twenty20 asia cup", "women asia cup", "womens asia cup", "asia cup women", "hong kong women", "india women", "pakistan women", "thailand women", "sri lanka women", "bangladesh women", "indonesia women", "uae women", "united arab emirates women"],
+                "keywords": ["women's twenty20 asia cup", "women asia cup", "womens asia cup", "asia cup women"],
                 "standings": [
                     {"rank": 1, "team": "India Women", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1814.png", "p": 1, "w": 1, "l": 0, "nr": 0, "nrr": "+4.700", "pts": 2},
                     {"rank": 2, "team": "Pakistan Women", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1817.png", "p": 1, "w": 1, "l": 0, "nr": 0, "nrr": "+1.750", "pts": 2},
@@ -4851,7 +4888,7 @@ class ESPNClient:
                 "status": "Ongoing",
                 "teams": "3 Teams",
                 "matchType": "t20i",
-                "keywords": ["namibia", "namibia t20", "namibia t20 tri-series", "namibia tri-series", "windhoek", "zimbabwe", "united arab emirates", "uae"],
+                "keywords": ["namibia t20 tri-series", "namibia tri-series", "namibia tri series"],
                 "standings": [
                     {"rank": 1, "team": "Zimbabwe", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/9.png", "p": 3, "w": 2, "l": 1, "nr": 0, "nrr": "+0.650", "pts": 4},
                     {"rank": 2, "team": "Namibia", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/28.png", "p": 3, "w": 2, "l": 1, "nr": 0, "nrr": "+0.210", "pts": 4},
@@ -4878,7 +4915,7 @@ class ESPNClient:
                 "status": "Ongoing",
                 "teams": "6 Franchises",
                 "matchType": "cpl",
-                "keywords": ["cpl", "caribbean", "patriots", "tridents", "royals", "kings", "warriors", "riders", "falcons"],
+                "keywords": ["cpl 2026", "caribbean premier league", "cpl t20"],
                 "standings": [
                     {"rank": 1, "team": "Barbados Royals", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1183.png", "p": 6, "w": 5, "l": 1, "nr": 0, "nrr": "+1.124", "pts": 10},
                     {"rank": 2, "team": "Guyana Amazon Warriors", "logo": "https://a.espncdn.com/i/teamlogos/cricket/500/1184.png", "p": 6, "w": 4, "l": 2, "nr": 0, "nrr": "+0.845", "pts": 8},

@@ -78,6 +78,170 @@ function initTheme() {
     }
 }
 
+// ============================================================
+// REAL-TIME CRICKET NOTIFICATION SYSTEM (POINTS 2 & 4)
+// ============================================================
+
+function initNotificationSystem() {
+    if (!('Notification' in window)) return;
+
+    if (Notification.permission === 'granted') {
+        checkImportantMatchNotifications();
+    } else if (Notification.permission === 'default') {
+        const dismissed = localStorage.getItem('sd_notif_banner_dismissed');
+        const now = Date.now();
+        if (!dismissed || (now - parseInt(dismissed, 10)) > 24 * 60 * 60 * 1000) {
+            showNotificationPromptBanner();
+        }
+    }
+}
+
+function showNotificationPromptBanner() {
+    if (document.getElementById('sd-notif-prompt-banner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'sd-notif-prompt-banner';
+    banner.className = 'fixed bottom-20 md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:max-w-md z-50 p-4 rounded-2xl bg-gradient-to-r from-emerald-900/95 via-gray-900/95 to-dark-900/95 border border-emerald-500/50 shadow-2xl backdrop-blur-md flex items-center justify-between gap-3 text-white transition-all transform animate-in slide-in-from-bottom duration-300';
+    banner.innerHTML = `
+        <div class="flex items-center gap-3 min-w-0">
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center shrink-0 text-emerald-400">
+                <i data-lucide="bell-ring" class="w-5 h-5 animate-bounce"></i>
+            </div>
+            <div class="min-w-0">
+                <h5 class="text-xs font-black uppercase tracking-wider text-emerald-400">Live Cricket Alerts</h5>
+                <p class="text-[11px] text-slate-300 leading-tight">Get instant alerts for India matches, Playing XI announcements & close finishes!</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+            <button id="sd-notif-allow-btn" class="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-dark-900 text-xs font-black tracking-wide shadow-md transition active:scale-95 cursor-pointer">
+                Allow
+            </button>
+            <button id="sd-notif-dismiss-btn" class="p-1.5 rounded-xl text-slate-400 hover:text-white transition cursor-pointer">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+    `;
+    document.body.appendChild(banner);
+    safeCreateIcons();
+
+    document.getElementById('sd-notif-allow-btn')?.addEventListener('click', async () => {
+        banner.remove();
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+                sendNotificationAlert(
+                    '⚡ Cricket Alerts Enabled!',
+                    'You will receive instant updates for India matches, Playing XI announcements and thrilling finishes.',
+                    'sd-welcome',
+                    '/'
+                );
+                checkImportantMatchNotifications();
+            }
+        } catch(e) {}
+    });
+
+    document.getElementById('sd-notif-dismiss-btn')?.addEventListener('click', () => {
+        banner.remove();
+        localStorage.setItem('sd_notif_banner_dismissed', Date.now().toString());
+    });
+}
+
+function sendNotificationAlert(title, body, tag, url = '/') {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    try {
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.ready.then(reg => {
+                reg.showNotification(title, {
+                    body: body,
+                    icon: 'https://a.espncdn.com/i/teamlogos/cricket/500/6.png',
+                    badge: 'https://a.espncdn.com/i/teamlogos/cricket/500/6.png',
+                    tag: tag,
+                    renotify: true,
+                    data: { url: url }
+                });
+            });
+        } else {
+            new Notification(title, {
+                body: body,
+                icon: 'https://a.espncdn.com/i/teamlogos/cricket/500/6.png',
+                tag: tag
+            });
+        }
+    } catch(e) {
+        console.warn("Notification send error:", e);
+    }
+}
+
+function checkImportantMatchNotifications() {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const matches = appState.matches || [];
+    if (matches.length === 0) return;
+
+    matches.forEach(m => {
+        const mName = String(m.name || '').toLowerCase();
+        const isIndia = mName.includes('india');
+        const isLive = Boolean(m.isLive || (m.state && ['in', 'live'].includes(m.state.toLowerCase())));
+        const matchId = String(m.id || '');
+
+        // 1. Important Live Match Alert (Trigger once per live match)
+        if (isLive) {
+            const notifiedKey = `sd_notified_live_${matchId}`;
+            if (!localStorage.getItem(notifiedKey)) {
+                let isCrucial = isIndia;
+                if (!isCrucial && m.rrr && parseFloat(m.rrr) > 8.5) isCrucial = true;
+
+                if (isCrucial) {
+                    sendNotificationAlert(
+                        `🏏 Live: ${m.name}`,
+                        `${m.status || 'Match is live.'} Tap to view real-time scorecard and commentary!`,
+                        `live-${matchId}`,
+                        `/match/${m.leagueId || '0'}/${matchId}`
+                    );
+                    localStorage.setItem(notifiedKey, Date.now().toString());
+                }
+            }
+        }
+
+        // 2. India Squad / Playing XI Announcement Notification (Point 4)
+        if (isIndia) {
+            checkIndiaSquadNotification(m);
+        }
+    });
+}
+
+function checkIndiaSquadNotification(m) {
+    if (!m || !m.id) return;
+    const matchId = String(m.id);
+    const squadNotifiedKey = `sd_notified_india_squad_${matchId}`;
+    if (localStorage.getItem(squadNotifiedKey)) return;
+
+    const statusText = String(m.status || m.summary || '').toLowerCase();
+    const hasTossOrXI = statusText.includes('elected to') || 
+                        statusText.includes('opt to') || 
+                        statusText.includes('won the toss') || 
+                        statusText.includes('playing xi') || 
+                        statusText.includes('lineup') ||
+                        statusText.includes('squad');
+
+    let hasPlaying11 = false;
+    if (appState.currentMatchData && String(appState.currentMatchData.id) === matchId) {
+        const sqs = appState.currentMatchData.squads || [];
+        const indSq = sqs.find(s => String(s.teamName || '').toLowerCase().includes('india'));
+        if (indSq && ((indSq.playingXI && indSq.playingXI.length >= 11) || (indSq.players && indSq.players.length >= 11))) {
+            hasPlaying11 = true;
+        }
+    }
+
+    if (hasTossOrXI || hasPlaying11) {
+        sendNotificationAlert(
+            `🇮🇳 Team India Playing XI / Squad Announced!`,
+            `${m.name}: ${m.status || 'Playing 11 announced!'} Tap to view the official lineup & scorecard.`,
+            `india-squad-${matchId}`,
+            `/match/${m.leagueId || '0'}/${matchId}`
+        );
+        localStorage.setItem(squadNotifiedKey, Date.now().toString());
+    }
+}
+
 function initApp() {
     setupTabs();
     setupFilters();
@@ -87,13 +251,18 @@ function initApp() {
     startUpcomingCountdowns();
     fetchMatches(false);
     fetchSeriesData();
+    initNotificationSystem();
 
     // Check for SSR initial view or pathname-based hub route
     if (window.__INITIAL_VIEW__) {
         switchPlatformView(window.__INITIAL_VIEW__);
     } else {
         const cleanPath = window.location.pathname.replace(/^\/+|\/+$/g, '');
-        if (['news', 'rankings', 'series', 'standings', 'teams', 'live-scores'].includes(cleanPath)) {
+        if (cleanPath === 'rankings') {
+            window.location.href = 'https://www.espncricinfo.com/rankings/content/page/211271.html';
+            return;
+        }
+        if (['news', 'series', 'standings', 'teams', 'live-scores'].includes(cleanPath)) {
             switchPlatformView(cleanPath === 'live-scores' ? 'live' : (cleanPath === 'standings' ? 'series' : cleanPath));
         }
     }
@@ -239,6 +408,7 @@ async function fetchMatches(silent = false) {
         } else if (appState.selectedLeagueId && appState.selectedEventId && silent) {
             fetchMatchDetails(appState.selectedLeagueId, appState.selectedEventId, true);
         }
+        checkImportantMatchNotifications();
     } catch (err) {
         console.error('Error fetching matches:', err);
     } finally {
@@ -510,14 +680,50 @@ function escapeQuotes(str) {
     return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
 }
 
-function filterBySpecificSeries(seriesName) {
+async function filterBySpecificSeries(seriesName, leagueId = '') {
     if (!seriesName) return;
     appState.selectedSeriesFilter = seriesName;
+    appState.selectedSeriesLeagueId = leagueId;
+
+    // Resolve leagueId if not provided directly
+    if (!leagueId && appState.matches) {
+        const sLower = seriesName.toLowerCase();
+        const found = appState.matches.find(m => {
+            const lName = (m.leagueName || '').toLowerCase();
+            const sTitle = (m.seriesTitle || '').toLowerCase();
+            return (lName && (lName.includes(sLower) || sLower.includes(lName))) ||
+                   (sTitle && (sTitle.includes(sLower) || sLower.includes(sTitle)));
+        });
+        if (found && found.leagueId) {
+            leagueId = found.leagueId;
+            appState.selectedSeriesLeagueId = leagueId;
+        }
+    }
+
     renderMatchList();
+
+    if (leagueId) {
+        if (!appState.seriesMatchesCache) appState.seriesMatchesCache = {};
+        if (!appState.seriesMatchesCache[leagueId]) {
+            try {
+                const resp = await fetch(`/api/series/${leagueId}/matches`);
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data.matches && data.matches.length > 0) {
+                        appState.seriesMatchesCache[leagueId] = data.matches;
+                        renderMatchList();
+                    }
+                }
+            } catch(e) {
+                console.warn("Failed to fetch series matches:", e);
+            }
+        }
+    }
 }
 
 function clearSeriesFilter() {
     appState.selectedSeriesFilter = null;
+    appState.selectedSeriesLeagueId = null;
     renderMatchList();
 }
 
@@ -727,7 +933,7 @@ function renderSingleMatchCard(m) {
         <div onclick="selectMatch('${m.leagueId}', '${m.id}')" 
              class="match-card p-3 rounded-xl border border-slate-200 dark:border-gray-800 bg-white dark:bg-dark-800 cursor-pointer ${isActive ? 'active-match' : ''}">
             <div class="flex items-center justify-between gap-1.5 mb-1.5">
-                <div onclick="event.stopPropagation(); filterBySpecificSeries('${safeSeries}')" 
+                <div onclick="event.stopPropagation(); filterBySpecificSeries('${safeSeries}', '${m.leagueId || ''}')" 
                      class="flex items-center gap-1 truncate max-w-[190px] cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400 transition group/ser" 
                      title="View all ${seriesTitle} matches">
                     <span class="text-[10px] font-extrabold text-slate-600 dark:text-gray-300 group-hover/ser:text-emerald-600 dark:group-hover/ser:text-emerald-400 uppercase tracking-wider truncate group-hover/ser:underline">
@@ -856,52 +1062,29 @@ function renderMatchList() {
     if (appState.selectedSeriesFilter) {
         const sFilter = appState.selectedSeriesFilter.toLowerCase();
         
-        // Feed matches
-        const feedMatches = (appState.matches || []).filter(m => 
-            (m.leagueName && m.leagueName.toLowerCase().includes(sFilter)) ||
-            (m.description && m.description.toLowerCase().includes(sFilter)) ||
-            (m.name && m.name.toLowerCase().includes(sFilter))
-        );
+        // Retrieve full sequence of matches for this series (from API cache if available)
+        let seriesAllMatches = [];
+        if (appState.selectedSeriesLeagueId && appState.seriesMatchesCache && appState.seriesMatchesCache[appState.selectedSeriesLeagueId]) {
+            seriesAllMatches = appState.seriesMatchesCache[appState.selectedSeriesLeagueId];
+        } else {
+            seriesAllMatches = (appState.matches || []).filter(m => 
+                (m.leagueName && m.leagueName.toLowerCase().includes(sFilter)) ||
+                (m.description && m.description.toLowerCase().includes(sFilter)) ||
+                (m.name && m.name.toLowerCase().includes(sFilter))
+            );
+        }
 
-        // Matching tournament from appState.allSeriesData
-        const matchedSeries = (appState.allSeriesData || []).find(s => {
-            const sTitle = s.title.toLowerCase();
-            const keywords = (s.keywords || [sTitle]).map(k => k.toLowerCase());
-            return sTitle.includes(sFilter) || sFilter.includes(sTitle) || keywords.some(k => sFilter.includes(k) || k.includes(sFilter));
+        // Sort chronologically in A to Z sequence (earliest to latest)
+        seriesAllMatches = [...seriesAllMatches].sort((a, b) => {
+            const da = a.date ? new Date(a.date).getTime() : 0;
+            const db = b.date ? new Date(b.date).getTime() : 0;
+            return da - db;
         });
 
-        const liveFeed = feedMatches.filter(m => m.isLive);
-        const recentFeed = feedMatches.filter(m => !m.isLive && (m.isCompleted || (m.state && ['post', 'final', 'completed'].includes(m.state.toLowerCase()))));
-        const upcomingFeed = feedMatches.filter(m => !m.isLive && (m.isUpcoming || (m.state && ['pre', 'scheduled'].includes(m.state.toLowerCase()))));
-
-        let staticRecent = (matchedSeries && matchedSeries.fixtures && matchedSeries.fixtures.recent) ? matchedSeries.fixtures.recent : [];
-        let staticUpcoming = (matchedSeries && matchedSeries.fixtures && matchedSeries.fixtures.upcoming) ? matchedSeries.fixtures.upcoming : [];
-
-        // Dynamic tournament generator fallback if no static fixtures are registered for this series
-        if (recentFeed.length === 0 && staticRecent.length === 0 && feedMatches.length > 0) {
-            const m0 = feedMatches[0];
-            const t1 = m0.competitors?.[0]?.name || 'Team 1';
-            const t2 = m0.competitors?.[1]?.name || 'Team 2';
-            const loc = m0.location || 'Stadium';
-            staticRecent = [
-                { match: "Match 1 • " + loc, team1: t1, score1: "178/5 (20.0 ov)", team2: t2, score2: "142/8 (20.0 ov)", result: `${t1} won by 36 runs`, date: "Recent Match" },
-                { match: "Match 2 • " + loc, team1: t2, score1: "165/6 (20.0 ov)", team2: t1, score2: "166/5 (19.4 ov)", result: `${t1} won by 5 wkts`, date: "Recent Match" },
-                { match: "Match 3 • " + loc, team1: t1, score1: "152/7 (20.0 ov)", team2: t2, score2: "154/4 (18.3 ov)", result: `${t2} won by 6 wkts`, date: "Recent Match" }
-            ];
-        }
-
-        if (upcomingFeed.length === 0 && staticUpcoming.length === 0 && feedMatches.length > 0) {
-            const m0 = feedMatches[0];
-            const t1 = m0.competitors?.[0]?.name || 'Team 1';
-            const t2 = m0.competitors?.[1]?.name || 'Team 2';
-            const loc = m0.location || 'Stadium';
-            staticUpcoming = [
-                { match: "Match 6 • " + loc, team1: t1, team2: t2, date: "Tomorrow", time: "5:30 PM IST", venue: loc },
-                { match: "Final • " + loc, team1: t2, team2: "TBD", date: "Upcoming", time: "5:30 PM IST", venue: loc }
-            ];
-        }
-
-        const totalMatchesCount = liveFeed.length + recentFeed.length + upcomingFeed.length + staticRecent.length + staticUpcoming.length;
+        const liveFeed = seriesAllMatches.filter(m => m.isLive);
+        const recentFeed = seriesAllMatches.filter(m => !m.isLive && (m.isCompleted || (m.state && ['post', 'final', 'completed'].includes(m.state.toLowerCase()))));
+        const upcomingFeed = seriesAllMatches.filter(m => !m.isLive && (m.isUpcoming || (m.state && ['pre', 'scheduled'].includes(m.state.toLowerCase()))));
+        const totalMatchesCount = liveFeed.length + recentFeed.length + upcomingFeed.length;
 
         container.innerHTML = `
             <div class="w-full flex flex-col space-y-4">
@@ -947,39 +1130,13 @@ function renderMatchList() {
                             <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-500"></i>
                             Completed Matches (Results)
                         </span>
-                        <span class="text-[10px] font-mono text-slate-400">${recentFeed.length + staticRecent.length} Matches</span>
+                        <span class="text-[10px] font-mono text-slate-400">${recentFeed.length} Matches</span>
                     </div>
                     ${recentFeed.length > 0 ? `
-                        <div class="flex flex-col lg:flex-row space-y-2.5 lg:space-y-0 lg:space-x-3 overflow-x-hidden lg:overflow-x-auto pb-1.5">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
                             ${recentFeed.map(m => renderSingleMatchCard(m)).join('')}
                         </div>
-                    ` : ''}
-                    ${staticRecent.length > 0 ? `
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                            ${staticRecent.map(m => `
-                                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-dark-900/70 border border-slate-200 dark:border-gray-800 space-y-2">
-                                    <div class="flex justify-between text-[10px] text-slate-400 font-mono">
-                                        <span class="truncate">${m.match || ''}</span>
-                                        <span>${m.date || ''}</span>
-                                    </div>
-                                    <div class="space-y-1 text-xs">
-                                        <div class="flex justify-between font-bold text-slate-900 dark:text-white">
-                                            <span>${m.team1}</span>
-                                            <span class="font-mono text-emerald-600 dark:text-[#00ff88] font-black">${m.score1 || '-'}</span>
-                                        </div>
-                                        <div class="flex justify-between font-bold text-slate-900 dark:text-white">
-                                            <span>${m.team2}</span>
-                                            <span class="font-mono text-slate-600 dark:text-gray-300 font-semibold">${m.score2 || '-'}</span>
-                                        </div>
-                                    </div>
-                                    <div class="pt-1.5 border-t border-slate-200/60 dark:border-gray-800 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                                        <i data-lucide="check" class="w-3 h-3 text-emerald-500"></i>
-                                        <span>${m.result}</span>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : '<div class="text-slate-400 text-xs py-2 text-center">No completed matches found.</div>'}
+                    ` : '<div class="text-slate-400 text-xs py-3 text-center bg-slate-50 dark:bg-dark-900/50 rounded-xl border border-slate-200/60 dark:border-gray-800">No completed matches found for this series yet.</div>'}
                 </div>
 
                 <div class="space-y-2">
@@ -988,38 +1145,18 @@ function renderMatchList() {
                             <i data-lucide="calendar" class="w-3.5 h-3.5 text-blue-500"></i>
                             Upcoming Fixtures (Schedule)
                         </span>
-                        <span class="text-[10px] font-mono text-slate-400">${upcomingFeed.length + staticUpcoming.length} Matches</span>
+                        <span class="text-[10px] font-mono text-slate-400">${upcomingFeed.length} Matches</span>
                     </div>
                     ${upcomingFeed.length > 0 ? `
-                        <div class="flex flex-col lg:flex-row space-y-2.5 lg:space-y-0 lg:space-x-3 overflow-x-hidden lg:overflow-x-auto pb-1.5">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
                             ${upcomingFeed.map(m => renderSingleMatchCard(m)).join('')}
                         </div>
-                    ` : ''}
-                    ${staticUpcoming.length > 0 ? `
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                            ${staticUpcoming.map(m => `
-                                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-dark-900/70 border border-slate-200 dark:border-gray-800 space-y-2">
-                                    <div class="flex justify-between text-[10px] text-slate-400 font-mono">
-                                        <span class="truncate">${m.match || ''}</span>
-                                        <span class="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold">${m.time || 'Upcoming'}</span>
-                                    </div>
-                                    <div class="flex justify-between items-center py-1 text-xs font-black text-slate-900 dark:text-white">
-                                        <span class="truncate">${m.team1}</span>
-                                        <span class="text-[10px] text-slate-400 font-mono px-2">VS</span>
-                                        <span class="truncate">${m.team2}</span>
-                                    </div>
-                                    <div class="pt-1.5 border-t border-slate-200/60 dark:border-gray-800 text-[10px] text-slate-500 dark:text-gray-400 flex justify-between">
-                                        <span class="truncate flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3 text-slate-400"></i> ${m.venue || ''}</span>
-                                        <span class="font-mono font-bold">${m.date || ''}</span>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : '<div class="text-slate-400 text-xs py-2 text-center">No upcoming fixtures scheduled.</div>'}
+                    ` : '<div class="text-slate-400 text-xs py-3 text-center bg-slate-50 dark:bg-dark-900/50 rounded-xl border border-slate-200/60 dark:border-gray-800">No upcoming fixtures scheduled.</div>'}
                 </div>
             </div>
         `;
         safeCreateIcons();
+        startUpcomingCountdowns();
         return;
     }
 
@@ -3747,9 +3884,55 @@ function renderMatchInfoTab(data) {
 // Per-Series Tournament Points Table Engine
 // -------------------------------------------------------------
 
+function isBilateralSeries(matchData) {
+    if (!matchData) return false;
+    const leagueName = String(matchData.leagueName || '').toLowerCase();
+    const seriesTitle = String(matchData.seriesTitle || '').toLowerCase();
+    const desc = String(matchData.description || '').toLowerCase();
+    const name = String(matchData.name || '').toLowerCase();
+    const combined = `${leagueName} ${seriesTitle} ${desc} ${name}`.toLowerCase();
+
+    // Multi-team tournament indicators (if present, NOT bilateral)
+    const tournamentKeywords = [
+        'cup', 'trophy', 'tri-series', 'quadrangular', 'championship', 
+        'league', 'ipl', 'bbl', 'psl', 'cpl', 'hundred', 'vitality',
+        'shield', 'division', 'games', 'world cup', 'asia cup', 'tournament',
+        'provincial t20', 'csa domestic', 'president'
+    ];
+    for (const kw of tournamentKeywords) {
+        if (combined.includes(kw)) {
+            return false;
+        }
+    }
+
+    // Explicit bilateral indicators
+    if (combined.includes('tour of') || combined.includes(' in ') || combined.includes(' v ') || combined.includes(' vs ')) {
+        return true;
+    }
+
+    return false;
+}
+
 async function renderMatchPointsTableTab(matchData) {
     const container = document.getElementById('match-points-table-content');
     if (!container) return;
+
+    // Guard: Bilateral series do not have tournament points tables
+    if (isBilateralSeries(matchData)) {
+        container.innerHTML = `
+            <div class="hud-glass-panel rounded-2xl p-8 border border-slate-200/80 dark:border-gray-800 text-center space-y-3">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto">
+                    <i data-lucide="trophy" class="w-6 h-6"></i>
+                </div>
+                <h4 class="font-black text-slate-900 dark:text-white text-base">Points Table Not Applicable</h4>
+                <p class="text-xs text-slate-500 dark:text-gray-400 max-w-md mx-auto">
+                    This is a bilateral series between two teams. Points tables are only maintained for multi-team tournaments (3 or more teams).
+                </p>
+            </div>
+        `;
+        safeCreateIcons();
+        return;
+    }
 
     const leagueName = String(matchData.leagueName || matchData.description || matchData.seriesTitle || '').toLowerCase();
     const c1Name = String((matchData.competitors && matchData.competitors[0]?.name) || '').toLowerCase();
@@ -3792,23 +3975,25 @@ async function renderMatchPointsTableTab(matchData) {
 
     const seriesList = appState.seriesData || [];
 
-    // Match series against keywords, title, leagueName, or team names
+    // Match series against title or keywords ONLY (Do NOT match on single team names)
     let matchedSeries = seriesList.find(s => {
         if (!s.standings || s.standings.length === 0) return false;
-        const keywords = s.keywords || [s.title.toLowerCase()];
+        const sTitle = (s.title || '').toLowerCase();
+        if (leagueName && (leagueName.includes(sTitle) || sTitle.includes(leagueName))) return true;
+        const keywords = s.keywords || [sTitle];
         return keywords.some(kw => {
             const lk = kw.toLowerCase();
-            return leagueName.includes(lk) || lk.includes(leagueName) || 
-                   (c1Name && lk.includes(c1Name)) || (c2Name && lk.includes(c2Name));
+            return leagueName.includes(lk) || lk.includes(leagueName);
         });
     });
 
-    if (!matchedSeries) {
+    if (!matchedSeries && c1Name && c2Name) {
+        // Fallback: match ONLY if BOTH competitors are present in the same standings table
         matchedSeries = seriesList.find(s => {
             if (!s.standings || s.standings.length === 0) return false;
             const allTeams = (s.standings || []).map(t => String(t.team || '').toLowerCase());
-            return allTeams.some(t => t.includes(c1Name) || (c1Name && c1Name.includes(t))) &&
-                   allTeams.some(t => t.includes(c2Name) || (c2Name && c2Name.includes(t)));
+            return allTeams.some(t => t.includes(c1Name) || c1Name.includes(t)) &&
+                   allTeams.some(t => t.includes(c2Name) || c2Name.includes(t));
         });
     }
 
@@ -4277,6 +4462,10 @@ document.addEventListener('keydown', (e) => {
 // -------------------------------------------------------------
 
 function switchPlatformView(viewName) {
+    if (viewName === 'rankings') {
+        window.open('https://www.espncricinfo.com/rankings/content/page/211271.html', '_blank');
+        return;
+    }
     appState.activePlatformView = viewName;
 
     // Toggle platform view containers

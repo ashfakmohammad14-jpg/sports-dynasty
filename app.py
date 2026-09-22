@@ -359,14 +359,10 @@ async def serve_teams_hub(request: Request):
         "/teams"
     )
 
-@app.get("/rankings", response_class=HTMLResponse)
-async def serve_rankings_hub(request: Request):
-    return render_hub_page(
-        "rankings",
-        "Official ICC Cricket Rankings 2026 - Teams, Batters & Bowlers | Sports Dynasty",
-        "Latest official ICC Rankings for Test, ODI, and T20I cricket. Check top ranked teams, batters, bowlers, and all-rounders.",
-        "/rankings"
-    )
+@app.get("/rankings")
+async def serve_rankings_redirect():
+    """Redirect directly to official ESPN Cricinfo ICC rankings page."""
+    return RedirectResponse(url="https://www.espncricinfo.com/rankings/content/page/211271.html", status_code=302)
 
 def render_legal_document(title: str, description: str, path: str, doc_title: str, doc_body: str) -> HTMLResponse:
     canonical_url = f"https://sportsdynasty.in{path}"
@@ -750,6 +746,17 @@ async def get_series():
         return JSONResponse(content={"series": data, "standings": data})
     except Exception as e:
         return JSONResponse(content={"series": [], "standings": []})
+
+@app.get("/api/series/{series_id}/matches")
+async def get_series_matches(series_id: str):
+    """Return all matches for a specific series/league in chronological sequence."""
+    try:
+        matches = espn_service._fetch_series_matches(series_id)
+        # Sort chronologically by match date (earliest to latest)
+        matches_sorted = sorted(matches, key=lambda m: m.get("date") or "")
+        return JSONResponse(content={"matches": matches_sorted, "total": len(matches_sorted)})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e), "matches": []})
 
 @app.get("/api/health")
 async def health_check():

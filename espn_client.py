@@ -180,9 +180,19 @@ def compute_lead_trail_summary(
             max_overs = 20
             tot1_str = str(inn1.get("total", "")).lower()
             tot2_str = str(inn2.get("total", "")).lower()
-            all_text_format = f"{clean_raw} {clean_detail} {tot1_str} {tot2_str}".lower()
+            c1_sc = competitors[0].get("score", "").lower() if (competitors and len(competitors) > 0) else ""
+            c2_sc = competitors[1].get("score", "").lower() if (competitors and len(competitors) > 1) else ""
+            all_text_format = f"{clean_raw} {clean_detail} {tot1_str} {tot2_str} {c1_sc} {c2_sc}".lower()
             
-            if "t10" in all_text_format or "/10 ov" in all_text_format:
+            red_m = re.search(r'(?:reduced\s+to|\/)\s*(\d+(?:\.\d+)?)\s*(?:overs|ov)', all_text_format)
+            if red_m:
+                try:
+                    ov_val = float(red_m.group(1))
+                    if 0 < ov_val <= 50:
+                        max_overs = ov_val
+                except Exception:
+                    pass
+            elif "t10" in all_text_format or "/10 ov" in all_text_format:
                 max_overs = 10
             elif "odi" in all_text_format or "50 over" in all_text_format or "/50" in all_text_format:
                 max_overs = 50
@@ -192,6 +202,8 @@ def compute_lead_trail_summary(
                 ov1_m = re.search(r'\((\d+(?:\.\d+)?)\s*ov', tot1_str)
                 if ov1_m and float(ov1_m.group(1)) > 20:
                     max_overs = 50
+                elif ov1_m and float(ov1_m.group(1)) < 20 and int(w1 or 0) < 10:
+                    max_overs = float(ov1_m.group(1))
                 else:
                     max_overs = 20
 
@@ -1325,7 +1337,7 @@ class ESPNClient:
                 if not c_logo and c_id:
                     c_logo = f"https://a.espncdn.com/i/teamlogos/cricket/500/{c_id}.png"
                 c_home_away = comp.get("homeAway", "neutral")
-                c_winner = comp.get("winner", False)
+                c_winner = bool(comp.get("winner") is True or str(comp.get("winner", "")).lower() == "true")
                 c_order = comp.get("order", 1)
 
                 competitors.append({
@@ -1580,7 +1592,7 @@ class ESPNClient:
                 "score": normalize_competitor_score_from_raw(c),
                 "logo": logo_url,
                 "order": c.get("order", 1),
-                "isWinner": c.get("winner", False),
+                "isWinner": bool(c.get("winner") is True or str(c.get("winner", "")).lower() == "true"),
                 "homeAway": c.get("homeAway", "neutral")
             })
 
@@ -1972,7 +1984,7 @@ class ESPNClient:
             (header.get("description") and any(k in header.get("description", "").lower() for k in ["test", "4-day", "5-day", "championship", "shield", "ranji", "trophy"]))
         )
         
-        all_notes_list = [str(n.get("text", "") if isinstance(n, dict) else str(n)) for n in header.get("notes", [])] + [str(n.get("text", "") if isinstance(n, dict) else str(n)) for n in notes_raw]
+        all_notes_list = [str(n.get("text", "") if isinstance(n, dict) else str(n)) for n in (competitions.get("notes", []) or []) + (header.get("notes", []) or []) + (notes_raw or [])]
         active_score_for_session = ""
 
         # Priority 1: latest innings from innings_data (has full overs e.g. "296-6 (69 Overs)")
@@ -2307,20 +2319,41 @@ class ESPNClient:
                     "performance": " • ".join(perf_list)
                 }))
 
+            if not player_of_the_match and ranked:
+                ranked.sort(key=lambda x: x[0], reverse=True)
+                player_of_the_match = ranked[0][1]
+
         # Extract Toss info from notes or lead_summary
         toss_info = ""
-        for note in all_notes_list:
+        toss_candidates = (competitions.get("notes", []) or []) + (header.get("notes", []) or []) + (notes_raw or [])
+        for note in toss_candidates:
             note_txt = note.get("text", "") if isinstance(note, dict) else str(note)
             note_type = note.get("type", "") if isinstance(note, dict) else ""
-            if note_type == "toss" or "won the toss" in note_txt.lower() or "opted to" in note_txt.lower():
+            if note_type == "toss" or any(k in note_txt.lower() for k in ["won the toss", "opted to", "elected to", "toss:"]):
                 toss_info = note_txt
                 break
-        if not toss_info and lead_summary and ("toss" in lead_summary.lower() or "batted" in lead_summary.lower() or "fielded" in lead_summary.lower()):
+        if not toss_info and lead_summary and any(k in lead_summary.lower() for k in ["won the toss", "elected to", "opted to", "toss:"]):
             toss_info = lead_summary
+        if toss_info:
+            toss_info = re.sub(r'\s+,', ',', toss_info).strip()
+
+        series_title = header.get("season", {}).get("displayName") or header.get("series", {}).get("name") or ""
+        if not series_title:
+            desc_val = header.get("description", "")
+            tour_m = re.search(r'([A-Za-z\s]+?\btour\s+of\s+[A-Za-z]+)(?:\s+at\b|\,|$)', desc_val, re.I)
+            if tour_m:
+                series_title = tour_m.group(1).strip()
+                yr_m = re.search(r'20\d\d', desc_val)
+                if yr_m:
+                    series_title += f", {yr_m.group(0)}"
+            else:
+                series_title = header.get("name", "Cricket Series")
 
         result = {
             "matchId": event_id,
             "leagueId": league_id,
+            "leagueName": series_title,
+            "seriesName": series_title,
             "title": header.get("name", "Cricket Match"),
             "shortName": header.get("shortName", ""),
             "description": header.get("description", ""),
@@ -2359,7 +2392,7 @@ class ESPNClient:
                 result["liveCrease"]["recentOvers"] = recent_overs
             result["recentOvers"] = recent_overs
 
-        # Final safety verification: ensure all innings have accurate extras
+        # Final safety verification: ensure all innings have accurate extras, runs, wickets, and overs
         for inn in innings_data.values():
             cur_ext = str(inn.get("extras", "")).strip()
             if cur_ext.startswith("("):
@@ -2377,6 +2410,22 @@ class ESPNClient:
                     tot_n = int(m_tot.group(1))
                     if tot_n > b_sum:
                         inn["extras"] = str(tot_n - b_sum)
+
+            tot_str = str(inn.get("total", ""))
+            if inn.get("wickets") is None or not str(inn.get("wickets", "")).strip():
+                wm = re.search(r'/\s*(\d+)', tot_str)
+                if wm:
+                    inn["wickets"] = wm.group(1)
+                elif inn.get("fow"):
+                    inn["wickets"] = str(len(inn["fow"]))
+            if inn.get("overs") is None or not str(inn.get("overs", "")).strip():
+                om = re.search(r'\((\d+(?:\.\d+)?)\s*ov', tot_str, re.I)
+                if om:
+                    inn["overs"] = om.group(1)
+            if inn.get("runs") is None or not str(inn.get("runs", "")).strip():
+                rm = re.search(r'^(\d+)', tot_str)
+                if rm:
+                    inn["runs"] = rm.group(1)
 
         result["winProbability"] = compute_win_probability(result)
 
@@ -2711,6 +2760,7 @@ class ESPNClient:
                         tot_wkts = str(w_ls)
                     if ov_ls is not None:
                         ov_s = str(ov_ls)[:-2] if str(ov_ls).endswith('.0') else str(ov_ls)
+                        ov_str = ov_s
                         total_formatted = f"{tot_runs}/{tot_wkts} ({ov_s} ov)"
                 else:
                     c_sc = comp_for_inn.get("score", "")
@@ -2849,6 +2899,8 @@ class ESPNClient:
                 "inningsNumber": inn_num,
                 "teamName": team_name,
                 "runs": tot_runs,
+                "wickets": str(tot_wkts) if tot_wkts is not None else str(len(fow)),
+                "overs": str(ov_str) if ov_str is not None else "",
                 "extras": extras_str,
                 "total": total_formatted,
                 "batting": batting_list,

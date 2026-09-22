@@ -700,14 +700,23 @@ function renderSingleMatchCard(m) {
         if (r1M && r2M && ov2M) {
             const r1 = parseInt(r1M[1], 10);
             const r2 = parseInt(r2M[1], 10);
-            const target = r1 + 1;
+            const targetM = (s2 + ' ' + (m.leadSummary || '') + ' ' + (m.statusDetail || '')).match(/target\s*(\d+)/i);
+            const target = targetM ? parseInt(targetM[1], 10) : (r1 + 1);
             const runsNeed = target - r2;
             const ov2Val = parseFloat(ov2M[1]);
             const fullOv = Math.floor(ov2Val);
             const remBalls = Math.round((ov2Val - fullOv) * 10);
             const ballsBowled = fullOv * 6 + remBalls;
-            const maxOvers = (s1.includes('/50') || s2.includes('/50') || (m.description && /odi|50/i.test(m.description))) ? 50 : 20;
-            const ballsLeft = Math.max(0, maxOvers * 6 - ballsBowled);
+            let maxOvers = 20;
+            const redM = (s1 + ' ' + s2 + ' ' + (m.leadSummary || '') + ' ' + (m.statusDetail || '')).match(/(?:reduced\s+to|\/)\s*(\d+(?:\.\d+)?)\s*(?:overs|ov)/i);
+            if (redM) {
+                maxOvers = parseFloat(redM[1]);
+            } else if (s1.includes('/50') || s2.includes('/50') || (m.description && /odi|50/i.test(m.description))) {
+                maxOvers = 50;
+            } else if (s1.includes('/20') || s2.includes('/20') || (m.description && /t20|20/i.test(m.description))) {
+                maxOvers = 20;
+            }
+            const ballsLeft = Math.max(0, Math.round(maxOvers * 6) - ballsBowled);
             if (runsNeed > 0 && ballsLeft > 0) {
                 cardRRR = (runsNeed / (ballsLeft / 6.0)).toFixed(2);
             }
@@ -1489,14 +1498,23 @@ function renderHeroBanner(data) {
             if (r1M && r2M && ov2M) {
                 const r1 = parseInt(r1M[1], 10);
                 const r2 = parseInt(r2M[1], 10);
-                const target = r1 + 1;
+                const targetM = (s2 + ' ' + (data.leadSummary || '') + ' ' + (data.statusDetail || '')).match(/target\s*(\d+)/i);
+                const target = targetM ? parseInt(targetM[1], 10) : (r1 + 1);
                 const runsNeed = target - r2;
                 const ov2Val = parseFloat(ov2M[1]);
                 const fullOv = Math.floor(ov2Val);
                 const remBalls = Math.round((ov2Val - fullOv) * 10);
                 const ballsBowled = fullOv * 6 + remBalls;
-                const maxOvers = (s1.includes('/50') || s2.includes('/50') || (data.description && /odi|50/i.test(data.description))) ? 50 : 20;
-                const ballsLeft = Math.max(0, maxOvers * 6 - ballsBowled);
+                let maxOvers = 20;
+                const redM = (s1 + ' ' + s2 + ' ' + (data.leadSummary || '') + ' ' + (data.statusDetail || '')).match(/(?:reduced\s+to|\/)\s*(\d+(?:\.\d+)?)\s*(?:overs|ov)/i);
+                if (redM) {
+                    maxOvers = parseFloat(redM[1]);
+                } else if (s1.includes('/50') || s2.includes('/50') || (data.description && /odi|50/i.test(data.description))) {
+                    maxOvers = 50;
+                } else if (s1.includes('/20') || s2.includes('/20') || (data.description && /t20|20/i.test(data.description))) {
+                    maxOvers = 20;
+                }
+                const ballsLeft = Math.max(0, Math.round(maxOvers * 6) - ballsBowled);
                 if (runsNeed > 0 && ballsLeft > 0) {
                     liveRRR = (runsNeed / (ballsLeft / 6.0)).toFixed(2);
                 }

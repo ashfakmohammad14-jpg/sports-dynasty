@@ -106,10 +106,19 @@ def compute_lead_trail_summary(
             return False
         clean_i = re.sub(r'[^a-z0-9]', '', inn_team.lower())
         clean_r = re.sub(r'[^a-z0-9]', '', ref_team.lower())
-        if clean_i == clean_r or clean_i in clean_r or clean_r in clean_i:
+        if clean_i == clean_r:
+            return True
+        if len(clean_i) > 4 and len(clean_r) > 4 and (clean_i in clean_r or clean_r in clean_i):
             return True
         aliases = get_team_aliases(ref_team)
-        return any(a in clean_i or clean_i in a for a in aliases)
+        tokens = set(re.split(r'[^a-z0-9]+', inn_team.lower()))
+        for a in aliases:
+            a_clean = re.sub(r'[^a-z0-9]', '', a.lower())
+            if a_clean == clean_i or a in tokens or re.search(rf'\b{re.escape(a)}\b', inn_team.lower()):
+                return True
+            if len(a_clean) > 4 and a_clean in clean_i:
+                return True
+        return False
 
     # 4th Innings: Final Chase -> ALWAYS A TARGET CHASE (Never say "trail by")
     if inn_count >= 4 and inn4:
@@ -619,13 +628,26 @@ def compute_team_multiscore(team_name: str, innings_data: Dict[str, Any], raw_c_
     
     for k in sorted(innings_data.keys(), key=lambda x: int(x) if x.isdigit() else 99):
         inn = innings_data[k]
-        inn_team = inn.get("teamName", "").lower()
+        inn_team = str(inn.get("teamName", inn.get("team", ""))).lower().strip()
         inn_team_clean = re.sub(r'[^a-z0-9]', '', inn_team)
-        
-        is_match = any(
-            (alias in inn_team) or (alias in inn_team_clean) or (re.search(rf'\b{re.escape(alias)}\b', inn_team))
-            for alias in aliases
-        )
+        tokens = set(re.split(r'[^a-z0-9]+', inn_team))
+
+        def _match_alias(alias: str) -> bool:
+            a = alias.lower().strip()
+            if not a:
+                return False
+            # Exact match on full name / normalized name
+            if a == inn_team or a == inn_team_clean:
+                return True
+            # Word boundary / token match
+            if a in tokens or re.search(rf'\b{re.escape(a)}\b', inn_team):
+                return True
+            # Substring match ONLY for long multi-word or long unique names (> 4 chars)
+            if len(a) > 4 and (a in inn_team or a in inn_team_clean):
+                return True
+            return False
+
+        is_match = any(_match_alias(alias) for alias in aliases)
         if is_match:
             team_inns.append((k, inn))
             
@@ -2210,13 +2232,15 @@ class ESPNClient:
             winner_c = next((c for c in competitors if c.get("isWinner")), None)
 
             def find_comp_for_team(t_str):
-                t_str_clean = re.sub(r'[^a-z0-9]', '', str(t_str).lower())
+                t_str_lower = str(t_str).lower().strip()
+                t_str_clean = re.sub(r'[^a-z0-9]', '', t_str_lower)
+                tokens = set(re.split(r'[^a-z0-9]+', t_str_lower))
                 for c in competitors:
                     cn = re.sub(r'[^a-z0-9]', '', c.get("name", "").lower())
-                    ca = re.sub(r'[^a-z0-9]', '', c.get("abbr", "").lower())
-                    if cn and (cn in t_str_clean or t_str_clean in cn):
+                    ca = str(c.get("abbr", "")).lower().strip()
+                    if cn and (cn == t_str_clean or (len(cn) > 4 and cn in t_str_clean)):
                         return c
-                    if ca and len(ca) >= 2 and (ca in t_str_clean or t_str_clean.startswith(ca)):
+                    if ca and (ca in tokens or ca == t_str_clean):
                         return c
                 return None
 

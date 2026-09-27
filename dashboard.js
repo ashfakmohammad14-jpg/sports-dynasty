@@ -526,14 +526,69 @@ function renderTeamLogo(name, logoUrl, customClass = 'w-5 h-5') {
     `;
 }
 
+function matchTeamNameOrAbbr(teamName, teamAbbr, targetTeam) {
+    if (!targetTeam) return false;
+    const target = String(targetTeam).toLowerCase().trim();
+    const tClean = target.replace(/[^a-z0-9]/g, '');
+    const tTokens = new Set(target.split(/[^a-z0-9]+/).filter(Boolean));
+
+    const name = String(teamName || '').toLowerCase().trim();
+    const nClean = name.replace(/[^a-z0-9]/g, '');
+    const abbr = String(teamAbbr || '').toLowerCase().trim();
+
+    // 1. Exact match on normalized full name
+    if (nClean && tClean && (nClean === tClean)) return true;
+
+    // 2. Exact match on abbreviation token
+    if (abbr && tTokens.has(abbr)) return true;
+
+    // 3. Exact word boundary match for full team name
+    if (name && (new RegExp('\\b' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(target))) return true;
+
+    // 4. Significant tokens match (> 3 characters)
+    const nTokens = name.split(/[^a-z0-9]+/).filter(w => w.length > 3 && !['team', 'men', 'women', 'under', 'cricket'].includes(w));
+    if (nTokens.length > 0 && nTokens.every(tok => tTokens.has(tok))) return true;
+
+    return false;
+}
+
+function isBilateralSeries(matchData) {
+    if (!matchData) return false;
+    const leagueName = String(matchData.leagueName || '').toLowerCase();
+    const seriesTitle = String(matchData.seriesTitle || '').toLowerCase();
+    const desc = String(matchData.description || '').toLowerCase();
+    const name = String(matchData.name || '').toLowerCase();
+    const combined = `${leagueName} ${seriesTitle} ${desc} ${name}`.toLowerCase();
+
+    // Multi-team tournament indicators (if present, NOT bilateral)
+    const tournamentKeywords = [
+        'cup', 'trophy', 'tri-series', 'quadrangular', 'championship', 
+        'league', 'ipl', 'bbl', 'psl', 'cpl', 'hundred', 'vitality',
+        'shield', 'division', 'games', 'world cup', 'asia cup', 'tournament',
+        'provincial t20', 'csa domestic', 'president'
+    ];
+    for (const kw of tournamentKeywords) {
+        if (combined.includes(kw)) {
+            return false;
+        }
+    }
+
+    // Explicit bilateral indicators
+    if (combined.includes('tour of') || combined.includes(' in ') || combined.includes(' v ') || combined.includes(' vs ')) {
+        return true;
+    }
+
+    return false;
+}
+
 function isTeamCurrentlyBatting(competitor, data) {
     if (!competitor) return false;
     const isLive = Boolean(data.state && (data.state.toLowerCase() === 'in' || data.state.toLowerCase() === 'live'));
     if (!isLive) return false;
 
     const s = String(competitor.score || '').toLowerCase();
-    const compName = (competitor.name || '').toLowerCase();
-    const compAbbr = (competitor.abbr || '').toLowerCase();
+    const compName = competitor.name || '';
+    const compAbbr = competitor.abbr || '';
 
     // 1. If this competitor is chasing a target, they are batting in the 2nd Innings
     if (s.includes('target') || s.includes('need')) {
@@ -542,9 +597,8 @@ function isTeamCurrentlyBatting(competitor, data) {
 
     // 2. Check currentInnings object from summary API
     if (data.currentInnings && data.currentInnings.teamName) {
-        const innTeam = data.currentInnings.teamName.toLowerCase();
-        if (compAbbr && innTeam.includes(compAbbr)) return true;
-        if (compName && (innTeam.includes(compName.split(' ')[0]) || compName.includes(innTeam.split(' ')[0]))) return true;
+        const innTeam = data.currentInnings.teamName;
+        if (matchTeamNameOrAbbr(compName, compAbbr, innTeam)) return true;
         const innNum = String(data.currentInnings.inningsNumber || '');
         if (innNum === '2' && competitor.order === 2) return true;
         if (innNum === '1' && competitor.order === 1) return true;
@@ -566,9 +620,8 @@ function isTeamCurrentlyBatting(competitor, data) {
             const latestKey = String(Math.max(...intKeys));
             const latestInn = data.innings[latestKey];
             if (latestInn && latestInn.teamName) {
-                const innTeam = latestInn.teamName.toLowerCase();
-                if (compAbbr && innTeam.includes(compAbbr)) return true;
-                if (compName && (innTeam.includes(compName.split(' ')[0]) || compName.includes(innTeam.split(' ')[0]))) return true;
+                const innTeam = latestInn.teamName;
+                if (matchTeamNameOrAbbr(compName, compAbbr, innTeam)) return true;
                 if (latestKey === '2' && competitor.order === 2) return true;
                 if (latestKey === '1' && competitor.order === 1) return true;
             }
@@ -944,12 +997,14 @@ function renderSingleMatchCard(m) {
                 </div>
                 
                 <div class="flex items-center gap-1.5 shrink-0">
+                    ${!isBilateralSeries(m) ? `
                     <button onclick="event.stopPropagation(); viewMatchPointsTable('${m.leagueId}', '${m.id}')" 
                             class="card-points-btn flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 text-[9.5px] font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-2xs"
                             title="View Tournament Points Table">
                         <i data-lucide="trophy" class="w-3 h-3 text-amber-500"></i>
                         <span>Points Table</span>
                     </button>
+                    ` : ''}
                     <span class="text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase shrink-0 ${statusClass}">
                         ${displayStatus}
                     </span>
@@ -1476,17 +1531,15 @@ function renderCompactWinProbBadge(winProb, c1, c2, isTestMatch) {
 
 function resolveTeamScoreFromInnings(competitor, innings) {
     if (!competitor || !innings) return '';
-    const compName = String(competitor.name || '').toLowerCase();
-    const compAbbr = String(competitor.abbr || '').toLowerCase();
+    const compName = competitor.name || '';
+    const compAbbr = competitor.abbr || '';
     const parts = [];
     const intKeys = Object.keys(innings).filter(k => /^\d+$/.test(k)).map(Number).sort((a, b) => a - b);
     for (const k of intKeys) {
         const inn = innings[String(k)];
         if (!inn) continue;
-        const innTeam = String(inn.teamName || inn.team || '').toLowerCase();
-        const isMatch = (compAbbr && innTeam.includes(compAbbr)) ||
-                        (compName && (innTeam.includes(compName.split(' ')[0]) || compName.includes(innTeam.split(' ')[0])));
-        if (isMatch) {
+        const innTeam = inn.teamName || inn.team || '';
+        if (matchTeamNameOrAbbr(compName, compAbbr, innTeam)) {
             const tot = String(inn.total || inn.runs || '').trim();
             if (tot && tot !== '-') {
                 parts.push(tot);
@@ -1526,6 +1579,19 @@ function renderHeroBanner(data) {
         }
         if ((!c2Score || c2Score === '-') && data.innings) {
             c2Score = resolveTeamScoreFromInnings(c2, data.innings) || c2Score;
+        }
+
+        // Hide Points Table tab for bilateral series (multi-team tournaments only)
+        const standingsTabBtn = document.querySelector('.cricinfo-tab[data-tab="standings"], .main-tab-btn[data-tab="standings"]');
+        if (standingsTabBtn) {
+            if (isBilateralSeries(data)) {
+                standingsTabBtn.classList.add('hidden');
+                if (appState.activeTab === 'standings') {
+                    switchMainTab('live');
+                }
+            } else {
+                standingsTabBtn.classList.remove('hidden');
+            }
         }
 
         let matchDate = data.date;
@@ -3884,34 +3950,6 @@ function renderMatchInfoTab(data) {
 // Per-Series Tournament Points Table Engine
 // -------------------------------------------------------------
 
-function isBilateralSeries(matchData) {
-    if (!matchData) return false;
-    const leagueName = String(matchData.leagueName || '').toLowerCase();
-    const seriesTitle = String(matchData.seriesTitle || '').toLowerCase();
-    const desc = String(matchData.description || '').toLowerCase();
-    const name = String(matchData.name || '').toLowerCase();
-    const combined = `${leagueName} ${seriesTitle} ${desc} ${name}`.toLowerCase();
-
-    // Multi-team tournament indicators (if present, NOT bilateral)
-    const tournamentKeywords = [
-        'cup', 'trophy', 'tri-series', 'quadrangular', 'championship', 
-        'league', 'ipl', 'bbl', 'psl', 'cpl', 'hundred', 'vitality',
-        'shield', 'division', 'games', 'world cup', 'asia cup', 'tournament',
-        'provincial t20', 'csa domestic', 'president'
-    ];
-    for (const kw of tournamentKeywords) {
-        if (combined.includes(kw)) {
-            return false;
-        }
-    }
-
-    // Explicit bilateral indicators
-    if (combined.includes('tour of') || combined.includes(' in ') || combined.includes(' v ') || combined.includes(' vs ')) {
-        return true;
-    }
-
-    return false;
-}
 
 async function renderMatchPointsTableTab(matchData) {
     const container = document.getElementById('match-points-table-content');

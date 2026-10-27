@@ -528,25 +528,36 @@ function renderTeamLogo(name, logoUrl, customClass = 'w-5 h-5') {
 
 function matchTeamNameOrAbbr(teamName, teamAbbr, targetTeam) {
     if (!targetTeam) return false;
+    const cleanTarget = String(targetTeam).replace(/\s*\([^)]*\)/g, '').toLowerCase().trim();
     const target = String(targetTeam).toLowerCase().trim();
     const tClean = target.replace(/[^a-z0-9]/g, '');
+    const tCleanNoParen = cleanTarget.replace(/[^a-z0-9]/g, '');
     const tTokens = new Set(target.split(/[^a-z0-9]+/).filter(Boolean));
 
+    const cleanName = String(teamName || '').replace(/\s*\([^)]*\)/g, '').toLowerCase().trim();
     const name = String(teamName || '').toLowerCase().trim();
     const nClean = name.replace(/[^a-z0-9]/g, '');
+    const nCleanNoParen = cleanName.replace(/[^a-z0-9]/g, '');
     const abbr = String(teamAbbr || '').toLowerCase().trim();
 
     // 1. Exact match on normalized full name
     if (nClean && tClean && (nClean === tClean)) return true;
+    if (nCleanNoParen && tCleanNoParen && (nCleanNoParen === tCleanNoParen)) return true;
 
     // 2. Exact match on abbreviation token
-    if (abbr && tTokens.has(abbr)) return true;
+    const STOP_WORDS_SET = new Set([
+        'team', 'club', 'cricket', 'mens', 'womens', 'men', 'women', 'under', 'zone',
+        'npl', 'ipl', 'bbl', 'psl', 'cpl', 'bpl', 'csa', 't20', 'odi', 'test', 'cup',
+        'kings', 'royals', 'warriors', 'titans', 'stars', 'lions', 'riders', 'super', 'knights',
+        'challengers', 'sixers', 'strikers'
+    ]);
+    if (abbr && !STOP_WORDS_SET.has(abbr) && tTokens.has(abbr)) return true;
 
     // 3. Exact word boundary match for full team name
-    if (name && (new RegExp('\\b' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(target))) return true;
+    if (cleanName && cleanName.length >= 4 && (new RegExp('\\b' + cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(target))) return true;
 
-    // 4. Significant tokens match (> 3 characters)
-    const nTokens = name.split(/[^a-z0-9]+/).filter(w => w.length > 3 && !['team', 'men', 'women', 'under', 'cricket'].includes(w));
+    // 4. Significant tokens match (> 3 characters, excluding stop words and generic nicknames)
+    const nTokens = cleanName.split(/[^a-z0-9]+/).filter(w => w.length > 3 && !STOP_WORDS_SET.has(w));
     if (nTokens.length > 0 && nTokens.every(tok => tTokens.has(tok))) return true;
 
     return false;

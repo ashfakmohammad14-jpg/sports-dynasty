@@ -38,6 +38,140 @@ def parse_runs_and_wickets(inn_dict: Dict[str, Any]) -> tuple[int, int]:
             w = int(w_m.group(1))
     return runs, w
 
+
+STOP_WORDS = {
+    "zone", "team", "club", "cricket", "mens", "womens", "men", "women", "xi", "the", "and",
+    "npl", "ipl", "bbl", "psl", "cpl", "bpl", "csa", "t20", "odi", "test", "fc", "cup",
+    "trophy", "league", "premier", "tour", "series", "division", "shield", "championship",
+    "international", "national", "state", "u19", "under19", "under", "youth"
+}
+
+GENERIC_NICKNAMES = {
+    "kings", "royals", "warriors", "titans", "stars", "lions", "riders", "super", "giants",
+    "knights", "challengers", "sixers", "strikers", "sunrisers", "capitals", "heat", "scorchers"
+}
+
+TEAM_ALIAS_MAP: Dict[str, List[str]] = {
+    # Duleep Trophy / Indian Domestic Zones
+    "north east zone": ["north east zone", "nezone", "north-east-zone", "northeast-zone", "north-east", "northeast", "ne"],
+    "north zone": ["north zone", "nzone", "north-zone", "north"],
+    "south zone": ["south zone", "szone", "south-zone", "south"],
+    "east zone": ["east zone", "ezone", "east-zone", "east"],
+    "west zone": ["west zone", "wzone", "west-zone", "west"],
+    "central zone": ["central zone", "czone", "central-zone", "central"],
+    # County
+    "middlesex": ["middlesex", "mdx", "midd"],
+    "northamptonshire": ["northamptonshire", "nhnts", "northants", "nhts"],
+    "warwickshire": ["warwickshire", "warks", "warw"],
+    "nottinghamshire": ["nottinghamshire", "notts", "nott"],
+    "gloucestershire": ["gloucestershire", "gloucs", "glouc", "glou"],
+    "worcestershire": ["worcestershire", "worcs", "worc", "wor"],
+    "derbyshire": ["derbyshire", "derby", "derb"],
+    "yorkshire": ["yorkshire", "yorks", "york"],
+    "hampshire": ["hampshire", "hants", "ham"],
+    "somerset": ["somerset", "som"],
+    "essex": ["essex", "ess"],
+    "sussex": ["sussex", "sus"],
+    "lancashire": ["lancashire", "lancs", "lanc"],
+    "leicestershire": ["leicestershire", "leic"],
+    "glamorgan": ["glamorgan", "glam"],
+    "durham": ["durham", "dur"],
+    "surrey": ["surrey", "sur"],
+    "kent": ["kent"],
+    "india": ["india", "ind"],
+    "pakistan": ["pakistan", "pak"],
+    "australia": ["australia", "aus"],
+    "england": ["england", "eng"],
+    "bangladesh": ["bangladesh", "ban"],
+    "sri lanka": ["sri lanka", "sl", "srilanka"],
+    "south africa": ["south africa", "rsa", "sa"],
+    "new zealand": ["new zealand", "nz"],
+    "west indies": ["west indies", "wi"],
+    "afghanistan": ["afghanistan", "afg"],
+    "zimbabwe": ["zimbabwe", "zim"],
+    "ireland": ["ireland", "ire"],
+    "scotland": ["scotland", "sco"],
+    "netherlands": ["netherlands", "ned"],
+}
+
+def clean_team_core(name: str):
+    n = re.sub(r'\s*\([^)]*\)', '', str(name or '')).lower().strip()
+    tokens = [w for w in re.split(r'[^a-z0-9]+', n) if w]
+    core = [w for w in tokens if w not in STOP_WORDS and w not in GENERIC_NICKNAMES]
+    return n, tokens, core
+
+def get_team_aliases(team_name: str, abbr: str = "") -> List[str]:
+    name_clean = re.sub(r'\s*\([^)]*\)', '', str(team_name or '')).strip()
+    t_clean = re.sub(r'[^a-z0-9\s]', '', name_clean.lower()).strip()
+    raw_clean = re.sub(r'[^a-z0-9\s]', '', str(team_name).lower()).strip()
+    aliases = [t_clean, raw_clean]
+    if abbr:
+        ab_c = re.sub(r'[^a-z0-9]', '', str(abbr).lower()).strip()
+        if ab_c and len(ab_c) >= 2 and ab_c not in STOP_WORDS and ab_c not in GENERIC_NICKNAMES:
+            aliases.append(ab_c)
+
+    matched_map = False
+    for k in sorted(TEAM_ALIAS_MAP.keys(), key=lambda x: -len(x)):
+        if k == t_clean or f" {k} " in f" {t_clean} ":
+            aliases.extend(TEAM_ALIAS_MAP[k])
+            matched_map = True
+            break
+
+    words = [w for w in t_clean.split() if w not in STOP_WORDS and w not in GENERIC_NICKNAMES]
+    if len(words) >= 2:
+        aliases.append("-".join(words))
+        aliases.append(f"{words[0][0]}{words[1]}")
+        aliases.append("".join(w[0] for w in words))
+        if "zone" in t_clean:
+            acro = "".join(w[0] for w in words) + "zone"
+            aliases.append(acro)
+    for word in words:
+        if len(word) >= 4 and word not in STOP_WORDS and word not in GENERIC_NICKNAMES:
+            aliases.append(word)
+        if len(word) >= 5:
+            aliases.append(word[:5])
+
+    return list(set(a for a in aliases if a and a not in STOP_WORDS and a not in GENERIC_NICKNAMES))
+
+def is_team_match(team1: str, team2: str, abbr1: str = "", abbr2: str = "") -> bool:
+    if not team1 or not team2:
+        return False
+    n1, tok1, core1 = clean_team_core(team1)
+    n2, tok2, core2 = clean_team_core(team2)
+    c1 = re.sub(r'[^a-z0-9]', '', n1)
+    c2 = re.sub(r'[^a-z0-9]', '', n2)
+    if c1 and c2 and c1 == c2:
+        return True
+
+    for ab, tok_other, c_other in [(abbr1, tok2, c2), (abbr2, tok1, c1)]:
+        ab_clean = ab.lower().strip()
+        if ab_clean and len(ab_clean) >= 2 and ab_clean not in STOP_WORDS and ab_clean not in GENERIC_NICKNAMES:
+            if ab_clean in tok_other or ab_clean == c_other:
+                return True
+
+    a1_list = get_team_aliases(team1, abbr1)
+    for a in a1_list:
+        a_clean = re.sub(r'[^a-z0-9]', '', a.lower())
+        if a_clean == c2:
+            return True
+        if len(a) > 4 and re.search(rf'\b{re.escape(a)}\b', n2):
+            return True
+
+    if len(c1) >= 4 and re.search(rf'\b{re.escape(n1)}\b', n2):
+        if not core1 or any(w in tok2 for w in core1):
+            return True
+    if len(c2) >= 4 and re.search(rf'\b{re.escape(n2)}\b', n1):
+        if not core2 or any(w in tok1 for w in core2):
+            return True
+
+    if core1 and all(tok in tok2 for tok in core1):
+        return True
+    if core2 and all(tok in tok1 for tok in core2):
+        return True
+
+    return False
+
+
 def compute_lead_trail_summary(
     innings_data: Dict[str, Any],
     raw_summary: str = "",
@@ -102,23 +236,7 @@ def compute_lead_trail_summary(
     t2_name = re.sub(r'(?:1st|2nd|3rd|4th)?\s*Innings.*$', '', inn2.get("teamName", "Team 2"), flags=re.I).strip() if inn2 else "Team 2"
 
     def match_team(inn_team: str, ref_team: str) -> bool:
-        if not inn_team or not ref_team:
-            return False
-        clean_i = re.sub(r'[^a-z0-9]', '', inn_team.lower())
-        clean_r = re.sub(r'[^a-z0-9]', '', ref_team.lower())
-        if clean_i == clean_r:
-            return True
-        if len(clean_i) > 4 and len(clean_r) > 4 and (clean_i in clean_r or clean_r in clean_i):
-            return True
-        aliases = get_team_aliases(ref_team)
-        tokens = set(re.split(r'[^a-z0-9]+', inn_team.lower()))
-        for a in aliases:
-            a_clean = re.sub(r'[^a-z0-9]', '', a.lower())
-            if a_clean == clean_i or a in tokens or re.search(rf'\b{re.escape(a)}\b', inn_team.lower()):
-                return True
-            if len(a_clean) > 4 and a_clean in clean_i:
-                return True
-        return False
+        return is_team_match(inn_team, ref_team)
 
     # 4th Innings: Final Chase -> ALWAYS A TARGET CHASE (Never say "trail by")
     if inn_count >= 4 and inn4:
@@ -430,84 +548,7 @@ def compute_current_innings_info(innings_data: Dict[str, Any], title: str = "", 
         "daySession": session_text
     }
 
-STOP_WORDS = {"zone", "team", "club", "cricket", "mens", "womens", "men", "women", "xi", "the", "and"}
 
-TEAM_ALIAS_MAP: Dict[str, List[str]] = {
-    # Duleep Trophy / Indian Domestic Zones
-    "north east zone": ["north east zone", "nezone", "north-east-zone", "northeast-zone", "north-east", "northeast", "ne"],
-    "north zone": ["north zone", "nzone", "north-zone", "north"],
-    "south zone": ["south zone", "szone", "south-zone", "south"],
-    "east zone": ["east zone", "ezone", "east-zone", "east"],
-    "west zone": ["west zone", "wzone", "west-zone", "west"],
-    "central zone": ["central zone", "czone", "central-zone", "central"],
-    # County
-    "middlesex": ["middlesex", "mdx", "midd"],
-    "northamptonshire": ["northamptonshire", "nhnts", "northants", "nhts"],
-    "warwickshire": ["warwickshire", "warks", "warw"],
-    "nottinghamshire": ["nottinghamshire", "notts", "nott"],
-    "gloucestershire": ["gloucestershire", "gloucs", "glouc", "glou"],
-    "worcestershire": ["worcestershire", "worcs", "worc", "wor"],
-    "derbyshire": ["derbyshire", "derby", "derb"],
-    "yorkshire": ["yorkshire", "yorks", "york"],
-    "hampshire": ["hampshire", "hants", "ham"],
-    "somerset": ["somerset", "som"],
-    "essex": ["essex", "ess"],
-    "sussex": ["sussex", "sus"],
-    "lancashire": ["lancashire", "lancs", "lanc"],
-    "leicestershire": ["leicestershire", "leic"],
-    "glamorgan": ["glamorgan", "glam"],
-    "durham": ["durham", "dur"],
-    "surrey": ["surrey", "sur"],
-    "kent": ["kent"],
-    "india": ["india", "ind"],
-    "pakistan": ["pakistan", "pak"],
-    "australia": ["australia", "aus"],
-    "england": ["england", "eng"],
-    "bangladesh": ["bangladesh", "ban"],
-    "sri lanka": ["sri lanka", "sl", "srilanka"],
-    "south africa": ["south africa", "rsa", "sa"],
-    "new zealand": ["new zealand", "nz"],
-    "west indies": ["west indies", "wi"],
-    "afghanistan": ["afghanistan", "afg"],
-    "zimbabwe": ["zimbabwe", "zim"],
-    "ireland": ["ireland", "ire"],
-    "scotland": ["scotland", "sco"],
-    "netherlands": ["netherlands", "ned"],
-}
-
-def get_team_aliases(team_name: str, abbr: str = "") -> List[str]:
-    t_clean = re.sub(r'[^a-z0-9\s]', '', str(team_name).lower()).strip()
-    aliases = [t_clean]
-    if abbr:
-        ab_c = re.sub(r'[^a-z0-9]', '', str(abbr).lower()).strip()
-        if ab_c and len(ab_c) >= 2 and ab_c not in STOP_WORDS:
-            aliases.append(ab_c)
-
-    matched_map = False
-    for k in sorted(TEAM_ALIAS_MAP.keys(), key=lambda x: -len(x)):
-        if k == t_clean or f" {k} " in f" {t_clean} ":
-            aliases.extend(TEAM_ALIAS_MAP[k])
-            matched_map = True
-            break
-
-    words = [w for w in t_clean.split() if w not in STOP_WORDS]
-    if len(words) >= 2:
-        aliases.append("-".join(words))
-        # Initial letter of first word + second word (e.g. Northern Cape -> ncape, Western Province -> wprovince)
-        aliases.append(f"{words[0][0]}{words[1]}")
-        # Acronym (e.g. SNGPL, WAPDA, KRL, SBP, HEC, NC, WP, NW)
-        aliases.append("".join(w[0] for w in words))
-        if "zone" in t_clean:
-            acro = "".join(w[0] for w in words) + "zone"
-            aliases.append(acro)
-    for word in words:
-        if len(word) >= 3 and word not in STOP_WORDS:
-            aliases.append(word)
-        # Prefixes of multi-syllable names, e.g. Limpopo -> limpo
-        if len(word) >= 5:
-            aliases.append(word[:5])
-
-    return list(set(a for a in aliases if a and a not in STOP_WORDS))
 
 def match_teams_in_cricbuzz_href(href: str, t1_aliases: List[str], t2_aliases: List[str], team1_name: str = "", team2_name: str = "") -> bool:
     h = href.lower().replace("_", "-")
@@ -620,7 +661,6 @@ def compute_team_multiscore(team_name: str, innings_data: Dict[str, Any], raw_c_
     if "&" in clean_raw:
         return clean_raw
 
-    aliases = get_team_aliases(team_name)
     team_inns = []
     
     int_keys = [int(k) for k in innings_data.keys() if k.isdigit()]
@@ -628,27 +668,8 @@ def compute_team_multiscore(team_name: str, innings_data: Dict[str, Any], raw_c_
     
     for k in sorted(innings_data.keys(), key=lambda x: int(x) if x.isdigit() else 99):
         inn = innings_data[k]
-        inn_team = str(inn.get("teamName", inn.get("team", ""))).lower().strip()
-        inn_team_clean = re.sub(r'[^a-z0-9]', '', inn_team)
-        tokens = set(re.split(r'[^a-z0-9]+', inn_team))
-
-        def _match_alias(alias: str) -> bool:
-            a = alias.lower().strip()
-            if not a:
-                return False
-            # Exact match on full name / normalized name
-            if a == inn_team or a == inn_team_clean:
-                return True
-            # Word boundary / token match
-            if a in tokens or re.search(rf'\b{re.escape(a)}\b', inn_team):
-                return True
-            # Substring match ONLY for long multi-word or long unique names (> 4 chars)
-            if len(a) > 4 and (a in inn_team or a in inn_team_clean):
-                return True
-            return False
-
-        is_match = any(_match_alias(alias) for alias in aliases)
-        if is_match:
+        inn_team = str(inn.get("teamName", inn.get("team", ""))).strip()
+        if is_team_match(team_name, inn_team):
             team_inns.append((k, inn))
             
     # If no innings or only 1 innings for this team, return official clean_raw score
@@ -1785,9 +1806,9 @@ class ESPNClient:
 
         # Ensure competitor batting first (1st innings) is at index 0 (Top row)
         if len(competitors) >= 2 and innings_data.get('1'):
-            inn1_team = str(innings_data['1'].get('teamName', innings_data['1'].get('team', ''))).lower().strip()
+            inn1_team = str(innings_data['1'].get('teamName', innings_data['1'].get('team', ''))).strip()
             if inn1_team:
-                if (inn1_team in competitors[1]['name'].lower() or competitors[1]['name'].lower() in inn1_team) and not (inn1_team in competitors[0]['name'].lower()):
+                if is_team_match(inn1_team, competitors[1].get('name', '')) and not is_team_match(inn1_team, competitors[0].get('name', '')):
                     competitors[0], competitors[1] = competitors[1], competitors[0]
 
         # Process Commentary & Notes

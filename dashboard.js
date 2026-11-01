@@ -1395,6 +1395,7 @@ function renderAllMatchDetails(data) {
     if (!data) return;
     try { renderHeroBanner(data); } catch(e) { console.error("renderHeroBanner err:", e); }
     try { renderCricinfoLiveTab(data); } catch(e) { console.error("renderCricinfoLiveTab err:", e); }
+    try { renderTvStreamTab(data); } catch(e) { console.error("renderTvStreamTab err:", e); }
     try { renderScorecardTab(data); } catch(e) { console.error("renderScorecardTab err:", e); }
     try { renderMatchCoverageTab(data); } catch(e) { console.error("renderMatchCoverageTab err:", e); }
     try { renderAnalyticsTab(data); } catch(e) { console.error("renderAnalyticsTab err:", e); }
@@ -3731,6 +3732,492 @@ function renderCommentaryTab(data) {
 }
 
 // -------------------------------------------------------------
+
+// -------------------------------------------------------------
+// TV STREAM OVERLAY MODE (Broadcast Studio Graphics)
+// -------------------------------------------------------------
+
+function toggleTvFullscreen() {
+    const el = document.getElementById('tv-stream-mode-container');
+    if (!el) return;
+    el.classList.toggle('tv-stream-fullscreen');
+    const isFs = el.classList.contains('tv-stream-fullscreen');
+    if (isFs && el.requestFullscreen && !document.fullscreenElement) {
+        el.requestFullscreen().catch(() => {});
+    } else if (!isFs && document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+    }
+    const btn = document.getElementById('tv-fs-btn-text');
+    if (btn) btn.textContent = isFs ? 'Exit Fullscreen' : 'OBS 1080p Mode';
+    safeCreateIcons();
+}
+
+function getTvBallBadge(raw) {
+    if (!raw) return '';
+    const b = String(raw).trim();
+    if (b === '|') {
+        return '<span class="h-6 w-[2px] bg-emerald-500/40 rounded-full mx-1.5 shrink-0 self-center"></span>';
+    }
+    let cls = 'tv-ball-0';
+    const bUpper = b.toUpperCase();
+    if (b === '1') cls = 'tv-ball-1';
+    else if (b === '2') cls = 'tv-ball-2';
+    else if (b === '3') cls = 'tv-ball-3';
+    else if (b === '4') cls = 'tv-ball-4';
+    else if (b === '6') cls = 'tv-ball-6';
+    else if (bUpper === 'W' || (b.toLowerCase().includes('w') && !b.toLowerCase().includes('wd'))) cls = 'tv-ball-w';
+    else if (b.toLowerCase().includes('wd') || b.toLowerCase().includes('nb')) cls = 'tv-ball-extra';
+    else if (b === '.' || b === '•' || b === '0') cls = 'tv-ball-0';
+
+    return `<span class="tv-ball-pill ${cls}">${b}</span>`;
+}
+
+function renderTvStreamTab(data) {
+    const container = document.getElementById('tv-stream-mode-container');
+    if (!container) return;
+    if (!data) {
+        container.innerHTML = `
+            <div class="text-center py-12 text-slate-400 text-xs">
+                <i data-lucide="tv" class="w-10 h-10 mx-auto mb-2 text-rose-500 opacity-60 animate-pulse"></i>
+                <p class="font-bold">Select any live match above to activate TV Stream Mode.</p>
+            </div>
+        `;
+        safeCreateIcons();
+        return;
+    }
+
+    try {
+        let competitors = data.competitors;
+        if (!competitors || competitors.length === 0) {
+            const matchObj = (appState.matches || []).find(m => String(m.id) === String(data.matchId || data.id || appState.selectedEventId));
+            if (matchObj && matchObj.competitors && matchObj.competitors.length > 0) {
+                competitors = matchObj.competitors;
+            }
+        }
+
+        const c1 = (competitors && competitors[0]) ? competitors[0] : { name: 'Team 1', score: '' };
+        const c2 = (competitors && competitors[1]) ? competitors[1] : { name: 'Team 2', score: '' };
+        const c1Name = String(c1.name || 'Team 1');
+        const c2Name = String(c2.name || 'Team 2');
+        const c1Abbr = String(c1.abbr || 'TM1');
+        const c2Abbr = String(c2.abbr || 'TM2');
+
+        let c1Score = String(c1.score || '');
+        let c2Score = String(c2.score || '');
+        if ((!c1Score || c1Score === '-') && data.innings) {
+            c1Score = resolveTeamScoreFromInnings(c1, data.innings) || c1Score;
+        }
+        if ((!c2Score || c2Score === '-') && data.innings) {
+            c2Score = resolveTeamScoreFromInnings(c2, data.innings) || c2Score;
+        }
+
+        const isLive = data.state ? (data.state.toLowerCase() === 'in' || data.state.toLowerCase() === 'live') : false;
+        const isCompleted = data.state ? (data.state.toLowerCase() === 'post' || data.state.toLowerCase() === 'final' || data.state.toLowerCase() === 'completed') : false;
+        const statusDetail = String(data.statusDetail || 'LIVE');
+
+        const c1IsBatting = isTeamCurrentlyBatting(c1, data);
+        const c2IsBatting = !c1IsBatting ? isTeamCurrentlyBatting(c2, data) : false;
+
+        const crease = data.liveCrease || {};
+        let currentCRR = String(data.crr || (crease ? crease.crr : '') || '');
+        if (!currentCRR) {
+            currentCRR = computeCRRFromScore(c2Score) || computeCRRFromScore(c1Score) || '0.00';
+        }
+
+        // Required Run Rate & Target for Limited Overs
+        let liveRRR = '';
+        let targetVal = 0;
+        let runsNeeded = 0;
+        let ballsLeft = 0;
+        const isTestMatch = Boolean(
+            data.isTestMatch || 
+            (data.currentInnings && data.currentInnings.isTestMatch) || 
+            (data.description && /test|4-day|5-day/i.test(data.description))
+        );
+
+        if (!isTestMatch && isLive && competitors && competitors.length >= 2) {
+            const s1 = String(c1Score || '');
+            const s2 = String(c2Score || '');
+            const r1M = s1.match(/^(\d+)/);
+            const r2M = s2.match(/^(\d+)/);
+            const ov2M = s2.match(/\((\d+(?:\.\d+)?)\s*ov/i);
+            if (r1M && r2M && ov2M) {
+                const r1 = parseInt(r1M[1], 10);
+                const r2 = parseInt(r2M[1], 10);
+                const targetM = (s2 + ' ' + (data.leadSummary || '') + ' ' + (data.statusDetail || '')).match(/target\s*(\d+)/i);
+                targetVal = targetM ? parseInt(targetM[1], 10) : (r1 + 1);
+                runsNeeded = targetVal - r2;
+                const ov2Val = parseFloat(ov2M[1]);
+                const fullOv = Math.floor(ov2Val);
+                const remBalls = Math.round((ov2Val - fullOv) * 10);
+                const ballsBowled = fullOv * 6 + remBalls;
+                let maxOvers = (s1.includes('/50') || s2.includes('/50') || (data.description && /odi|50/i.test(data.description))) ? 50 : 20;
+                ballsLeft = Math.max(0, Math.round(maxOvers * 6) - ballsBowled);
+                if (runsNeeded > 0 && ballsLeft > 0) {
+                    liveRRR = (runsNeeded / (ballsLeft / 6.0)).toFixed(2);
+                }
+            }
+        }
+
+        // Projected Score
+        let projectedScore = '-';
+        if (!isTestMatch && isLive) {
+            const crrNum = parseFloat(currentCRR) || 0;
+            if (crrNum > 0) {
+                const maxO = (c1Score.includes('/50') || (data.description && /odi|50/i.test(data.description))) ? 50 : 20;
+                projectedScore = Math.round(crrNum * maxO);
+            }
+        }
+
+        // Partnership & Last Wicket
+        let fowList = crease.fowList || [];
+        if (fowList.length === 0 && data.innings) {
+            const innKeys = Object.keys(data.innings);
+            if (innKeys.length > 0) {
+                const activeInn = data.innings[innKeys[innKeys.length - 1]];
+                if (activeInn && Array.isArray(activeInn.fow)) fowList = activeInn.fow;
+            }
+        }
+        const lastWkt = (fowList && fowList.length > 0) ? fowList[fowList.length - 1] : null;
+        let lastWktStr = 'None';
+        if (lastWkt) {
+            const lwName = lastWkt.player || lastWkt.name || 'Batter';
+            const lwScore = lastWkt.score || lastWkt.runs || '';
+            const lwOv = lastWkt.overs ? ` (${lastWkt.overs} ov)` : '';
+            lastWktStr = `${lwName} ${lwScore}${lwOv}`.trim();
+        }
+
+        const rawPship = crease.partnership || (crease.currentPartnership ? `${crease.currentPartnership.runs} runs (${crease.currentPartnership.balls || 0}b)` : '');
+        const pshipStr = rawPship ? String(rawPship).replace(/\s*-\s*[A-Za-z].*$/, '').trim() : 'Unbroken';
+
+        // Extras breakdown
+        let extrasStr = '0';
+        if (data.innings) {
+            const innKeys = Object.keys(data.innings);
+            if (innKeys.length > 0) {
+                const activeInn = data.innings[innKeys[innKeys.length - 1]];
+                if (activeInn && activeInn.extras) extrasStr = String(activeInn.extras);
+            }
+        }
+
+        // Win Probability
+        let winProbHtml = '';
+        const wp = data.winProbability;
+        if (wp && (wp.team1 || wp.team2)) {
+            const p1 = typeof wp.team1?.probability === 'number' ? wp.team1.probability : (typeof wp.team1?.percentage === 'number' ? wp.team1.percentage : 50);
+            const p2 = typeof wp.team2?.probability === 'number' ? wp.team2.probability : (typeof wp.team2?.percentage === 'number' ? wp.team2.percentage : 50);
+            const t1Name = wp.team1?.shortName || wp.team1?.name || c1Abbr;
+            const t2Name = wp.team2?.shortName || wp.team2?.name || c2Abbr;
+            winProbHtml = `
+                <div class="flex items-center gap-2 w-full max-w-xs sm:max-w-md">
+                    <span class="text-[10px] font-mono font-bold text-slate-300 uppercase">${t1Name} ${p1}%</span>
+                    <div class="flex-1 h-2 rounded-full overflow-hidden bg-slate-800 flex border border-emerald-500/30">
+                        <div class="bg-gradient-to-r from-emerald-500 to-[#00ff88]" style="width: ${p1}%;"></div>
+                        <div class="bg-gradient-to-r from-indigo-500 to-sky-400" style="width: ${p2}%;"></div>
+                    </div>
+                    <span class="text-[10px] font-mono font-bold text-slate-300 uppercase">${p2}% ${t2Name}</span>
+                </div>
+            `;
+        }
+
+        // Center situation ticker
+        let centerSituation = '';
+        if (isLive && targetVal > 0 && runsNeeded > 0 && ballsLeft > 0) {
+            centerSituation = `<span class="text-amber-400 font-mono font-black animate-pulse">TARGET ${targetVal} • NEED ${runsNeeded} RUNS OFF ${ballsLeft} BALLS</span>`;
+        } else if (isLive && c1IsBatting) {
+            centerSituation = `<span class="text-[#00ff88] font-mono font-black">1ST INNINGS • ${c1Abbr} BATTING (CRR ${currentCRR})</span>`;
+        } else if (isLive && c2IsBatting) {
+            centerSituation = `<span class="text-[#00ff88] font-mono font-black">2ND INNINGS • ${c2Abbr} BATTING (CRR ${currentCRR})</span>`;
+        } else {
+            centerSituation = `<span class="text-emerald-300 font-bold">${escapeQuotes(data.statusDetail || data.leadSummary || 'Live Match')}</span>`;
+        }
+
+        // Batters on Crease
+        const batters = crease.batters || [];
+        const bw = crease.activeBowler || crease.bowler || (crease.bowlers && crease.bowlers[0]);
+        const matchKey = `${data.leagueId}_${data.matchId}`;
+        const strikerIndex = typeof resolveActiveStriker === 'function' ? resolveActiveStriker(matchKey, batters, data) : 0;
+
+        let battersCardsHtml = '';
+        if (batters.length === 0) {
+            battersCardsHtml = `
+                <div class="col-span-1 md:col-span-2 tv-player-card p-4 flex items-center justify-center text-slate-400 text-xs italic">
+                    <span>Innings break / Pre-match interval (Batters will appear when play resumes)</span>
+                </div>
+            `;
+        } else {
+            battersCardsHtml = batters.slice(0, 2).map((b, idx) => {
+                const isFacing = (idx === strikerIndex);
+                const sr = (b.strikeRate && b.strikeRate !== '0.00' && b.strikeRate !== 0) ? b.strikeRate : computeStrikeRate(b.runs, b.balls);
+                const cleanBName = b.name.replace(/\s*\([^\)]*\)/g, '').trim();
+                const photoUrl = b.headshot || 'https://a.espncdn.com/i/headshots/cricket/players/default-player-logo-500.png';
+
+                return `
+                    <div class="tv-player-card p-3 sm:p-4 flex flex-col justify-between ${isFacing ? 'strike-active' : ''} relative overflow-hidden group">
+                        <div class="flex items-center justify-between gap-2 border-b border-emerald-500/20 pb-2 mb-2">
+                            <div class="flex items-center gap-1.5 font-mono">
+                                <span class="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${isFacing ? 'bg-[#00ff88]/20 text-[#00ff88] border border-[#00ff88]/50' : 'bg-slate-700/60 text-slate-300'}">BATTER</span>
+                                ${isFacing ? `
+                                    <span class="flex items-center gap-1 text-[9px] font-black text-[#00ff88] bg-[#00ff88]/20 px-1.5 py-0.5 rounded border border-[#00ff88]/40 animate-pulse">
+                                        <i data-lucide="zap" class="w-3 h-3 text-[#00ff88]"></i> STRIKE
+                                    </span>
+                                ` : ''}
+                            </div>
+                            <span class="text-[10px] font-mono text-emerald-400 font-bold">SR: ${sr}</span>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <div class="relative shrink-0">
+                                <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden ${isFacing ? 'ring-2 ring-[#00ff88] shadow-[0_0_16px_rgba(0,255,136,0.6)]' : 'ring-1 ring-slate-600'} bg-dark-900 flex items-center justify-center">
+                                    <img src="${photoUrl}" alt="${cleanBName}" class="w-full h-full object-cover object-top" onerror="this.src='https://a.espncdn.com/i/headshots/cricket/players/default-player-logo-500.png';">
+                                </div>
+                                ${isFacing ? '<span class="absolute -bottom-1 -right-1 text-xs">🏏</span>' : ''}
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <h4 class="font-black text-sm sm:text-base text-white truncate tracking-tight">${cleanBName}</h4>
+                                <div class="flex items-baseline gap-1 mt-0.5">
+                                    <span class="text-3xl sm:text-4xl font-black font-mono ${isFacing ? 'text-[#00ff88] drop-shadow-[0_0_12px_rgba(0,255,136,0.5)]' : 'text-white'} leading-none">${b.runs}</span>
+                                    <span class="text-xs sm:text-sm font-mono text-slate-400 font-bold">(${b.balls}b)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 mt-3 pt-2 border-t border-emerald-500/20 text-center font-mono">
+                            <div class="bg-black/30 rounded-lg py-1 px-2 border border-emerald-500/10">
+                                <span class="text-[9px] text-slate-400 uppercase tracking-widest block font-bold">Fours (4s)</span>
+                                <span class="text-xs sm:text-sm font-black text-emerald-400">${b.fours || 0}</span>
+                            </div>
+                            <div class="bg-black/30 rounded-lg py-1 px-2 border border-emerald-500/10">
+                                <span class="text-[9px] text-slate-400 uppercase tracking-widest block font-bold">Sixes (6s)</span>
+                                <span class="text-xs sm:text-sm font-black text-amber-400">${b.sixes || 0}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Active Bowler Card
+        let bowlerCardHtml = '';
+        if (!bw) {
+            bowlerCardHtml = `
+                <div class="tv-player-card p-4 flex items-center justify-center text-slate-400 text-xs italic">
+                    <span>No active bowler registered currently.</span>
+                </div>
+            `;
+        } else {
+            const cleanBwName = bw.name.replace(/\s*\([^\)]*\)/g, '').trim();
+            const bwPhotoUrl = bw.headshot || 'https://a.espncdn.com/i/headshots/cricket/players/default-player-logo-500.png';
+            const econ = (bw.economy && bw.economy !== '0.00' && bw.economy !== '0') ? bw.economy : computeEconomy(bw.overs, bw.runs);
+
+            bowlerCardHtml = `
+                <div class="tv-player-card bowler-active p-3 sm:p-4 flex flex-col justify-between relative overflow-hidden">
+                    <div class="flex items-center justify-between gap-2 border-b border-amber-500/20 pb-2 mb-2">
+                        <div class="flex items-center gap-1.5 font-mono">
+                            <span class="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/50">BOWLER</span>
+                            <span class="flex items-center gap-1 text-[9px] font-black text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded border border-amber-500/40">
+                                <i data-lucide="circle-dot" class="w-3 h-3 text-amber-400 animate-spin"></i> ACTIVE
+                            </span>
+                        </div>
+                        <span class="text-[10px] font-mono text-amber-300 font-bold">ECON: ${econ}</span>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <div class="relative shrink-0">
+                            <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden ring-2 ring-amber-400 shadow-[0_0_16px_rgba(245,158,11,0.5)] bg-dark-900 flex items-center justify-center">
+                                <img src="${bwPhotoUrl}" alt="${cleanBwName}" class="w-full h-full object-cover object-top" onerror="this.src='https://a.espncdn.com/i/headshots/cricket/players/default-player-logo-500.png';">
+                            </div>
+                            <span class="absolute -bottom-1 -right-1 text-xs">🔴</span>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <h4 class="font-black text-sm sm:text-base text-white truncate tracking-tight">${cleanBwName}</h4>
+                            <div class="flex items-baseline gap-1.5 mt-0.5">
+                                <span class="text-3xl sm:text-4xl font-black font-mono text-amber-400 drop-shadow-[0_0_12px_rgba(245,158,11,0.5)] leading-none">${bw.wickets}-${bw.runs}</span>
+                                <span class="text-xs sm:text-sm font-mono text-amber-200/80 font-bold">(${bw.overs} ov)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-1.5 mt-3 pt-2 border-t border-amber-500/20 text-center font-mono">
+                        <div class="bg-black/30 rounded-lg py-1 px-1 border border-amber-500/10">
+                            <span class="text-[8px] text-slate-400 uppercase tracking-widest block font-bold">Maidens</span>
+                            <span class="text-xs font-black text-slate-200">${bw.maidens || 0}</span>
+                        </div>
+                        <div class="bg-black/30 rounded-lg py-1 px-1 border border-amber-500/10">
+                            <span class="text-[8px] text-slate-400 uppercase tracking-widest block font-bold">Runs</span>
+                            <span class="text-xs font-black text-rose-400">${bw.runs}</span>
+                        </div>
+                        <div class="bg-black/30 rounded-lg py-1 px-1 border border-amber-500/10">
+                            <span class="text-[8px] text-slate-400 uppercase tracking-widest block font-bold">Wkts</span>
+                            <span class="text-xs font-black text-amber-400">${bw.wickets}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Recent Deliveries Timeline
+        const recentBallsElements = [];
+        const recentOvers = crease.recentOvers || data.recentOvers || [];
+        if (recentOvers && recentOvers.length > 0) {
+            recentOvers.slice(-4).forEach((o, oIdx) => {
+                if (oIdx > 0) {
+                    recentBallsElements.push('<span class="h-6 w-[2px] bg-emerald-500/40 rounded-full mx-1.5 shrink-0 self-center"></span>');
+                }
+                (o.balls || []).forEach(ball => {
+                    recentBallsElements.push(getTvBallBadge(ball.symbol || ball.text || ball.shortText));
+                });
+            });
+        } else {
+            const recentBalls = crease.recentDeliveries || [];
+            if (recentBalls.length > 0) {
+                recentBalls.slice(-24).forEach(b => {
+                    recentBallsElements.push(getTvBallBadge(b));
+                });
+            } else if (Array.isArray(data.commentary) && data.commentary.length > 0) {
+                data.commentary.slice(0, 12).reverse().forEach(comm => {
+                    const text = String(comm.text || comm.event || '').toLowerCase();
+                    let sym = '0';
+                    if (text.includes('six') || text.includes('6 runs')) sym = '6';
+                    else if (text.includes('four') || text.includes('4 runs')) sym = '4';
+                    else if (text.includes('out') || text.includes('wicket')) sym = 'W';
+                    else if (text.includes('wide')) sym = 'Wd';
+                    else if (text.includes('no ball')) sym = 'Nb';
+                    else if (text.includes('1 run')) sym = '1';
+                    else if (text.includes('2 runs')) sym = '2';
+                    else if (text.includes('3 runs')) sym = '3';
+                    recentBallsElements.push(getTvBallBadge(sym));
+                });
+            }
+        }
+
+        const recentBallsHtml = recentBallsElements.length > 0 ? recentBallsElements.join('') : '<span class="text-slate-400 text-xs italic">Ball-by-ball updates will appear here as each ball is bowled.</span>';
+        const last5OversText = computeLast5Overs(crease.recentDeliveries, crease.last10Overs, currentCRR, fowList, c1Score + ' ' + c2Score);
+        const tossText = data.toss ? String(data.toss) : (data.description || '');
+
+        container.innerHTML = `
+            <div class="tv-broadcast-wrapper p-3 sm:p-5 text-white flex flex-col space-y-3.5">
+                <!-- TOP BROADCAST SCOREBAR -->
+                <div class="tv-header-ticker p-3 sm:p-4 rounded-xl flex flex-wrap items-center justify-between gap-3">
+                    <!-- Team 1 Box -->
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-slate-900 border border-emerald-500/40 p-1 flex items-center justify-center shrink-0 shadow-md">
+                            ${renderTeamLogo(c1Name, c1.logo, 'w-8 h-8 sm:w-10 sm:h-10')}
+                        </div>
+                        <div>
+                            <span class="text-xs sm:text-sm font-black uppercase tracking-wider block text-white">${c1Name}</span>
+                            <div class="flex items-baseline gap-1.5">
+                                <span class="font-mono font-black text-xl sm:text-2xl md:text-3xl ${c1IsBatting ? 'text-[#00ff88] drop-shadow-[0_0_10px_rgba(0,255,136,0.5)]' : 'text-slate-200'}">${c1Score || 'Yet to bat'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Center Match Emblem & Situation -->
+                    <div class="flex flex-col items-center justify-center text-center px-2">
+                        <div class="flex items-center gap-2 mb-0.5">
+                            <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+                            <span class="text-[10px] font-mono font-black text-rose-400 uppercase tracking-widest">LIVE STREAM</span>
+                            <span class="text-slate-500">•</span>
+                            <span class="text-[10px] font-mono font-bold text-emerald-400 uppercase">SPORTS DYNASTY TV</span>
+                        </div>
+                        <div class="text-xs sm:text-sm font-mono font-black">${centerSituation}</div>
+                    </div>
+
+                    <!-- Team 2 Box -->
+                    <div class="flex items-center gap-3 text-right">
+                        <div>
+                            <span class="text-xs sm:text-sm font-black uppercase tracking-wider block text-white">${c2Name}</span>
+                            <div class="flex items-baseline justify-end gap-1.5">
+                                <span class="font-mono font-black text-xl sm:text-2xl md:text-3xl ${c2IsBatting ? 'text-[#00ff88] drop-shadow-[0_0_10px_rgba(0,255,136,0.5)]' : 'text-slate-200'}">${c2Score || 'Yet to bat'}</span>
+                            </div>
+                        </div>
+                        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-slate-900 border border-emerald-500/40 p-1 flex items-center justify-center shrink-0 shadow-md">
+                            ${renderTeamLogo(c2Name, c2.logo, 'w-8 h-8 sm:w-10 sm:h-10')}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TELEMETRY INSIGHTS RIBBON 1 -->
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    <div class="tv-telemetry-badge p-2 text-center">
+                        <span class="text-[9px] font-mono text-slate-400 uppercase block font-bold">CRR</span>
+                        <span class="font-mono font-black text-sm sm:text-base text-[#00ff88]">${currentCRR}</span>
+                    </div>
+                    <div class="tv-telemetry-badge p-2 text-center">
+                        <span class="text-[9px] font-mono text-slate-400 uppercase block font-bold">P.SHIP</span>
+                        <span class="font-mono font-black text-xs sm:text-sm text-sky-400 truncate block">${pshipStr}</span>
+                    </div>
+                    <div class="tv-telemetry-badge p-2 text-center">
+                        <span class="text-[9px] font-mono text-slate-400 uppercase block font-bold">RRR</span>
+                        <span class="font-mono font-black text-sm sm:text-base text-amber-400">${liveRRR || '-'}</span>
+                    </div>
+                    <div class="tv-telemetry-badge p-2 text-center">
+                        <span class="text-[9px] font-mono text-slate-400 uppercase block font-bold">PR. SCORE</span>
+                        <span class="font-mono font-black text-sm sm:text-base text-purple-400">${projectedScore}</span>
+                    </div>
+                    <div class="tv-telemetry-badge p-2 text-center col-span-2 sm:col-span-1">
+                        <span class="text-[9px] font-mono text-slate-400 uppercase block font-bold">LAST WICKET</span>
+                        <span class="font-mono font-black text-[11px] sm:text-xs text-rose-400 truncate block" title="${escapeQuotes(lastWktStr)}">${lastWktStr}</span>
+                    </div>
+                </div>
+
+                <!-- TELEMETRY INSIGHTS RIBBON 2 (Win Probability & Extras) -->
+                <div class="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-xl bg-slate-950/60 border border-emerald-500/20 text-xs">
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono font-black text-amber-400 uppercase text-[10px]">EXTRAS:</span>
+                        <span class="font-mono font-bold text-slate-200 text-xs">${extrasStr}</span>
+                        ${tossText ? `<span class="text-slate-500 hidden sm:inline">•</span><span class="text-emerald-400/90 font-medium hidden sm:inline truncate max-w-sm">${escapeQuotes(tossText)}</span>` : ''}
+                    </div>
+                    ${winProbHtml}
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="toggleTvFullscreen()" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-500/40 font-mono text-[11px] font-black flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs" title="Toggle 1080p Fullscreen for OBS Stream">
+                            <i data-lucide="maximize" class="w-3.5 h-3.5"></i>
+                            <span id="tv-fs-btn-text">OBS 1080p Mode</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CENTER STADIUM TURF ATMOSPHERE -->
+                <div class="tv-pitch-backdrop rounded-xl border border-emerald-500/30 p-4 sm:p-6 text-center relative overflow-hidden flex flex-col items-center justify-center min-h-[90px]">
+                    <div class="relative z-10 flex flex-col items-center">
+                        <div class="flex items-center gap-2 text-emerald-400 font-mono font-black tracking-widest text-xs uppercase mb-1">
+                            <i data-lucide="award" class="w-4 h-4 text-amber-400"></i>
+                            <span>SPORTS DYNASTY BROADCAST ENGINE</span>
+                        </div>
+                        <div class="text-xs text-slate-300 font-medium max-w-xl truncate">${escapeQuotes(data.description || data.title || '')}</div>
+                    </div>
+                    <div class="absolute inset-0 bg-gradient-to-t from-dark-950/80 via-transparent to-transparent pointer-events-none"></div>
+                </div>
+
+                <!-- BATTERS & BOWLER CARDS ARENA -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    ${battersCardsHtml}
+                    ${bowlerCardHtml}
+                </div>
+
+                <!-- BALL-BY-BALL TIMELINE STRIP -->
+                <div class="p-3 rounded-xl bg-slate-950/80 border border-emerald-500/30 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-mono font-black text-[#00ff88] uppercase tracking-wider flex items-center gap-1">
+                            <i data-lucide="activity" class="w-3.5 h-3.5 text-[#00ff88]"></i> RECENT BALLS:
+                        </span>
+                        <div class="flex items-center gap-1.5 overflow-x-auto py-1 custom-scrollbar">
+                            ${recentBallsHtml}
+                        </div>
+                    </div>
+                    <div class="text-[11px] font-mono font-bold text-emerald-300 shrink-0 bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-500/30">
+                        ${last5OversText ? `Last 5 Overs: <span class="text-white font-black">${last5OversText}</span>` : 'Live Cricket Telemetry Synced'}
+                    </div>
+                </div>
+            </div>
+        `;
+        safeCreateIcons();
+    } catch(err) {
+        console.error("renderTvStreamTab error:", err);
+    }
+}
+
+
 // Squads & Match Info Tabs
 // -------------------------------------------------------------
 
@@ -4269,6 +4756,8 @@ function switchMainTab(targetTab) {
         renderSquadsTab(appState.currentMatchData);
     } else if (targetTab === 'live' && appState.currentMatchData) {
         renderCricinfoLiveTab(appState.currentMatchData);
+    } else if (targetTab === 'tv' && appState.currentMatchData) {
+        renderTvStreamTab(appState.currentMatchData);
     }
     safeCreateIcons();
 }

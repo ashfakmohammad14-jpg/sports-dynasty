@@ -303,6 +303,11 @@
                     <button class="main-tab-btn cricinfo-tab flex items-center gap-1.5" data-tab="scorecard">
                         <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> Scorecard
                     </button>
+                    <button class="main-tab-btn cricinfo-tab flex items-center gap-1.5 relative group font-bold" data-tab="tv">
+                        <i data-lucide="tv" class="w-3.5 h-3.5 text-rose-500 animate-pulse"></i>
+                        <span>TV Mode</span>
+                        <span class="text-[8px] font-black uppercase px-1 py-0.2 rounded bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/40 font-mono tracking-wider ml-0.5">STREAM</span>
+                    </button>
                     <button class="main-tab-btn cricinfo-tab flex items-center gap-1.5" data-tab="squads">
                         <i data-lucide="users" class="w-3.5 h-3.5"></i> Squads
                     </button>
@@ -318,6 +323,15 @@
                 <div class="p-2.5 sm:p-3 flex-1">
 
                     <!-- TAB 1: CRICINFO LIVE TAB (Exact Match with Screenshot) -->
+                    <!-- TAB: TV STREAM OVERLAY MODE -->
+                    <div id="tab-tv" class="tab-pane hidden space-y-3">
+                        <div id="tv-stream-mode-container" class="space-y-3">
+                            <div class="text-center py-10 text-slate-400 text-xs">
+                                <p>Loading TV broadcast stream view...</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div id="tab-live" class="tab-pane block space-y-2">
                         
                         <!-- Top Live Crease & Match Pulse Insights (Left: Batters & Bowlers Table, Right: Run Rate, Last 5 Overs, Last Batter Out, Partnership, Fall of Wickets) -->

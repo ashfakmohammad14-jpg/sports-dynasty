@@ -862,3 +862,102 @@ body.layout-mode-desktop #app-main-container {
 
 
 
+
+
+/* ============================================================
+SPORTS DYNASTY - TV BROADCAST STREAM OVERLAY STYLES
+============================================================ */
+
+.tv-broadcast-wrapper {
+    background: radial-gradient(circle at 50% 0%, rgba(6, 78, 59, 0.4) 0%, rgba(3, 30, 23, 0.95) 70%, #021a12 100%);
+    border: 1px solid rgba(0, 255, 136, 0.25);
+    border-radius: 1rem;
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.7), 0 0 25px rgba(0, 255, 136, 0.15);
+    position: relative;
+    overflow: hidden;
+}
+
+.tv-pitch-backdrop {
+    background: 
+        radial-gradient(ellipse at 50% 50%, rgba(16, 185, 129, 0.2) 0%, rgba(6, 78, 59, 0.5) 50%, rgba(2, 26, 18, 0.95) 100%),
+        repeating-linear-gradient(90deg, rgba(0, 255, 136, 0.02) 0px, rgba(0, 255, 136, 0.02) 40px, transparent 40px, transparent 80px);
+    position: relative;
+}
+
+.tv-header-ticker {
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(2, 26, 18, 0.95) 100%);
+    border-bottom: 2px solid rgba(0, 255, 136, 0.4);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.tv-telemetry-badge {
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(0, 255, 136, 0.3);
+    border-radius: 0.6rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.tv-player-card {
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.85) 0%, rgba(2, 44, 34, 0.75) 100%);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 255, 136, 0.25);
+    border-radius: 1rem;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    transition: all 0.25s ease;
+}
+
+.tv-player-card.strike-active {
+    border: 2px solid #00ff88;
+    background: linear-gradient(145deg, rgba(6, 78, 59, 0.9) 0%, rgba(2, 44, 34, 0.85) 100%);
+    box-shadow: 0 0 25px rgba(0, 255, 136, 0.4), inset 0 0 15px rgba(0, 255, 136, 0.15);
+}
+
+.tv-player-card.bowler-active {
+    border: 2px solid #f59e0b;
+    background: linear-gradient(145deg, rgba(69, 26, 3, 0.85) 0%, rgba(2, 26, 18, 0.85) 100%);
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.35), inset 0 0 15px rgba(245, 158, 11, 0.15);
+}
+
+.tv-ball-pill {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.825rem;
+    font-weight: 900;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    flex-shrink: 0;
+}
+
+.tv-ball-0 { background: rgba(100, 116, 139, 0.3); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.4); }
+.tv-ball-1 { background: rgba(59, 130, 246, 0.25); color: #93c5fd; border: 1px solid rgba(96, 165, 250, 0.5); }
+.tv-ball-2 { background: rgba(99, 102, 241, 0.25); color: #c7d2fe; border: 1px solid rgba(129, 140, 248, 0.5); }
+.tv-ball-3 { background: rgba(168, 85, 247, 0.25); color: #e9d5ff; border: 1px solid rgba(192, 132, 252, 0.5); }
+.tv-ball-4 { background: rgba(16, 185, 129, 0.35); color: #00ff88; border: 1.5px solid #00ff88; box-shadow: 0 0 12px rgba(0, 255, 136, 0.6); }
+.tv-ball-6 { background: rgba(245, 158, 11, 0.35); color: #fbbf24; border: 1.5px solid #fbbf24; box-shadow: 0 0 14px rgba(251, 191, 36, 0.7); }
+.tv-ball-w { background: linear-gradient(135deg, #e11d48, #be123c); color: #ffffff; border: 1.5px solid #fda4af; box-shadow: 0 0 16px rgba(225, 29, 72, 0.8); animation: pulseWicket 1.5s infinite; }
+.tv-ball-extra { background: rgba(234, 88, 12, 0.25); color: #fdba74; border: 1px solid rgba(251, 146, 60, 0.5); }
+
+@keyframes pulseWicket {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); box-shadow: 0 0 22px rgba(225, 29, 72, 1); }
+}
+
+/* 1080p Fullscreen Broadcast Mode for OBS Studio / Monitor */
+.tv-stream-fullscreen {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 9999999 !important;
+    margin: 0 !important;
+    padding: 1.5rem !important;
+    border-radius: 0 !important;
+    background: #021a12 !important;
+    overflow-y: auto !important;
+}

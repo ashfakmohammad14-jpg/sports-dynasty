@@ -961,3 +961,210 @@ SPORTS DYNASTY - TV BROADCAST STREAM OVERLAY STYLES
     background: #021a12 !important;
     overflow-y: auto !important;
 }
+
+
+/* ============================================================
+   MOTION CHEERLEADER BOUNDARY & SIX CELEBRATION
+   ============================================================ */
+
+.tv-cheer-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at center, rgba(3, 30, 23, 0.88) 0%, rgba(2, 10, 8, 0.96) 100%);
+    backdrop-filter: blur(8px);
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    cursor: pointer;
+}
+
+.tv-cheer-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.tv-cheer-stage {
+    position: relative;
+    z-index: 10;
+    width: 95%;
+    max-width: 960px;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-around;
+    padding: 1.5rem 1rem;
+    pointer-events: auto;
+}
+
+/* Stadium Spotlight Beams */
+.tv-spotlight {
+    position: absolute;
+    top: -30%;
+    width: 250px;
+    height: 160%;
+    background: radial-gradient(ellipse at top, rgba(0, 255, 136, 0.35) 0%, rgba(0, 255, 136, 0.05) 50%, transparent 80%);
+    transform-origin: top center;
+    pointer-events: none;
+    filter: blur(10px);
+}
+.tv-spotlight-left {
+    left: 10%;
+    animation: sweepBeamLeft 3.5s ease-in-out infinite alternate;
+}
+.tv-spotlight-right {
+    right: 10%;
+    animation: sweepBeamRight 3.5s ease-in-out infinite alternate;
+}
+
+@keyframes sweepBeamLeft {
+    0% { transform: rotate(-25deg); }
+    100% { transform: rotate(15deg); }
+}
+@keyframes sweepBeamRight {
+    0% { transform: rotate(25deg); }
+    100% { transform: rotate(-15deg); }
+}
+
+/* Cheerleader Figures */
+.tv-cheerleader-box {
+    width: 140px;
+    height: 220px;
+    flex-shrink: 0;
+    position: relative;
+    user-select: none;
+}
+@media (min-width: 640px) {
+    .tv-cheerleader-box {
+        width: 190px;
+        height: 280px;
+    }
+}
+
+.cheer-jump-left {
+    animation: cheerJumpL 0.62s ease-in-out infinite;
+    transform-origin: bottom center;
+}
+.cheer-jump-right {
+    animation: cheerJumpR 0.62s ease-in-out infinite;
+    transform-origin: bottom center;
+    animation-delay: 0.16s;
+}
+
+.pom-shake-l {
+    animation: pomShake 0.32s ease-in-out infinite alternate;
+    transform-origin: 35px 55px;
+}
+.pom-shake-r {
+    animation: pomShake 0.32s ease-in-out infinite alternate-reverse;
+    transform-origin: 145px 55px;
+}
+.hair-bounce {
+    animation: hairBounce 0.62s ease-in-out infinite;
+    transform-origin: 90px 45px;
+}
+
+@keyframes cheerJumpL {
+    0%, 100% { transform: translateY(0) rotate(-3deg) scale(1); }
+    50% { transform: translateY(-22px) rotate(3deg) scale(1.05); }
+}
+@keyframes cheerJumpR {
+    0%, 100% { transform: translateY(0) rotate(3deg) scale(1); }
+    50% { transform: translateY(-22px) rotate(-3deg) scale(1.05); }
+}
+@keyframes pomShake {
+    0% { transform: rotate(-25deg) scale(0.9); }
+    100% { transform: rotate(25deg) scale(1.22); }
+}
+@keyframes hairBounce {
+    0%, 100% { transform: rotate(-12deg); }
+    50% { transform: rotate(14deg); }
+}
+
+/* Center Celebration Banner Card */
+.tv-cheer-banner {
+    position: relative;
+    z-index: 20;
+    text-align: center;
+    padding: 1.5rem 2rem;
+    border-radius: 1.5rem;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.7);
+    animation: bannerPopIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    max-width: 480px;
+    margin: 0 0.5rem;
+    align-self: center;
+}
+
+.tv-cheer-banner.banner-four {
+    background: linear-gradient(145deg, rgba(6, 78, 59, 0.95) 0%, rgba(2, 44, 34, 0.95) 100%);
+    border: 3px solid #00ff88;
+    box-shadow: 0 0 40px rgba(0, 255, 136, 0.5), inset 0 0 20px rgba(0, 255, 136, 0.2);
+}
+
+.tv-cheer-banner.banner-six {
+    background: linear-gradient(145deg, rgba(88, 28, 135, 0.95) 0%, rgba(59, 7, 100, 0.95) 100%);
+    border: 3px solid #fbbf24;
+    box-shadow: 0 0 50px rgba(236, 72, 153, 0.6), 0 0 30px rgba(251, 191, 36, 0.4), inset 0 0 25px rgba(236, 72, 153, 0.25);
+}
+
+@keyframes bannerPopIn {
+    0% { transform: scale(0.3) rotate(-6deg); opacity: 0; }
+    70% { transform: scale(1.08) rotate(1deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.tv-cheer-title {
+    font-size: 2.25rem;
+    line-height: 1;
+    font-weight: 900;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-shadow: 0 0 20px currentColor;
+    animation: titleGlow 1.2s ease-in-out infinite alternate;
+}
+@media (min-width: 640px) {
+    .tv-cheer-title {
+        font-size: 3.5rem;
+    }
+}
+
+@keyframes titleGlow {
+    0% { filter: drop-shadow(0 0 10px currentColor); }
+    100% { filter: drop-shadow(0 0 30px currentColor); }
+}
+
+/* Streamer Action Buttons in TV Toolbar */
+.tv-cheer-btn {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    user-select: none;
+}
+.tv-cheer-btn:hover {
+    transform: translateY(-1px) scale(1.05);
+}
+.tv-cheer-btn:active {
+    transform: translateY(1px) scale(0.96);
+}
+.tv-cheer-btn-four {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.3) 0%, rgba(6, 78, 59, 0.6) 100%);
+    border: 1px solid rgba(0, 255, 136, 0.5);
+    color: #00ff88;
+}
+.tv-cheer-btn-four:hover {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.5) 0%, rgba(6, 78, 59, 0.8) 100%);
+    box-shadow: 0 0 16px rgba(0, 255, 136, 0.5);
+}
+.tv-cheer-btn-six {
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.3) 0%, rgba(124, 58, 237, 0.6) 100%);
+    border: 1px solid rgba(244, 114, 182, 0.6);
+    color: #f472b6;
+}
+.tv-cheer-btn-six:hover {
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.5) 0%, rgba(124, 58, 237, 0.8) 100%);
+    box-shadow: 0 0 18px rgba(236, 72, 153, 0.5);
+}

@@ -2446,12 +2446,24 @@ class ESPNClient:
             "lastUpdated": time.strftime("%Y-%m-%d %H:%M:%S")
         }
 
-        # Fetch detailed Last 3 Overs ball-by-ball
-        recent_overs = self._fetch_recent_overs(league_id, event_id)
+        # Fetch detailed Last 3-4 Overs ball-by-ball
+        pbp_raw_items = getattr(self, '_cached_playbyplay_items', None)
+        recent_overs = self._fetch_recent_overs(league_id, event_id, items=pbp_raw_items)
         if recent_overs:
             if isinstance(result.get("liveCrease"), dict):
                 result["liveCrease"]["recentOvers"] = recent_overs
             result["recentOvers"] = recent_overs
+        
+        # Ensure liveCrease.recentDeliveries is synced with the latest deliveries
+        if isinstance(result.get("liveCrease"), dict) and recent_overs:
+            if not result["liveCrease"].get("recentDeliveries"):
+                flat_delivs = []
+                for o_idx, o in enumerate(recent_overs):
+                    if o_idx > 0:
+                        flat_delivs.append("|")
+                    for b in o.get("balls", []):
+                        flat_delivs.append(b.get("symbol", "0"))
+                result["liveCrease"]["recentDeliveries"] = flat_delivs
 
         # Final safety verification: ensure all innings have accurate extras, runs, wickets, and overs
         for inn in innings_data.values():
@@ -2493,27 +2505,60 @@ class ESPNClient:
         self._set_cached(cache_key, result)
         return result
 
-    def _fetch_recent_overs(self, league_id: str, event_id: str) -> List[Dict[str, Any]]:
-        """Fetch ball-by-ball entries for the last 3 overs from ESPN play-by-play API."""
-        url_pbp = f"https://site.web.api.espn.com/apis/site/v2/sports/cricket/{league_id}/playbyplay?event={event_id}"
+    def _fetch_recent_overs(self, league_id: str, event_id: str, items: List[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Fetch ball-by-ball entries for the latest 3-4 overs from ESPN play-by-play API."""
         try:
-            r = self.session.get(url_pbp, timeout=4)
-            if r.status_code != 200:
-                return []
-            p_data = r.json()
-            items = p_data.get("commentary", {}).get("items", [])
+            if not items:
+                items = []
+                for period in [1, 2, 3, 4]:
+                    url_pbp = f"https://site.web.api.espn.com/apis/site/v2/sports/cricket/{league_id}/playbyplay?event={event_id}&period={period}&limit=500"
+                    try:
+                        r = self.session.get(url_pbp, timeout=5)
+                        if r.status_code == 200:
+                            p_items = r.json().get("commentary", {}).get("items", [])
+                            if p_items:
+                                items.extend(p_items)
+                            elif period >= 2:
+                                break
+                        elif period >= 2:
+                            break
+                    except Exception:
+                        if period >= 2:
+                            break
+
+                if not items:
+                    try:
+                        url_pbp = f"https://site.web.api.espn.com/apis/site/v2/sports/cricket/{league_id}/playbyplay?event={event_id}&limit=500"
+                        r = self.session.get(url_pbp, timeout=5)
+                        if r.status_code == 200:
+                            items = r.json().get("commentary", {}).get("items", [])
+                    except Exception:
+                        pass
+
             if not items:
                 return []
-            
-            overs_dict = {}
+
+            # Group items by innings number and choose the latest active innings
+            inn_dict = {}
             for it in items:
+                inn_n = str(it.get("innings", {}).get("number", 1))
+                inn_dict.setdefault(inn_n, []).append(it)
+
+            latest_inn_n = str(max([int(k) for k in inn_dict.keys()])) if inn_dict else "1"
+            latest_items = inn_dict.get(latest_inn_n, items)
+
+            overs_dict = {}
+            for it in latest_items:
                 ov_obj = it.get("over", {})
                 ov_num = ov_obj.get("number")
                 if not ov_num and "actual" in ov_obj:
-                    ov_num = int(float(ov_obj["actual"])) + 1
+                    try:
+                        ov_num = int(float(ov_obj["actual"])) + 1
+                    except Exception:
+                        ov_num = None
                 if not ov_num:
                     continue
-                
+
                 if ov_num not in overs_dict:
                     bwl = it.get("bowler", {}).get("athlete", {}).get("displayName") or it.get("bowler", {}).get("athlete", {}).get("shortName") or "Bowler"
                     overs_dict[ov_num] = {
@@ -2523,12 +2568,12 @@ class ESPNClient:
                         "totalRuns": 0,
                         "totalWickets": 0
                     }
-                
+
                 short_t = str(it.get("shortText", "")).strip()
                 full_t = str(it.get("text", "")).strip()
                 ptype = str(it.get("playType", {}).get("description", "")).lower()
                 is_wkt = bool(it.get("dismissal", {}).get("dismissal", False)) or "OUT" in short_t or "wicket" in ptype
-                
+
                 raw_sv = it.get("scoreValue")
                 runs = 0
                 if raw_sv is not None:
@@ -2536,7 +2581,7 @@ class ESPNClient:
                         runs = int(raw_sv)
                     except Exception:
                         runs = 0
-                
+
                 # Check shortText if scoreValue was missing or 0
                 if runs == 0 and not is_wkt:
                     if "FOUR" in short_t or "four" in ptype:
@@ -2563,7 +2608,7 @@ class ESPNClient:
                     symbol = "0"
                 elif runs in [1, 2, 3, 4, 5, 6, 7]:
                     symbol = str(runs)
-                
+
                 overs_dict[ov_num]["balls"].append({
                     "ballNumber": ov_obj.get("ball", len(overs_dict[ov_num]["balls"]) + 1),
                     "actual": ov_obj.get("actual"),
@@ -2576,12 +2621,12 @@ class ESPNClient:
                 overs_dict[ov_num]["totalRuns"] += runs
                 if is_wkt:
                     overs_dict[ov_num]["totalWickets"] += 1
-            
+
             sorted_keys = sorted(overs_dict.keys())
-            last_3_keys = sorted_keys[-3:] if len(sorted_keys) >= 3 else sorted_keys
-            
+            last_keys = sorted_keys[-4:] if len(sorted_keys) >= 4 else sorted_keys
+
             res = []
-            for k in last_3_keys:
+            for k in last_keys:
                 o = overs_dict[k]
                 w_text = f", {o['totalWickets']} wkt" if o['totalWickets'] == 1 else (f", {o['totalWickets']} wkts" if o['totalWickets'] > 1 else "")
                 o["summary"] = f"{o['totalRuns']} runs{w_text}"
@@ -2624,6 +2669,8 @@ class ESPNClient:
 
         if not items:
             return {}, {}, []
+
+        self._cached_playbyplay_items = items
 
         innings_dict = {}
         for item in items:

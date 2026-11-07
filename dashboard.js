@@ -3734,6 +3734,257 @@ function renderCommentaryTab(data) {
 // -------------------------------------------------------------
 
 // -------------------------------------------------------------
+
+// -------------------------------------------------------------
+// CHEERLEADER MOTION CELEBRATION (Boundaries & Sixes)
+// -------------------------------------------------------------
+
+function getCheerleaderSvg(isRight = false, type = 'four') {
+    const isSix = type === 'six';
+    const dressColor1 = isSix ? '#ec4899' : '#10b981';
+    const dressColor2 = isSix ? '#8b5cf6' : '#047857';
+    const pomColor1 = isSix ? '#f43f5e' : '#00ff88';
+    const pomColor2 = isSix ? '#fbbf24' : '#059669';
+    const ribbonColor = isSix ? '#fbbf24' : '#00ff88';
+    const jumpClass = isRight ? 'cheer-jump-right' : 'cheer-jump-left';
+    const flipStyle = isRight ? 'transform: scaleX(-1);' : '';
+    const idPrefix = (type + '_' + (isRight ? 'r' : 'l')).replace(/[^a-zA-Z0-9_]/g, '');
+
+    return `
+    <div class="tv-cheerleader-box ${jumpClass}" style="${flipStyle}">
+        <svg viewBox="0 0 180 260" width="100%" height="100%">
+            <defs>
+                <radialGradient id="pomG_${idPrefix}" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#ffffff" />
+                    <stop offset="35%" stop-color="${pomColor1}" />
+                    <stop offset="70%" stop-color="${pomColor2}" />
+                    <stop offset="100%" stop-color="#022c22" />
+                </radialGradient>
+                <radialGradient id="goldG_${idPrefix}" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#ffffff" />
+                    <stop offset="35%" stop-color="#fde047" />
+                    <stop offset="70%" stop-color="#eab308" />
+                    <stop offset="100%" stop-color="#713f12" />
+                </radialGradient>
+                <linearGradient id="skinG_${idPrefix}" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#fed7aa" />
+                    <stop offset="100%" stop-color="#fdba74" />
+                </linearGradient>
+                <linearGradient id="dressG_${idPrefix}" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="${dressColor1}" />
+                    <stop offset="100%" stop-color="${dressColor2}" />
+                </linearGradient>
+                <linearGradient id="hairG_${idPrefix}" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#92400e" />
+                    <stop offset="100%" stop-color="#451a03" />
+                </linearGradient>
+            </defs>
+            <ellipse cx="90" cy="248" rx="42" ry="6" fill="rgba(0,0,0,0.4)"/>
+            <path d="M 75 160 L 70 205 L 68 238" stroke="url(#skinG_${idPrefix})" stroke-width="12" stroke-linecap="round" fill="none"/>
+            <path d="M 105 160 L 110 205 L 112 238" stroke="url(#skinG_${idPrefix})" stroke-width="12" stroke-linecap="round" fill="none"/>
+            <rect x="62" y="222" width="12" height="15" rx="3" fill="#ffffff"/>
+            <rect x="106" y="222" width="12" height="15" rx="3" fill="#ffffff"/>
+            <rect x="62" y="228" width="12" height="3" fill="${pomColor1}"/>
+            <rect x="106" y="228" width="12" height="3" fill="${pomColor1}"/>
+            <ellipse cx="66" cy="240" rx="9" ry="6" fill="#f8fafc"/>
+            <ellipse cx="114" cy="240" rx="9" ry="6" fill="#f8fafc"/>
+            <ellipse cx="64" cy="242" rx="7" ry="3" fill="#e2e8f0"/>
+            <ellipse cx="116" cy="242" rx="7" ry="3" fill="#e2e8f0"/>
+            <path d="M 76 100 L 78 140 L 102 140 L 104 100 Z" fill="url(#skinG_${idPrefix})"/>
+            <path d="M 74 102 L 76 128 L 104 128 L 106 102 Z" fill="url(#dressG_${idPrefix})"/>
+            <path d="M 74 102 Q 90 112 106 102" stroke="#ffffff" stroke-width="3" fill="none"/>
+            <circle cx="90" cy="116" r="3.5" fill="#fde047"/>
+            <path d="M 72 136 L 56 168 L 124 168 L 108 136 Z" fill="url(#dressG_${idPrefix})"/>
+            <path d="M 70 148 L 59 168 M 80 144 L 75 168 M 90 142 L 90 168 M 100 144 L 105 168 M 110 148 L 121 168" stroke="rgba(0,0,0,0.3)" stroke-width="2"/>
+            <path d="M 56 165 L 124 165" stroke="#ffffff" stroke-width="3"/>
+            <path d="M 55 168 L 125 168" stroke="#fde047" stroke-width="1.5"/>
+            <g class="pom-shake-l">
+                <path d="M 76 105 L 50 85 L 36 60" stroke="url(#skinG_${idPrefix})" stroke-width="9" stroke-linecap="round" fill="none"/>
+                <g transform="translate(32, 54)">
+                    <circle cx="0" cy="0" r="26" fill="url(#pomG_${idPrefix})"/>
+                    <path d="M -24 -10 L 24 10 M -10 -24 L 10 24 M -20 15 L 20 -15 M -15 -20 L 15 20 M -26 0 L 26 0 M 0 -26 L 0 26" stroke="#fde047" stroke-width="3.5" stroke-linecap="round"/>
+                    <circle cx="0" cy="0" r="14" fill="url(#goldG_${idPrefix})"/>
+                    <circle cx="0" cy="0" r="6" fill="#ffffff"/>
+                </g>
+            </g>
+            <g class="pom-shake-r">
+                <path d="M 104 105 L 130 85 L 144 60" stroke="url(#skinG_${idPrefix})" stroke-width="9" stroke-linecap="round" fill="none"/>
+                <g transform="translate(148, 54)">
+                    <circle cx="0" cy="0" r="26" fill="url(#pomG_${idPrefix})"/>
+                    <path d="M -24 -10 L 24 10 M -10 -24 L 10 24 M -20 15 L 20 -15 M -15 -20 L 15 20 M -26 0 L 26 0 M 0 -26 L 0 26" stroke="#fde047" stroke-width="3.5" stroke-linecap="round"/>
+                    <circle cx="0" cy="0" r="14" fill="url(#goldG_${idPrefix})"/>
+                    <circle cx="0" cy="0" r="6" fill="#ffffff"/>
+                </g>
+            </g>
+            <rect x="85" y="88" width="10" height="15" rx="3" fill="url(#skinG_${idPrefix})"/>
+            <g class="hair-bounce">
+                <path d="M 96 52 Q 135 40 140 70 Q 130 95 105 80 Z" fill="url(#hairG_${idPrefix})"/>
+                <path d="M 98 48 L 112 40 L 110 54 Z" fill="${ribbonColor}"/>
+                <path d="M 98 48 L 105 60 L 94 58 Z" fill="#fde047"/>
+                <circle cx="98" cy="50" r="4" fill="#ffffff"/>
+            </g>
+            <circle cx="90" cy="72" r="20" fill="url(#skinG_${idPrefix})"/>
+            <path d="M 71 68 Q 90 55 109 68 Q 106 50 90 48 Q 74 50 71 68 Z" fill="url(#hairG_${idPrefix})"/>
+            <path d="M 79 72 Q 83 67 87 72" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <path d="M 93 72 Q 97 67 101 72" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <ellipse cx="78" cy="76" rx="4" ry="2" fill="rgba(244,63,94,0.5)"/>
+            <ellipse cx="102" cy="76" rx="4" ry="2" fill="rgba(244,63,94,0.5)"/>
+            <path d="M 85 78 Q 90 85 95 78 Z" fill="#e11d48"/>
+            <path d="M 87 79 Q 90 81 93 79" fill="#ffffff"/>
+        </svg>
+    </div>
+    `;
+}
+
+function initConfettiParticles(isSix) {
+    const canvas = document.getElementById('tv-confetti-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const colors = isSix 
+        ? ['#ec4899', '#f43f5e', '#a855f7', '#fbbf24', '#ffffff', '#38bdf8']
+        : ['#00ff88', '#10b981', '#fde047', '#38bdf8', '#ffffff', '#f59e0b'];
+
+    const particles = [];
+    const particleCount = 100;
+
+    for (let i = 0; i < particleCount; i++) {
+        particles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * (canvas.height * 0.3) - 20,
+            w: Math.random() * 10 + 6,
+            h: Math.random() * 6 + 4,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            vx: (Math.random() - 0.5) * 4,
+            vy: Math.random() * 3 + 2.5,
+            rot: Math.random() * 360,
+            rotSpeed: (Math.random() - 0.5) * 12,
+            opacity: 1
+        });
+    }
+
+    let startTime = Date.now();
+    function renderConfetti() {
+        if (!document.getElementById('tv-confetti-canvas')) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const elapsed = Date.now() - startTime;
+
+        particles.forEach(p => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.rot += p.rotSpeed;
+            if (elapsed > 3500) {
+                p.opacity = Math.max(0, p.opacity - 0.02);
+            }
+
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate((p.rot * Math.PI) / 180);
+            ctx.globalAlpha = p.opacity;
+            ctx.fillStyle = p.color;
+            ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+            ctx.restore();
+        });
+
+        if (elapsed < 4500) {
+            requestAnimationFrame(renderConfetti);
+        }
+    }
+
+    renderConfetti();
+}
+
+function playCelebrationFanfare() {
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const notes = [
+            { f: 523.25, t: 0.0, d: 0.15 },
+            { f: 659.25, t: 0.15, d: 0.15 },
+            { f: 783.99, t: 0.30, d: 0.20 },
+            { f: 1046.50, t: 0.50, d: 0.65 }
+        ];
+        notes.forEach(n => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(n.f, ctx.currentTime + n.t);
+            gain.gain.setValueAtTime(0.001, ctx.currentTime + n.t);
+            gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + n.t + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + n.t + n.d);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime + n.t);
+            osc.stop(ctx.currentTime + n.t + n.d + 0.05);
+        });
+    } catch(e) {
+        // Audio might be blocked until user gesture, safely ignore
+    }
+}
+
+window.triggerCheerleaderCelebration = function(type = 'four') {
+    let existing = document.getElementById('tv-cheerleader-overlay');
+    if (existing) existing.remove();
+
+    const isSix = type === 'six';
+    const titleText = isSix ? 'MAXIMUM SIX! 💥' : 'FOUR! ⚡';
+    const subText = isSix ? 'MASSIVE MONSTER HIT OUT OF THE PARK!' : 'SUPERB BOUNDARY CRACKED TO THE FENCE!';
+    const bannerClass = isSix ? 'banner-six' : 'banner-four';
+    const titleColor = isSix ? 'text-amber-300' : 'text-[#00ff88]';
+
+    const overlayHtml = `
+        <div id="tv-cheerleader-overlay" class="tv-cheer-overlay active" onclick="this.classList.remove('active'); setTimeout(() => this.remove(), 300);">
+            <canvas id="tv-confetti-canvas" class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 15;"></canvas>
+            
+            <div class="tv-spotlight tv-spotlight-left"></div>
+            <div class="tv-spotlight tv-spotlight-right"></div>
+
+            <div class="tv-cheer-stage" onclick="event.stopPropagation();">
+                <!-- Left Cheerleader -->
+                ${getCheerleaderSvg(false, type)}
+
+                <!-- Center Banner -->
+                <div class="tv-cheer-banner ${bannerClass}">
+                    <div class="flex items-center justify-center gap-2 mb-2">
+                        <span class="text-[10px] sm:text-xs font-mono font-black uppercase tracking-widest text-emerald-300 bg-black/40 px-3 py-1 rounded-full border border-emerald-500/30">
+                            🏏 SPORTS DYNASTY CHEER CELEBRATION
+                        </span>
+                    </div>
+                    <h2 class="tv-cheer-title ${titleColor}">${titleText}</h2>
+                    <p class="text-xs sm:text-sm font-mono font-bold text-slate-200 mt-2 tracking-wide">${subText}</p>
+                    
+                    <div class="mt-4 flex items-center justify-center gap-3">
+                        <button onclick="document.getElementById('tv-cheerleader-overlay').remove();" class="text-slate-300 hover:text-white text-xs font-mono font-bold px-3 py-1.5 rounded-lg bg-black/60 border border-white/20 transition-all cursor-pointer">
+                            ✕ Close
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Cheerleader -->
+                ${getCheerleaderSvg(true, type)}
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', overlayHtml);
+    initConfettiParticles(isSix);
+    playCelebrationFanfare();
+
+    if (window._cheerTimer) clearTimeout(window._cheerTimer);
+    window._cheerTimer = setTimeout(() => {
+        const el = document.getElementById('tv-cheerleader-overlay');
+        if (el) {
+            el.classList.remove('active');
+            setTimeout(() => el.remove(), 300);
+        }
+    }, 4500);
+};
+
 // TV STREAM OVERLAY MODE (Broadcast Studio Graphics)
 // -------------------------------------------------------------
 
@@ -4169,7 +4420,15 @@ function renderTvStreamTab(data) {
                         ${tossText ? `<span class="text-slate-500 hidden sm:inline">•</span><span class="text-emerald-400/90 font-medium hidden sm:inline truncate max-w-sm">${escapeQuotes(tossText)}</span>` : ''}
                     </div>
                     ${winProbHtml}
-                    <div class="flex items-center gap-1.5">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <button onclick="window.triggerCheerleaderCelebration('four')" class="tv-cheer-btn tv-cheer-btn-four px-2.5 py-1 rounded-lg font-mono text-[11px] font-black flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs" title="Cheerleader Boundary 4 Celebration">
+                            <span>💃</span>
+                            <span>4 CHEER</span>
+                        </button>
+                        <button onclick="window.triggerCheerleaderCelebration('six')" class="tv-cheer-btn tv-cheer-btn-six px-2.5 py-1 rounded-lg font-mono text-[11px] font-black flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs" title="Cheerleader Maximum 6 Celebration">
+                            <span>💃</span>
+                            <span>6 CHEER</span>
+                        </button>
                         <button onclick="toggleTvFullscreen()" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-500/40 font-mono text-[11px] font-black flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs" title="Toggle 1080p Fullscreen for OBS Stream">
                             <i data-lucide="maximize" class="w-3.5 h-3.5"></i>
                             <span id="tv-fs-btn-text">OBS 1080p Mode</span>
@@ -4211,6 +4470,34 @@ function renderTvStreamTab(data) {
                 </div>
             </div>
         `;
+
+        // Auto-Cheerleader celebration check on live score updates
+        try {
+            const recentOversList = crease.recentOvers || data.recentOvers || [];
+            if (recentOversList.length > 0) {
+                const latestOver = recentOversList[recentOversList.length - 1];
+                const balls = latestOver.balls || [];
+                if (balls.length > 0) {
+                    const latestBall = balls[balls.length - 1];
+                    const ballSym = String(latestBall.symbol || latestBall.text || '').trim();
+                    const ballSig = `${data.id || data.eventId || 'match'}_${latestOver.overNumber}_b${latestBall.ballNumber || balls.length}_${ballSym}`;
+                    
+                    if (window._lastCelebratedBallSig === undefined) {
+                        window._lastCelebratedBallSig = ballSig;
+                    } else if (window._lastCelebratedBallSig !== ballSig) {
+                        window._lastCelebratedBallSig = ballSig;
+                        if (ballSym === '4') {
+                            window.triggerCheerleaderCelebration('four');
+                        } else if (ballSym === '6') {
+                            window.triggerCheerleaderCelebration('six');
+                        }
+                    }
+                }
+            }
+        } catch(ce) {
+            console.warn('Cheer auto check error:', ce);
+        }
+
         safeCreateIcons();
     } catch(err) {
         console.error("renderTvStreamTab error:", err);

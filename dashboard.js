@@ -908,6 +908,127 @@ function startUpcomingCountdowns() {
     }, 1000);
 }
 
+
+// -------------------------------------------------------------
+// CHASE EQUATION & REQUIRED RUN RATE (RRR) CALCULATION ENGINE
+// -------------------------------------------------------------
+
+function extractOrComputeChaseEquation(data, c1Score, c2Score, c1, c2) {
+    if (!data) return null;
+    const isTestMatch = Boolean(
+        data.isTestMatch || 
+        (data.currentInnings && data.currentInnings.isTestMatch) || 
+        (data.description && /test|4-day|5-day|championship|shield|ranji/i.test(data.description))
+    );
+    if (isTestMatch) return null;
+
+    const s1 = String(c1Score || '');
+    const s2 = String(c2Score || '');
+    const lead = String(data.leadSummary || data.statusDetail || '');
+
+    let runsNeeded = null;
+    let ballsLeft = null;
+    let rrr = '';
+    let target = null;
+    let chasingTeam = '';
+
+    // 1. Try to extract official equation directly from leadSummary (handles DLS, rain revisions, official match data)
+    // Matches patterns like: "India need 22 runs from 126 balls (RRR: 1.05)" or "Need 102 runs in 233 balls"
+    const leadMatch = lead.match(/(?:(.+?)\s+)?need\s+(\d+)\s+runs?(?:\s+(?:from|in|off)\s+(\d+)\s+balls?)?(?:\s*\((?:RRR:?\s*)?([\d\.]+)\))?/i);
+    if (leadMatch) {
+        if (leadMatch[1]) chasingTeam = leadMatch[1].trim();
+        if (leadMatch[2]) runsNeeded = parseInt(leadMatch[2], 10);
+        if (leadMatch[3]) ballsLeft = parseInt(leadMatch[3], 10);
+        if (leadMatch[4]) rrr = leadMatch[4].trim();
+    }
+
+    if (!rrr) {
+        const rrrMatch = lead.match(/RRR:\s*([\d\.]+)/i);
+        if (rrrMatch) rrr = rrrMatch[1].trim();
+    }
+
+    // 2. Target extraction from strings
+    const targetMatch = (s1 + ' ' + s2 + ' ' + lead).match(/target\s*(\d+)/i);
+    if (targetMatch) {
+        target = parseInt(targetMatch[1], 10);
+    }
+
+    const isSecondInnings = Boolean(
+        target !== null ||
+        runsNeeded !== null ||
+        (data.innings && Object.keys(data.innings).length >= 2) ||
+        s2.toLowerCase().includes('target') ||
+        lead.toLowerCase().includes('need')
+    );
+
+    if (!isSecondInnings) return null;
+
+    let chasingScoreStr = s2;
+    let firstInningsScoreStr = s1;
+    let chaserObj = c2;
+    if (s1.toLowerCase().includes('target') && !s2.toLowerCase().includes('target')) {
+        chasingScoreStr = s1;
+        firstInningsScoreStr = s2;
+        chaserObj = c1;
+    }
+
+    if (!chasingTeam && chaserObj) {
+        chasingTeam = chaserObj.name || chaserObj.shortName || chaserObj.abbr || 'Batting Team';
+    }
+
+    const rChaserMatch = chasingScoreStr.match(/^(\d+)/);
+    const runsScored = rChaserMatch ? parseInt(rChaserMatch[1], 10) : 0;
+
+    if (target === null) {
+        const r1M = firstInningsScoreStr.match(/^(\d+)/);
+        if (r1M) {
+            target = parseInt(r1M[1], 10) + 1;
+        }
+    }
+
+    if (target !== null && runsNeeded === null) {
+        runsNeeded = Math.max(0, target - runsScored);
+    }
+
+    // Flexible regex for current overs bowled & max overs:
+    // Matches "(8.1/47 ov, target 135)", "(26/37 ov)", "(15.2/20 ov)", "(8.1 ov)"
+    const ovMatch = chasingScoreStr.match(/\((\d+(?:\.\d+)?)(?:\/(\d+(?:\.\d+)?))?\s*ov/i);
+    if (ovMatch && ballsLeft === null) {
+        const curOv = parseFloat(ovMatch[1]);
+        let maxOv = ovMatch[2] ? parseFloat(ovMatch[2]) : null;
+        if (!maxOv) {
+            const maxM = (firstInningsScoreStr + ' ' + (data.description || '')).match(/(?:\/|reduced\s+to\s*)(\d+(?:\.\d+)?)\s*ov/i);
+            if (maxM) {
+                maxOv = parseFloat(maxM[1]);
+            } else if (firstInningsScoreStr.includes('/50') || (data.description && /odi|50/i.test(data.description))) {
+                maxOv = 50;
+            } else {
+                maxOv = 20;
+            }
+        }
+        const fullOv = Math.floor(curOv);
+        const remB = Math.round((curOv - fullOv) * 10);
+        const ballsBowled = fullOv * 6 + remB;
+        const totalBalls = Math.round(maxOv * 6);
+        ballsLeft = Math.max(0, totalBalls - ballsBowled);
+    }
+
+    if (!rrr && runsNeeded !== null && ballsLeft !== null && ballsLeft > 0) {
+        rrr = (runsNeeded / (ballsLeft / 6.0)).toFixed(2);
+    }
+
+    return {
+        isChase: true,
+        chasingTeam,
+        runsNeeded: runsNeeded !== null ? runsNeeded : 0,
+        ballsLeft: ballsLeft !== null ? ballsLeft : 0,
+        target: target || 0,
+        rrr: rrr || '-',
+        equationText: (runsNeeded !== null && ballsLeft !== null) ? `${runsNeeded} runs in ${ballsLeft} balls` : '',
+        shortEquation: (runsNeeded !== null && ballsLeft !== null) ? `${runsNeeded} off ${ballsLeft}b` : ''
+    };
+}
+
 function renderSingleMatchCard(m) {
     const isActive = (m.id === appState.selectedEventId);
     const isLive = m.isLive;
@@ -961,35 +1082,10 @@ function renderSingleMatchCard(m) {
     const safeSeries = escapeQuotes(seriesTitle);
 
     let cardRRR = "";
-    if (isLive && c1.score && c2.score && !m.isTestMatch) {
-        const s1 = String(c1.score || "");
-        const s2 = String(c2.score || "");
-        const r1M = s1.match(/^(\d+)/);
-        const r2M = s2.match(/^(\d+)/);
-        const ov2M = s2.match(/\((\d+(?:\.\d+)?)\s*ov/i);
-        if (r1M && r2M && ov2M) {
-            const r1 = parseInt(r1M[1], 10);
-            const r2 = parseInt(r2M[1], 10);
-            const targetM = (s2 + ' ' + (m.leadSummary || '') + ' ' + (m.statusDetail || '')).match(/target\s*(\d+)/i);
-            const target = targetM ? parseInt(targetM[1], 10) : (r1 + 1);
-            const runsNeed = target - r2;
-            const ov2Val = parseFloat(ov2M[1]);
-            const fullOv = Math.floor(ov2Val);
-            const remBalls = Math.round((ov2Val - fullOv) * 10);
-            const ballsBowled = fullOv * 6 + remBalls;
-            let maxOvers = 20;
-            const redM = (s1 + ' ' + s2 + ' ' + (m.leadSummary || '') + ' ' + (m.statusDetail || '')).match(/(?:reduced\s+to|\/)\s*(\d+(?:\.\d+)?)\s*(?:overs|ov)/i);
-            if (redM) {
-                maxOvers = parseFloat(redM[1]);
-            } else if (s1.includes('/50') || s2.includes('/50') || (m.description && /odi|50/i.test(m.description))) {
-                maxOvers = 50;
-            } else if (s1.includes('/20') || s2.includes('/20') || (m.description && /t20|20/i.test(m.description))) {
-                maxOvers = 20;
-            }
-            const ballsLeft = Math.max(0, Math.round(maxOvers * 6) - ballsBowled);
-            if (runsNeed > 0 && ballsLeft > 0) {
-                cardRRR = (runsNeed / (ballsLeft / 6.0)).toFixed(2);
-            }
+    if (isLive && !m.isTestMatch) {
+        const chaseCardInfo = extractOrComputeChaseEquation(m, c1.score, c2.score, c1, c2);
+        if (chaseCardInfo && chaseCardInfo.rrr !== '-') {
+            cardRRR = chaseCardInfo.rrr;
         }
     }
 
@@ -1696,45 +1792,9 @@ function renderHeroBanner(data) {
         }
         const last10 = String(data.liveCrease && data.liveCrease.last10Overs ? data.liveCrease.last10Overs : "");
 
-        // Compute Required Run Rate (RRR) for 2nd innings chase in limited overs
-        let liveRRR = "";
-        const isTestMatch = Boolean(
-            data.isTestMatch || 
-            (data.currentInnings && data.currentInnings.isTestMatch) || 
-            (data.description && /test|4-day|5-day|championship|shield|ranji|trophy/i.test(data.description))
-        );
-
-        if (!isTestMatch && isLive && competitors && competitors.length >= 2) {
-            const s1 = String(c1Score || "");
-            const s2 = String(c2Score || "");
-            const r1M = s1.match(/^(\d+)/);
-            const r2M = s2.match(/^(\d+)/);
-            const ov2M = s2.match(/\((\d+(?:\.\d+)?)\s*ov/i);
-            if (r1M && r2M && ov2M) {
-                const r1 = parseInt(r1M[1], 10);
-                const r2 = parseInt(r2M[1], 10);
-                const targetM = (s2 + ' ' + (data.leadSummary || '') + ' ' + (data.statusDetail || '')).match(/target\s*(\d+)/i);
-                const target = targetM ? parseInt(targetM[1], 10) : (r1 + 1);
-                const runsNeed = target - r2;
-                const ov2Val = parseFloat(ov2M[1]);
-                const fullOv = Math.floor(ov2Val);
-                const remBalls = Math.round((ov2Val - fullOv) * 10);
-                const ballsBowled = fullOv * 6 + remBalls;
-                let maxOvers = 20;
-                const redM = (s1 + ' ' + s2 + ' ' + (data.leadSummary || '') + ' ' + (data.statusDetail || '')).match(/(?:reduced\s+to|\/)\s*(\d+(?:\.\d+)?)\s*(?:overs|ov)/i);
-                if (redM) {
-                    maxOvers = parseFloat(redM[1]);
-                } else if (s1.includes('/50') || s2.includes('/50') || (data.description && /odi|50/i.test(data.description))) {
-                    maxOvers = 50;
-                } else if (s1.includes('/20') || s2.includes('/20') || (data.description && /t20|20/i.test(data.description))) {
-                    maxOvers = 20;
-                }
-                const ballsLeft = Math.max(0, Math.round(maxOvers * 6) - ballsBowled);
-                if (runsNeed > 0 && ballsLeft > 0) {
-                    liveRRR = (runsNeed / (ballsLeft / 6.0)).toFixed(2);
-                }
-            }
-        }
+        // Compute Required Run Rate (RRR) and Chase Equation for 2nd innings chase in limited overs
+        const chaseDetailInfo = extractOrComputeChaseEquation(data, c1Score, c2Score, c1, c2);
+        let liveRRR = (chaseDetailInfo && chaseDetailInfo.rrr !== '-') ? chaseDetailInfo.rrr : "";
 
         // Determine active batting team for dynamic 3D Active Pod highlighting
         const c1IsBatting = isTeamCurrentlyBatting(c1, data);
@@ -4075,40 +4135,17 @@ function renderTvStreamTab(data) {
             currentCRR = computeCRRFromScore(c2Score) || computeCRRFromScore(c1Score) || '0.00';
         }
 
-        // Required Run Rate & Target for Limited Overs
-        let liveRRR = '';
-        let targetVal = 0;
-        let runsNeeded = 0;
-        let ballsLeft = 0;
+        // Required Run Rate & Target for Limited Overs Chase
+        const chaseTvInfo = extractOrComputeChaseEquation(data, c1Score, c2Score, c1, c2);
+        const liveRRR = (chaseTvInfo && chaseTvInfo.rrr !== '-') ? chaseTvInfo.rrr : '';
+        const targetVal = chaseTvInfo ? chaseTvInfo.target : 0;
+        const runsNeeded = chaseTvInfo ? chaseTvInfo.runsNeeded : 0;
+        const ballsLeft = chaseTvInfo ? chaseTvInfo.ballsLeft : 0;
         const isTestMatch = Boolean(
             data.isTestMatch || 
             (data.currentInnings && data.currentInnings.isTestMatch) || 
             (data.description && /test|4-day|5-day/i.test(data.description))
         );
-
-        if (!isTestMatch && isLive && competitors && competitors.length >= 2) {
-            const s1 = String(c1Score || '');
-            const s2 = String(c2Score || '');
-            const r1M = s1.match(/^(\d+)/);
-            const r2M = s2.match(/^(\d+)/);
-            const ov2M = s2.match(/\((\d+(?:\.\d+)?)\s*ov/i);
-            if (r1M && r2M && ov2M) {
-                const r1 = parseInt(r1M[1], 10);
-                const r2 = parseInt(r2M[1], 10);
-                const targetM = (s2 + ' ' + (data.leadSummary || '') + ' ' + (data.statusDetail || '')).match(/target\s*(\d+)/i);
-                targetVal = targetM ? parseInt(targetM[1], 10) : (r1 + 1);
-                runsNeeded = targetVal - r2;
-                const ov2Val = parseFloat(ov2M[1]);
-                const fullOv = Math.floor(ov2Val);
-                const remBalls = Math.round((ov2Val - fullOv) * 10);
-                const ballsBowled = fullOv * 6 + remBalls;
-                let maxOvers = (s1.includes('/50') || s2.includes('/50') || (data.description && /odi|50/i.test(data.description))) ? 50 : 20;
-                ballsLeft = Math.max(0, Math.round(maxOvers * 6) - ballsBowled);
-                if (runsNeeded > 0 && ballsLeft > 0) {
-                    liveRRR = (runsNeeded / (ballsLeft / 6.0)).toFixed(2);
-                }
-            }
-        }
 
         // Projected Score
         let projectedScore = '-';
@@ -4173,8 +4210,8 @@ function renderTvStreamTab(data) {
 
         // Center situation ticker
         let centerSituation = '';
-        if (isLive && targetVal > 0 && runsNeeded > 0 && ballsLeft > 0) {
-            centerSituation = `<span class="text-amber-400 font-mono font-black animate-pulse">TARGET ${targetVal} • NEED ${runsNeeded} RUNS OFF ${ballsLeft} BALLS</span>`;
+        if (isLive && chaseTvInfo && chaseTvInfo.isChase && chaseTvInfo.runsNeeded > 0) {
+            centerSituation = `<span class="text-amber-300 font-mono font-black animate-pulse uppercase">2ND INNINGS • ${escapeQuotes(chaseTvInfo.chasingTeam)} NEED ${chaseTvInfo.runsNeeded} RUNS IN ${chaseTvInfo.ballsLeft} BALLS ${liveRRR ? `(RRR ${liveRRR})` : ''}</span>`;
         } else if (isLive && c1IsBatting) {
             centerSituation = `<span class="text-[#00ff88] font-mono font-black">1ST INNINGS • ${c1Abbr} BATTING (CRR ${currentCRR})</span>`;
         } else if (isLive && c2IsBatting) {
@@ -4360,6 +4397,9 @@ function renderTvStreamTab(data) {
                             <div class="flex items-baseline gap-1.5">
                                 <span class="font-mono font-black text-xl sm:text-2xl md:text-3xl ${c1IsBatting ? 'text-[#00ff88] drop-shadow-[0_0_10px_rgba(0,255,136,0.5)]' : 'text-slate-200'}">${c1Score || 'Yet to bat'}</span>
                             </div>
+                            ${c1IsBatting && chaseTvInfo && chaseTvInfo.isChase && chaseTvInfo.runsNeeded > 0 ? `
+                                <div class="text-[10px] sm:text-[11px] font-mono font-black text-amber-300 drop-shadow-xs">Need ${chaseTvInfo.runsNeeded} off ${chaseTvInfo.ballsLeft}b</div>
+                            ` : ''}
                         </div>
                     </div>
 
@@ -4381,6 +4421,9 @@ function renderTvStreamTab(data) {
                             <div class="flex items-baseline justify-end gap-1.5">
                                 <span class="font-mono font-black text-xl sm:text-2xl md:text-3xl ${c2IsBatting ? 'text-[#00ff88] drop-shadow-[0_0_10px_rgba(0,255,136,0.5)]' : 'text-slate-200'}">${c2Score || 'Yet to bat'}</span>
                             </div>
+                            ${c2IsBatting && chaseTvInfo && chaseTvInfo.isChase && chaseTvInfo.runsNeeded > 0 ? `
+                                <div class="text-[10px] sm:text-[11px] font-mono font-black text-amber-300 drop-shadow-xs">Need ${chaseTvInfo.runsNeeded} off ${chaseTvInfo.ballsLeft}b</div>
+                            ` : ''}
                         </div>
                         <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-slate-900 border border-emerald-500/40 p-1 flex items-center justify-center shrink-0 shadow-md">
                             ${renderTeamLogo(c2Name, c2.logo, 'w-8 h-8 sm:w-10 sm:h-10')}
@@ -4400,11 +4443,18 @@ function renderTvStreamTab(data) {
                     </div>
                     <div class="tv-telemetry-badge p-2 text-center">
                         <span class="text-[9px] font-mono text-slate-400 uppercase block font-bold">RRR</span>
-                        <span class="font-mono font-black text-sm sm:text-base text-amber-400">${liveRRR || '-'}</span>
+                        <span class="font-mono font-black text-sm sm:text-base ${liveRRR ? 'text-amber-400' : 'text-slate-500'}">${liveRRR || '-'}</span>
                     </div>
                     <div class="tv-telemetry-badge p-2 text-center">
-                        <span class="text-[9px] font-mono text-slate-400 uppercase block font-bold">PR. SCORE</span>
-                        <span class="font-mono font-black text-sm sm:text-base text-purple-400">${projectedScore}</span>
+                        ${chaseTvInfo && chaseTvInfo.isChase ? `
+                            <span class="text-[9px] font-mono text-amber-300 uppercase block font-black">TO WIN (REQ)</span>
+                            <span class="font-mono font-black text-xs sm:text-sm text-emerald-400 truncate block" title="${escapeQuotes(chaseTvInfo.chasingTeam)} need ${chaseTvInfo.runsNeeded} runs in ${chaseTvInfo.ballsLeft} balls">
+                                ${chaseTvInfo.shortEquation || (chaseTvInfo.runsNeeded + ' runs')}
+                            </span>
+                        ` : `
+                            <span class="text-[9px] font-mono text-slate-400 uppercase block font-bold">PR. SCORE</span>
+                            <span class="font-mono font-black text-sm sm:text-base text-purple-400">${projectedScore}</span>
+                        `}
                     </div>
                     <div class="tv-telemetry-badge p-2 text-center col-span-2 sm:col-span-1">
                         <span class="text-[9px] font-mono text-slate-400 uppercase block font-bold">LAST WICKET</span>

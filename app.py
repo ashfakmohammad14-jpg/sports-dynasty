@@ -665,6 +665,28 @@ async def serve_sw():
     content, _ = get_file_content("sw.js", "static")
     return Response(content=content, media_type="application/javascript")
 
+@app.get("/static/images/{path:path}")
+@app.get("/images/{path:path}")
+async def serve_images(path: str):
+    filename = os.path.basename(path)
+    img_dir = os.path.join(STATIC_DIR, "images")
+    file_path = os.path.join(img_dir, filename)
+    if not os.path.exists(file_path):
+        file_path = os.path.join(BASE_DIR, "images", filename)
+    if os.path.exists(file_path):
+        media_type = "image/png"
+        if filename.lower().endswith(".webp"):
+            media_type = "image/webp"
+        elif filename.lower().endswith(".jpg") or filename.lower().endswith(".jpeg"):
+            media_type = "image/jpeg"
+        elif filename.lower().endswith(".svg"):
+            media_type = "image/svg+xml"
+        elif filename.lower().endswith(".gif"):
+            media_type = "image/gif"
+        return FileResponse(file_path, media_type=media_type)
+    return Response(status_code=404)
+
+
 @app.get("/ads.txt")
 async def serve_ads_txt():
     """Official Google AdSense ads.txt authorization record."""

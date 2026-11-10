@@ -1184,16 +1184,16 @@ SPORTS DYNASTY - TV BROADCAST STREAM OVERLAY STYLES
 .tv-real-cheerleader-img {
     height: 250px;
     width: auto;
-    max-width: 190px;
+    max-width: 260px;
     object-fit: contain;
-    filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 35px rgba(251, 191, 36, 0.6));
+    filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 35px rgba(251, 191, 36, 0.55));
     transform-origin: bottom center;
 }
 
 @media (min-width: 640px) {
     .tv-real-cheerleader-img {
         height: 360px;
-        max-width: 270px;
+        max-width: 360px;
     }
 }
 
@@ -1207,34 +1207,34 @@ SPORTS DYNASTY - TV BROADCAST STREAM OVERLAY STYLES
 }
 
 @keyframes realCheerDanceL {
-    0% { transform: translateY(0) rotate(-3deg) scale(0.97); }
-    50% { transform: translateY(-22px) rotate(3deg) scale(1.03); filter: drop-shadow(0 15px 35px rgba(0,0,0,0.8)) drop-shadow(0 0 45px rgba(251, 191, 36, 0.8)); }
-    100% { transform: translateY(-38px) rotate(-2deg) scale(1.06); filter: drop-shadow(0 20px 40px rgba(0,0,0,0.8)) drop-shadow(0 0 55px rgba(251, 191, 36, 0.9)); }
+    0% { transform: translateY(0) scale(0.99); filter: drop-shadow(0 15px 30px rgba(0,0,0,0.85)) drop-shadow(0 0 25px rgba(251, 191, 36, 0.5)); }
+    50% { transform: translateY(-8px) scale(1.02); filter: drop-shadow(0 20px 35px rgba(0,0,0,0.85)) drop-shadow(0 0 45px rgba(251, 191, 36, 0.75)); }
+    100% { transform: translateY(-4px) scale(1.01); filter: drop-shadow(0 18px 32px rgba(0,0,0,0.85)) drop-shadow(0 0 35px rgba(251, 191, 36, 0.65)); }
 }
 
 @keyframes realCheerDanceR {
-    0% { transform: translateY(0) rotate(3deg) scale(0.97); }
-    50% { transform: translateY(-22px) rotate(-3deg) scale(1.03); filter: drop-shadow(0 15px 35px rgba(0,0,0,0.8)) drop-shadow(0 0 45px rgba(251, 191, 36, 0.8)); }
-    100% { transform: translateY(-38px) rotate(2deg) scale(1.06); filter: drop-shadow(0 20px 40px rgba(0,0,0,0.8)) drop-shadow(0 0 55px rgba(251, 191, 36, 0.9)); }
+    0% { transform: translateY(0) scale(0.99); filter: drop-shadow(0 15px 30px rgba(0,0,0,0.85)) drop-shadow(0 0 25px rgba(251, 191, 36, 0.5)); }
+    50% { transform: translateY(-8px) scale(1.02); filter: drop-shadow(0 20px 35px rgba(0,0,0,0.85)) drop-shadow(0 0 45px rgba(251, 191, 36, 0.75)); }
+    100% { transform: translateY(-4px) scale(1.01); filter: drop-shadow(0 18px 32px rgba(0,0,0,0.85)) drop-shadow(0 0 35px rgba(251, 191, 36, 0.65)); }
 }
 
 .tv-real-cheer-shadow {
-    width: 100px;
-    height: 14px;
+    width: 140px;
+    height: 16px;
     border-radius: 50%;
     background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.85) 0%, transparent 70%);
     animation: realCheerShadowPulse 0.82s ease-in-out infinite alternate;
-    margin-top: -8px;
+    margin-top: -12px;
 }
 @media (min-width: 640px) {
     .tv-real-cheer-shadow {
-        width: 150px;
-        height: 18px;
-        margin-top: -12px;
+        width: 200px;
+        height: 22px;
+        margin-top: -16px;
     }
 }
 
 @keyframes realCheerShadowPulse {
-    0% { transform: scale(1.15); opacity: 0.85; }
-    100% { transform: scale(0.5); opacity: 0.2; }
+    0% { transform: scale(1.05); opacity: 0.85; }
+    100% { transform: scale(0.92); opacity: 0.55; }
 }

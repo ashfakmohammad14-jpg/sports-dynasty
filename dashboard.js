@@ -3326,22 +3326,17 @@ function renderActiveInningsScorecard(inn, matchData) {
     const totalElem = document.getElementById('total-text');
     if (extrasElem) {
         let extVal = (inn.extras || '').trim();
-        if (!extVal || extVal === '0' || extVal === '-') {
-            const totMatch = String(inn.runs || inn.total || '').match(/^(\d+)/);
-            const totRuns = totMatch ? parseInt(totMatch[1], 10) : 0;
-            const batRuns = (inn.batting || []).reduce((acc, b) => acc + (parseInt(b.runs, 10) || 0), 0);
-            if (totRuns > batRuns) {
-                extVal = String(totRuns - batRuns);
-            } else {
-                extVal = '0';
-            }
-        }
         if (extVal.startsWith('(')) {
             const nums = extVal.match(/\d+/g);
             if (nums) {
                 const sumExtras = nums.reduce((acc, n) => acc + parseInt(n, 10), 0);
                 extVal = `${sumExtras} ${extVal}`;
             }
+        } else if (/^\d+\(/.test(extVal)) {
+            extVal = extVal.replace(/^(\d+)\(/, '$1 (');
+        }
+        if (!extVal || extVal === '-') {
+            extVal = '0';
         }
         extrasElem.textContent = extVal;
     }
@@ -3350,33 +3345,60 @@ function renderActiveInningsScorecard(inn, matchData) {
     // Render Yet to Bat / Did Not Bat (Strictly Playing XI only)
     const yetToBatContainer = document.getElementById('yet-to-bat-container');
     if (yetToBatContainer) {
-        let ytbList = (inn && inn.yetToBat) ? inn.yetToBat : [];
+        let ytbList = (inn && Array.isArray(inn.yetToBat) && inn.yetToBat.length > 0) ? inn.yetToBat : [];
+
+        // If backend did not provide yetToBat, find squad using batter overlap (or stem match)
+        if (ytbList.length === 0 && matchData && Array.isArray(matchData.squads) && matchData.squads.length > 0) {
+            const battedNames = (inn.batting || []).map(b => (b.name || '').toLowerCase().trim());
+            let bestSquad = null;
+            let maxOverlap = -1;
+
+            for (const sq of matchData.squads) {
+                const sqPlayers = (sq.playingXI && sq.playingXI.length > 0) ? sq.playingXI : (sq.players || []);
+                let overlap = 0;
+                for (const b of battedNames) {
+                    if (sqPlayers.some(p => {
+                        const pn = (p.name || '').toLowerCase().trim();
+                        return pn && b && (pn === b || pn.includes(b) || b.includes(pn));
+                    })) {
+                        overlap++;
+                    }
+                }
+                if (overlap > maxOverlap) {
+                    maxOverlap = overlap;
+                    bestSquad = sq;
+                }
+            }
+
+            if (!bestSquad || maxOverlap <= 0) {
+                const innTeam = (inn.teamName || '').toLowerCase().replace(/\b(women|men|xi|2nd|u19|u-19|a\b|team)\b/g, '').replace(/[^a-z0-9]/g, '');
+                bestSquad = matchData.squads.find(sq => {
+                    const sqTeam = (sq.teamName || '').toLowerCase().replace(/\b(women|men|xi|2nd|u19|u-19|a\b|team)\b/g, '').replace(/[^a-z0-9]/g, '');
+                    return sqTeam && innTeam && (sqTeam === innTeam || sqTeam.includes(innTeam) || innTeam.includes(sqTeam));
+                }) || null;
+            }
+
+            if (bestSquad) {
+                const cand = (bestSquad.playingXI && bestSquad.playingXI.length > 0) ? bestSquad.playingXI : (bestSquad.players || []);
+                ytbList = cand.filter(p => {
+                    const pName = (p.name || '').toLowerCase().trim();
+                    return !battedNames.some(b => b === pName || (b.length > 3 && pName.includes(b)) || (pName.length > 3 && b.includes(pName)));
+                }).map(p => ({
+                    id: p.id || '',
+                    name: p.name || 'Player',
+                    role: p.role || 'Player',
+                    captain: p.captain,
+                    wicketKeeper: p.wicketKeeper,
+                    isCaptain: p.isCaptain,
+                    isWicketKeeper: p.isWicketKeeper,
+                    headshot: p.headshot || ''
+                }));
+            }
+        }
 
         const battedCount = (inn && inn.batting) ? inn.batting.length : 0;
         const maxExpectedYtb = Math.max(0, 11 - battedCount);
-
-        const innTeam = (inn.teamName || '').toLowerCase().replace(/\b(women|men|xi|2nd|u19|u-19|a\b|team)\b/g, '').replace(/[^a-z0-9]/g, '');
-        const matchingSquad = (matchData && matchData.squads) ? matchData.squads.find(sq => {
-            const sqTeam = (sq.teamName || '').toLowerCase().replace(/\b(women|men|xi|2nd|u19|u-19|a\b|team)\b/g, '').replace(/[^a-z0-9]/g, '');
-            return sqTeam && innTeam && (sqTeam === innTeam || sqTeam.includes(innTeam) || innTeam.includes(sqTeam));
-        }) : null;
-
-        if (matchingSquad && matchingSquad.playingXI && matchingSquad.playingXI.length > 0) {
-            const battedNames = (inn.batting || []).map(b => (b.name || '').toLowerCase().trim());
-            ytbList = matchingSquad.playingXI.filter(p => {
-                const pName = (p.name || '').toLowerCase().trim();
-                return !battedNames.some(b => b === pName || (b.length > 3 && pName.includes(b)) || (pName.length > 3 && b.includes(pName)));
-            }).map(p => ({
-                id: p.id || '',
-                name: p.name || 'Player',
-                role: p.role || 'Player',
-                captain: p.captain,
-                wicketKeeper: p.wicketKeeper,
-                isCaptain: p.isCaptain,
-                isWicketKeeper: p.isWicketKeeper,
-                headshot: p.headshot || ''
-            }));
-        } else if (ytbList.length > maxExpectedYtb && maxExpectedYtb > 0) {
+        if (ytbList.length > maxExpectedYtb && maxExpectedYtb > 0) {
             ytbList = ytbList.slice(0, maxExpectedYtb);
         }
 

@@ -1907,30 +1907,70 @@ class ESPNClient:
             return bool(t1 & t2)
 
         if squads and innings_data:
+            # Squad matching using player roster overlap for 100% accuracy
             for inn_key, inn in innings_data.items():
                 inn_team = str(inn.get("teamName", ""))
                 stem_inn = clean_team_stem(inn_team)
-                batted_names = [b.get("name", "") for b in inn.get("batting", [])]
+                batted_names = [b.get("name", "") for b in inn.get("batting", []) if b.get("name")]
+                bowled_names = [bw.get("name", "") for bw in inn.get("bowling", []) if bw.get("name")]
                 
                 matching_sq = None
-                for sq in squads:
-                    stem_sq = clean_team_stem(sq.get("teamName", ""))
-                    if stem_sq and stem_inn and (stem_sq == stem_inn or stem_sq in stem_inn or stem_inn in stem_sq):
-                        matching_sq = sq
-                        break
+                best_sq = None
+                max_batter_overlap = -1
                 
-                # Multi-day fallback by innings cycling (Innings 1 & 3 -> Squad 0; Innings 2 & 4 -> Squad 1)
-                if not matching_sq and squads:
-                    try:
-                        k_int = int(inn_key)
-                        sq_idx = (k_int - 1) % len(squads)
-                        matching_sq = squads[sq_idx]
-                    except Exception:
-                        pass
+                # Check batter overlap with each squad's playingXI and players
+                for sq in squads:
+                    sq_players = sq.get("playingXI") or sq.get("players", [])
+                    overlap = sum(1 for b_name in batted_names if any(is_same_player(b_name, pl.get("name", "")) for pl in sq_players))
+                    if overlap > max_batter_overlap:
+                        max_batter_overlap = overlap
+                        best_sq = sq
+                
+                if best_sq and max_batter_overlap > 0:
+                    matching_sq = best_sq
+                else:
+                    # If 0 batter overlap (e.g. 2nd innings just started, 0 balls), check bowler overlap
+                    # Bowlers belong to opponent squad, so batting squad is the other squad
+                    bowler_sq = None
+                    max_bowler_overlap = -1
+                    for sq in squads:
+                        sq_players = sq.get("playingXI") or sq.get("players", [])
+                        overlap = sum(1 for bw_name in bowled_names if any(is_same_player(bw_name, pl.get("name", "")) for pl in sq_players))
+                        if overlap > max_bowler_overlap:
+                            max_bowler_overlap = overlap
+                            bowler_sq = sq
+                    
+                    if bowler_sq and max_bowler_overlap > 0 and len(squads) == 2:
+                        matching_sq = squads[1] if bowler_sq is squads[0] else squads[0]
+                    else:
+                        # Stem matching on cleaned team name
+                        for sq in squads:
+                            stem_sq = clean_team_stem(sq.get("teamName", ""))
+                            if stem_sq and stem_inn and (stem_sq == stem_inn or stem_sq in stem_inn or stem_inn in stem_sq):
+                                matching_sq = sq
+                                break
+                        
+                        # Limited overs pairing fallback: If 2 squads and Innings 1 is known, Innings 2 is the opponent squad
+                        if not matching_sq and len(squads) == 2:
+                            try:
+                                k_int = int(inn_key)
+                                if k_int == 2 and '1' in innings_data and innings_data['1'].get('teamName'):
+                                    inn1_stem = clean_team_stem(innings_data['1'].get('teamName'))
+                                    sq0_stem = clean_team_stem(squads[0].get('teamName', ''))
+                                    if inn1_stem and sq0_stem and (sq0_stem == inn1_stem or sq0_stem in inn1_stem or inn1_stem in sq0_stem):
+                                        matching_sq = squads[1]
+                                    else:
+                                        matching_sq = squads[0]
+                            except Exception:
+                                pass
                 
                 if matching_sq:
+                    # Update innings teamName if generic or blank
+                    if matching_sq.get("teamName") and (not inn.get("teamName") or "inning" in inn.get("teamName", "").lower() or max_batter_overlap > 0):
+                        inn["teamName"] = matching_sq["teamName"]
+
                     yet_to_bat = []
-                    # STRICT RULE: Scorecard yet to bat must ONLY contain Playing 11 players (never bench)!
+                    # STRICT RULE: Scorecard yet to bat must ONLY contain Playing 11 players of this team
                     candidate_players = matching_sq.get("playingXI") or matching_sq.get("players", [])
                     if len(candidate_players) > 11:
                         candidate_players = candidate_players[:11]
@@ -2476,13 +2516,22 @@ class ESPNClient:
             elif re.match(r'^\d+\(', cur_ext):
                 inn["extras"] = re.sub(r'^(\d+)\(', r'\1 (', cur_ext)
             elif not cur_ext or cur_ext == "0":
-                b_sum = sum(int(b.get("runs", 0)) for b in inn.get("batting", []) if str(b.get("runs", "")).isdigit())
-                tot_s = str(inn.get("runs", "") or inn.get("total", ""))
-                m_tot = re.search(r"^(\d+)", tot_s)
-                if m_tot:
-                    tot_n = int(m_tot.group(1))
-                    if tot_n > b_sum:
-                        inn["extras"] = str(tot_n - b_sum)
+                # NEVER calculate total - batters for live/in-progress innings or if difference exceeds realistic threshold
+                tot_wkts_s = str(inn.get("wickets", ""))
+                is_all_out = (tot_wkts_s == "10" or len(inn.get("fow", [])) >= 10)
+                if is_all_out:
+                    b_sum = sum(int(b.get("runs", 0)) for b in inn.get("batting", []) if str(b.get("runs", "")).isdigit())
+                    tot_s = str(inn.get("runs", "") or inn.get("total", ""))
+                    m_tot = re.search(r"^(\d+)", tot_s)
+                    if m_tot:
+                        tot_n = int(m_tot.group(1))
+                        diff = tot_n - b_sum
+                        if 0 < diff <= 35:
+                            inn["extras"] = str(diff)
+                        else:
+                            inn["extras"] = "0"
+                else:
+                    inn["extras"] = "0"
 
             tot_str = str(inn.get("total", ""))
             if inn.get("wickets") is None or not str(inn.get("wickets", "")).strip():
@@ -2683,22 +2732,83 @@ class ESPNClient:
         innings_data = {}
         latest_inn_num = str(max([int(k) for k in innings_dict.keys()]))
 
-        # Sort competitors by order to correctly assign batting teams to innings
-        comps_by_order = []
+        # Accurately resolve batting competitor for each innings using linescore periods, playbyplay team events, and toss
+        comps_raw = []
         if header:
             comps_raw = header.get("competitions", [{}])[0].get("competitors", [])
-            comps_by_order = sorted(comps_raw, key=lambda c: int(c.get("order", 99)))
+
+        def resolve_competitor_for_innings(inn_num_val: str, pbp_items: List[Dict[str, Any]]) -> tuple[Optional[Dict[str, Any]], str]:
+            inn_int = int(inn_num_val)
+            # Priority 1: Match competitor whose linescores contain this period
+            if comps_raw:
+                for c in comps_raw:
+                    for ls in c.get("linescores", []):
+                        if int(ls.get("period", 0)) == inn_int:
+                            return c, c.get("team", {}).get("displayName", "")
+
+            # Priority 2: In play-by-play items, check batting team ID or name frequency
+            team_counts = {}
+            for it in pbp_items:
+                t_obj = it.get("team", {})
+                t_id = str(t_obj.get("id", ""))
+                t_name = str(t_obj.get("displayName", ""))
+                if t_id:
+                    team_counts[t_id] = team_counts.get(t_id, 0) + 1
+                elif t_name:
+                    team_counts[t_name] = team_counts.get(t_name, 0) + 1
+            if team_counts:
+                top_id = max(team_counts, key=team_counts.get)
+                for c in comps_raw:
+                    c_tid = str(c.get("team", {}).get("id", c.get("id", "")))
+                    c_name = str(c.get("team", {}).get("displayName", ""))
+                    if (top_id and top_id == c_tid) or (top_id and top_id == c_name):
+                        return c, c_name
+
+            # Priority 3: Last item team in commentary
+            if pbp_items:
+                last_t = pbp_items[-1].get("team", {})
+                last_name = last_t.get("displayName", "")
+                if last_name:
+                    for c in comps_raw:
+                        c_name = c.get("team", {}).get("displayName", "")
+                        if clean_team_stem(c_name) == clean_team_stem(last_name):
+                            return c, c_name
+                    return None, last_name
+
+            # Priority 4: Toss information
+            if comps_raw and len(comps_raw) >= 2 and header:
+                comp_info = header.get("competitions", [{}])[0]
+                notes_text = " ".join([n.get("text", "") for n in comp_info.get("notes", [])]).lower()
+                c0 = comps_raw[0]
+                c1 = comps_raw[1]
+                t0_name = c0.get("team", {}).get("displayName", "").lower()
+                t1_name = c1.get("team", {}).get("displayName", "").lower()
+
+                first_bat_comp = None
+                if "toss" in notes_text:
+                    if t0_name and t0_name in notes_text:
+                        if any(w in notes_text for w in ["elected to bat", "opted to bat", "chose to bat"]):
+                            first_bat_comp = c0
+                        elif any(w in notes_text for w in ["elected to field", "opted to field", "chose to field", "elected to bowl", "opted to bowl", "chose to bowl"]):
+                            first_bat_comp = c1
+                    elif t1_name and t1_name in notes_text:
+                        if any(w in notes_text for w in ["elected to bat", "opted to bat", "chose to bat"]):
+                            first_bat_comp = c1
+                        elif any(w in notes_text for w in ["elected to field", "opted to field", "chose to field", "elected to bowl", "opted to bowl", "chose to bowl"]):
+                            first_bat_comp = c0
+
+                if first_bat_comp:
+                    second_bat_comp = c1 if first_bat_comp is c0 else c0
+                    target_comp = first_bat_comp if inn_int == 1 else second_bat_comp
+                    return target_comp, target_comp.get("team", {}).get("displayName", "")
+
+            return None, ""
 
         for inn_num, p_items in innings_dict.items():
             last_item = p_items[-1]
             inn_info = last_item.get("innings", {})
             
-            team_name = ""
-            comp_for_inn = None
-            if comps_by_order and len(comps_by_order) >= int(inn_num):
-                comp_for_inn = comps_by_order[int(inn_num) - 1]
-                team_name = comp_for_inn.get("team", {}).get("displayName", "")
-            
+            comp_for_inn, team_name = resolve_competitor_for_innings(inn_num, p_items)
             if not team_name:
                 team_name = last_item.get("team", {}).get("displayName", "")
 
@@ -2893,18 +3003,21 @@ class ESPNClient:
 
             pbp_extras_tot = p_wides + p_noballs + p_byes + p_legbyes + p_pen
 
-            # Cross-check with mathematical difference: Total Runs - Sum of Batters' Runs
-            bat_runs_sum = sum(int(b.get("runs", 0)) for b in batting_list if str(b.get("runs", "")).isdigit())
-            tot_num = 0
-            try:
-                tot_num = int(tot_runs)
-            except Exception:
-                m_tot = re.search(r"(\d+)", str(tot_runs or ""))
-                if m_tot:
-                    tot_num = int(m_tot.group(1))
-
-            math_extras = max(0, tot_num - bat_runs_sum) if tot_num > 0 else 0
-            final_extras_tot = math_extras if math_extras > 0 else pbp_extras_tot
+            # Official recorded extras from commentary is the ground truth
+            final_extras_tot = pbp_extras_tot
+            # Only consider difference if no extras were explicitly tagged in commentary and innings is all out
+            if final_extras_tot == 0 and str(tot_wkts) == "10":
+                bat_runs_sum = sum(int(b.get("runs", 0)) for b in batting_list if str(b.get("runs", "")).isdigit())
+                tot_num = 0
+                try:
+                    tot_num = int(tot_runs)
+                except Exception:
+                    m_tot = re.search(r"(\d+)", str(tot_runs or ""))
+                    if m_tot:
+                        tot_num = int(m_tot.group(1))
+                math_extras = max(0, tot_num - bat_runs_sum) if tot_num > 0 else 0
+                if 0 < math_extras <= 35:
+                    final_extras_tot = math_extras
 
             ext_breakdown = []
             if p_byes > 0: ext_breakdown.append(f"b {p_byes}")
@@ -4265,13 +4378,20 @@ class ESPNClient:
             elif re.match(r'^\d+\(', cur_ext):
                 inn["extras"] = re.sub(r'^(\d+)\(', r'\1 (', cur_ext)
             elif not cur_ext or cur_ext == "0":
-                b_sum = sum(int(b.get("runs", 0)) for b in inn.get("batting", []) if str(b.get("runs", "")).isdigit())
-                tot_s = str(inn.get("runs", "") or inn.get("total", ""))
-                m_tot = re.search(r"^(\d+)", tot_s)
-                if m_tot:
-                    tot_n = int(m_tot.group(1))
-                    if tot_n > b_sum:
-                        inn["extras"] = str(tot_n - b_sum)
+                # Only compute difference if all 10 wickets are down and diff <= 35
+                if len(outs) >= 10:
+                    b_sum = sum(int(b.get("runs", 0)) for b in inn.get("batting", []) if str(b.get("runs", "")).isdigit())
+                    tot_s = str(inn.get("runs", "") or inn.get("total", ""))
+                    m_tot = re.search(r"^(\d+)", tot_s)
+                    if m_tot:
+                        tot_n = int(m_tot.group(1))
+                        diff = tot_n - b_sum
+                        if 0 < diff <= 35:
+                            inn["extras"] = str(diff)
+                        else:
+                            inn["extras"] = "0"
+                else:
+                    inn["extras"] = "0"
 
         return innings
 

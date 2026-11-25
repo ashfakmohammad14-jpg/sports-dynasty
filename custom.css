@@ -1170,71 +1170,168 @@ SPORTS DYNASTY - TV BROADCAST STREAM OVERLAY STYLES
 }
 
 
-/* Real Cricket Cheerleader Figures */
-.tv-real-cheerleader-wrapper {
+/* Wicket Celebration Card */
+.tv-cheer-banner.banner-wicket {
+    background: linear-gradient(145deg, rgba(127, 29, 29, 0.96) 0%, rgba(69, 10, 10, 0.96) 100%);
+    border: 3px solid #ef4444;
+    box-shadow: 0 0 50px rgba(239, 68, 68, 0.65), 0 0 25px rgba(249, 115, 22, 0.45), inset 0 0 30px rgba(239, 68, 68, 0.35);
+}
+
+.tv-cheer-btn-wicket {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(153, 27, 27, 0.6) 100%);
+    border: 1px solid rgba(239, 68, 68, 0.6);
+    color: #f87171;
+}
+.tv-cheer-btn-wicket:hover {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.5) 0%, rgba(153, 27, 27, 0.8) 100%);
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.6);
+}
+
+/* ------------------------------------------------------------- */
+/* 3D MOTION CHEERLEADER STADIUM STAGE & PERSPECTIVE ANIMATION   */
+/* ------------------------------------------------------------- */
+
+.tv-real-cheerleader-wrapper,
+.tv-3d-cheerleader-stage {
+    perspective: 1000px;
+    transform-style: preserve-3d;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: flex-end;
     position: relative;
     user-select: none;
     flex-shrink: 0;
     z-index: 25;
 }
 
-.tv-real-cheerleader-img {
-    height: 250px;
-    width: auto;
-    max-width: 260px;
-    object-fit: contain;
-    filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 35px rgba(251, 191, 36, 0.55));
+.cheer-stage-left {
+    transform: perspective(1000px) rotateY(14deg);
+}
+
+.cheer-stage-right {
+    transform: perspective(1000px) rotateY(-14deg);
+}
+
+.tv-3d-cheerleader-body {
+    position: relative;
+    transform-style: preserve-3d;
     transform-origin: bottom center;
+    z-index: 2;
+}
+
+.tv-real-cheerleader-img,
+.tv-3d-cheer-img {
+    height: 260px;
+    width: auto;
+    max-width: 280px;
+    object-fit: contain;
+    filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 35px rgba(251, 191, 36, 0.65));
+    transform-origin: bottom center;
+    display: block;
 }
 
 @media (min-width: 640px) {
-    .tv-real-cheerleader-img {
-        height: 360px;
+    .tv-real-cheerleader-img,
+    .tv-3d-cheer-img {
+        height: 380px;
         max-width: 360px;
     }
 }
 
-.real-cheer-jump-left {
-    animation: realCheerDanceL 0.82s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
+/* Real 3D Motion Dance Choreography: Perspective Sway, Tilt, Zoom, and Hip Movement */
+.real-cheer-jump-left,
+.dance-3d-left {
+    animation: motion3dDanceLeft 1.4s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
 }
 
-.real-cheer-jump-right {
-    animation: realCheerDanceR 0.82s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
-    animation-delay: 0.18s;
+.real-cheer-jump-right,
+.dance-3d-right {
+    animation: motion3dDanceRight 1.4s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
+    animation-delay: 0.22s;
 }
 
-@keyframes realCheerDanceL {
-    0% { transform: translateY(0) scale(0.99); filter: drop-shadow(0 15px 30px rgba(0,0,0,0.85)) drop-shadow(0 0 25px rgba(251, 191, 36, 0.5)); }
-    50% { transform: translateY(-8px) scale(1.02); filter: drop-shadow(0 20px 35px rgba(0,0,0,0.85)) drop-shadow(0 0 45px rgba(251, 191, 36, 0.75)); }
-    100% { transform: translateY(-4px) scale(1.01); filter: drop-shadow(0 18px 32px rgba(0,0,0,0.85)) drop-shadow(0 0 35px rgba(251, 191, 36, 0.65)); }
-}
-
-@keyframes realCheerDanceR {
-    0% { transform: translateY(0) scale(0.99); filter: drop-shadow(0 15px 30px rgba(0,0,0,0.85)) drop-shadow(0 0 25px rgba(251, 191, 36, 0.5)); }
-    50% { transform: translateY(-8px) scale(1.02); filter: drop-shadow(0 20px 35px rgba(0,0,0,0.85)) drop-shadow(0 0 45px rgba(251, 191, 36, 0.75)); }
-    100% { transform: translateY(-4px) scale(1.01); filter: drop-shadow(0 18px 32px rgba(0,0,0,0.85)) drop-shadow(0 0 35px rgba(251, 191, 36, 0.65)); }
-}
-
-.tv-real-cheer-shadow {
-    width: 140px;
-    height: 16px;
-    border-radius: 50%;
-    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.85) 0%, transparent 70%);
-    animation: realCheerShadowPulse 0.82s ease-in-out infinite alternate;
-    margin-top: -12px;
-}
-@media (min-width: 640px) {
-    .tv-real-cheer-shadow {
-        width: 200px;
-        height: 22px;
-        margin-top: -16px;
+@keyframes motion3dDanceLeft {
+    0% {
+        transform: perspective(800px) rotateY(-16deg) rotateX(4deg) rotateZ(-3deg) translateY(0) scale3d(0.96, 0.96, 0.96);
+        filter: drop-shadow(0 15px 25px rgba(0,0,0,0.9)) drop-shadow(0 0 25px rgba(0, 255, 136, 0.5));
+    }
+    35% {
+        transform: perspective(800px) rotateY(-4deg) rotateX(-3deg) rotateZ(2deg) translateY(-14px) scale3d(1.03, 1.03, 1.03);
+    }
+    70% {
+        transform: perspective(800px) rotateY(12deg) rotateX(5deg) rotateZ(4deg) translateY(-6px) scale3d(1.01, 1.01, 1.01);
+        filter: drop-shadow(0 25px 35px rgba(0,0,0,0.9)) drop-shadow(0 0 45px rgba(251, 191, 36, 0.8));
+    }
+    100% {
+        transform: perspective(800px) rotateY(16deg) rotateX(2deg) rotateZ(1deg) translateY(0) scale3d(0.98, 0.98, 0.98);
+        filter: drop-shadow(0 18px 28px rgba(0,0,0,0.9)) drop-shadow(0 0 35px rgba(251, 191, 36, 0.65));
     }
 }
 
+@keyframes motion3dDanceRight {
+    0% {
+        transform: perspective(800px) rotateY(16deg) rotateX(4deg) rotateZ(3deg) translateY(0) scale3d(0.96, 0.96, 0.96);
+        filter: drop-shadow(0 15px 25px rgba(0,0,0,0.9)) drop-shadow(0 0 25px rgba(236, 72, 153, 0.5));
+    }
+    35% {
+        transform: perspective(800px) rotateY(4deg) rotateX(-3deg) rotateZ(-2deg) translateY(-14px) scale3d(1.03, 1.03, 1.03);
+    }
+    70% {
+        transform: perspective(800px) rotateY(-12deg) rotateX(5deg) rotateZ(-4deg) translateY(-6px) scale3d(1.01, 1.01, 1.01);
+        filter: drop-shadow(0 25px 35px rgba(0,0,0,0.9)) drop-shadow(0 0 45px rgba(251, 191, 36, 0.8));
+    }
+    100% {
+        transform: perspective(800px) rotateY(-16deg) rotateX(2deg) rotateZ(-1deg) translateY(0) scale3d(0.98, 0.98, 0.98);
+        filter: drop-shadow(0 18px 28px rgba(0,0,0,0.9)) drop-shadow(0 0 35px rgba(251, 191, 36, 0.65));
+    }
+}
+
+/* 3D Stage Podium Platform with Pulsing LED Ring */
+.tv-3d-podium-platform {
+    position: relative;
+    width: 170px;
+    height: 38px;
+    margin-top: -24px;
+    perspective: 600px;
+    z-index: 1;
+}
+@media (min-width: 640px) {
+    .tv-3d-podium-platform {
+        width: 240px;
+        height: 48px;
+        margin-top: -30px;
+    }
+}
+
+.tv-3d-podium-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    transform: rotateX(72deg);
+    border: 3px solid rgba(251, 191, 36, 0.85);
+    background: radial-gradient(ellipse at center, rgba(251, 191, 36, 0.35) 0%, rgba(16, 185, 129, 0.2) 50%, transparent 80%);
+    box-shadow: 0 0 25px rgba(251, 191, 36, 0.7), inset 0 0 15px rgba(0, 255, 136, 0.4);
+    animation: podiumPulse 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes podiumPulse {
+    0% { transform: rotateX(72deg) scale(0.95); opacity: 0.7; }
+    100% { transform: rotateX(72deg) scale(1.08); opacity: 1; box-shadow: 0 0 35px rgba(251, 191, 36, 0.95), inset 0 0 25px rgba(0, 255, 136, 0.6); }
+}
+
+.tv-3d-podium-shadow,
+.tv-real-cheer-shadow {
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    transform: rotateX(75deg);
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.92) 0%, transparent 75%);
+    filter: blur(4px);
+    animation: realCheerShadowPulse 1.4s ease-in-out infinite alternate;
+}
+
 @keyframes realCheerShadowPulse {
-    0% { transform: scale(1.05); opacity: 0.85; }
-    100% { transform: scale(0.92); opacity: 0.55; }
+    0% { transform: rotateX(75deg) scale(1.05); opacity: 0.9; }
+    100% { transform: rotateX(75deg) scale(0.9); opacity: 0.6; }
 }

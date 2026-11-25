@@ -3819,24 +3819,32 @@ function renderCommentaryTab(data) {
 
 // -------------------------------------------------------------
 // -------------------------------------------------------------
-// CHEERLEADER MOTION CELEBRATION (Boundaries & Sixes)
-// Real IPL Cricket Cheerleaders Dancing with Real Multi-Frame Choreography
+// 3D MOTION CHEERLEADER & FEMALE VOICE CELEBRATION ENGINE
+// Real IPL Cricket Cheerleaders in 3D Motion with Female Commentary Voice & Crowd Cheering
 // -------------------------------------------------------------
 
 function getRealCheerleaderHtml(isRight = false, type = 'four') {
-    const jumpClass = isRight ? 'real-cheer-jump-right' : 'real-cheer-jump-left';
-    const primarySrc = isRight ? '/static/images/cheerleader_dance_2.webp?v=13.0.0' : '/static/images/cheerleader_dance_1.webp?v=13.0.0';
-    const fallbackSrc = isRight ? '/images/cheerleader_dance_2.webp?v=13.0.0' : '/images/cheerleader_dance_1.webp?v=13.0.0';
+    const stageSideClass = isRight ? 'cheer-stage-right' : 'cheer-stage-left';
+    const danceClass = isRight ? 'dance-3d-right' : 'dance-3d-left';
+    const primarySrc = isRight ? '/static/images/cheerleader_dance_2.webp?v=15.0.0' : '/static/images/cheerleader_dance_1.webp?v=15.0.0';
+    const fallbackSrc = isRight ? '/images/cheerleader_dance_2.webp?v=15.0.0' : '/images/cheerleader_dance_1.webp?v=15.0.0';
 
     return `
-    <div class="tv-real-cheerleader-wrapper">
-        <img 
-            src="${primarySrc}" 
-            alt="Real IPL Cricket Cheerleader Dancing" 
-            class="tv-real-cheerleader-img ${jumpClass}" 
-            onerror="if(this.src!=='${fallbackSrc}'){this.src='${fallbackSrc}';}"
-        />
-        <div class="tv-real-cheer-shadow"></div>
+    <div class="tv-3d-cheerleader-stage ${stageSideClass}">
+        <!-- 3D Cheerleader Body with Real Dance WebP & 3D Perspective Sway -->
+        <div class="tv-3d-cheerleader-body ${danceClass}">
+            <img 
+                src="${primarySrc}" 
+                alt="3D IPL Cricket Cheerleader Dancing" 
+                class="tv-3d-cheer-img" 
+                onerror="if(this.src!=='${fallbackSrc}'){this.src='${fallbackSrc}';}"
+            />
+        </div>
+        <!-- 3D Stadium Floor Platform with Pulsing LED Ring & Ground Shadow -->
+        <div class="tv-3d-podium-platform">
+            <div class="tv-3d-podium-ring"></div>
+            <div class="tv-3d-podium-shadow"></div>
+        </div>
     </div>
     `;
 }
@@ -3903,33 +3911,202 @@ function initConfettiParticles(isSix) {
     renderConfetti();
 }
 
-function playCelebrationFanfare() {
+// -------------------------------------------------------------
+// TV MODE AUDIO ENGINE (Female Voice Commentary & Crowd Cheering)
+// -------------------------------------------------------------
+let tvSoundEnabled = localStorage.getItem('tvSoundEnabled') !== 'false';
+
+window.toggleTvAudio = function() {
+    tvSoundEnabled = !tvSoundEnabled;
+    try {
+        localStorage.setItem('tvSoundEnabled', tvSoundEnabled ? 'true' : 'false');
+    } catch(e) {}
+
+    // Unlock AudioContext on direct click
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+            if (!window._tvAudioCtx) window._tvAudioCtx = new AudioCtx();
+            if (window._tvAudioCtx.state === 'suspended') window._tvAudioCtx.resume();
+        }
+    } catch(e) {}
+
+    const btns = document.querySelectorAll('.tv-audio-toggle-btn');
+    btns.forEach(btn => {
+        if (tvSoundEnabled) {
+            btn.innerHTML = '<span>🔊</span><span>VOICE: ON</span>';
+            btn.className = 'tv-audio-toggle-btn px-2.5 py-1 rounded-lg font-mono text-[11px] font-black flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs bg-amber-500/20 border border-amber-500/40 text-amber-300';
+        } else {
+            btn.innerHTML = '<span>🔇</span><span>VOICE: OFF</span>';
+            btn.className = 'tv-audio-toggle-btn px-2.5 py-1 rounded-lg font-mono text-[11px] font-black flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs bg-rose-500/20 border border-rose-500/40 text-rose-300';
+        }
+    });
+
+    if (tvSoundEnabled) {
+        speakFemaleVoice("Voice commentary enabled!");
+    }
+};
+
+function speakFemaleVoice(text) {
+    if (!tvSoundEnabled) return;
+    if (!('speechSynthesis' in window)) return;
+    try {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        const voices = window.speechSynthesis.getVoices() || [];
+
+        // Select feminine English voice
+        let selectedVoice = voices.find(v => {
+            const n = (v.name || '').toLowerCase();
+            const l = (v.lang || '').toLowerCase();
+            const isFemale = n.includes('female') || n.includes('zira') || n.includes('samantha') || 
+                             n.includes('victoria') || n.includes('karen') || n.includes('moira') || 
+                             n.includes('susan') || n.includes('ava') || n.includes('google uk english female') ||
+                             n.includes('google us english') || n.includes('catherine');
+            return isFemale && (l.startsWith('en') || l.startsWith('hi'));
+        });
+
+        if (!selectedVoice) {
+            selectedVoice = voices.find(v => (v.lang || '').toLowerCase().startsWith('en')) || voices[0];
+        }
+
+        if (selectedVoice) u.voice = selectedVoice;
+        u.pitch = 1.35; // Bright energetic female pitch
+        u.rate = 1.05;  // Confident commentary cadence
+        u.volume = 1.0;
+
+        window.speechSynthesis.speak(u);
+    } catch(e) {
+        console.warn("Speech synthesis error:", e);
+    }
+}
+
+if ('speechSynthesis' in window) {
+    window.speechSynthesis.onvoiceschanged = () => {
+        try { window.speechSynthesis.getVoices(); } catch(e) {}
+    };
+}
+
+function playStadiumCrowdSound(type = 'four') {
+    if (!tvSoundEnabled) return;
     try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (!AudioCtx) return;
-        const ctx = new AudioCtx();
-        const notes = [
-            { f: 523.25, t: 0.0, d: 0.15 },
-            { f: 659.25, t: 0.15, d: 0.15 },
-            { f: 783.99, t: 0.30, d: 0.20 },
-            { f: 1046.50, t: 0.50, d: 0.65 }
-        ];
-        notes.forEach(n => {
+        if (!window._tvAudioCtx) {
+            window._tvAudioCtx = new AudioCtx();
+        }
+        const ctx = window._tvAudioCtx;
+        if (ctx.state === 'suspended') {
+            ctx.resume();
+        }
+
+        const now = ctx.currentTime;
+        const isSix = type === 'six';
+        const isWicket = type === 'wicket';
+        const duration = isSix ? 3.4 : (isWicket ? 3.2 : 2.5);
+
+        // 1. Procedural Stadium Crowd Roar (Pink Noise + Resonant Filters)
+        const bufferSize = Math.floor(ctx.sampleRate * duration);
+        const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+        for (let i = 0; i < bufferSize; i++) {
+            const white = Math.random() * 2 - 1;
+            b0 = 0.99886 * b0 + white * 0.0555179;
+            b1 = 0.99332 * b1 + white * 0.0750759;
+            b2 = 0.96900 * b2 + white * 0.1538520;
+            b3 = 0.86650 * b3 + white * 0.3104856;
+            b4 = 0.55000 * b4 + white * 0.5329522;
+            b5 = -0.7616 * b5 - white * 0.0168980;
+            output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.12;
+            b6 = white * 0.115926;
+        }
+
+        const noiseSrc = ctx.createBufferSource();
+        noiseSrc.buffer = noiseBuffer;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(isSix ? 1100 : (isWicket ? 850 : 950), now);
+        filter.Q.setValueAtTime(isSix ? 1.4 : 1.2, now);
+
+        const crowdGain = ctx.createGain();
+        crowdGain.gain.setValueAtTime(0.001, now);
+        crowdGain.gain.linearRampToValueAtTime(isSix ? 0.85 : (isWicket ? 0.8 : 0.65), now + 0.15);
+        crowdGain.gain.setValueAtTime(isSix ? 0.75 : (isWicket ? 0.7 : 0.55), now + (duration * 0.6));
+        crowdGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+        noiseSrc.connect(filter);
+        filter.connect(crowdGain);
+        crowdGain.connect(ctx.destination);
+        noiseSrc.start(now);
+        noiseSrc.stop(now + duration);
+
+        // 2. Sound Effects
+        if (isWicket) {
+            // Timber Stump Strike (wood-crack impact)
             const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
+            const strikeGain = ctx.createGain();
             osc.type = 'triangle';
-            osc.frequency.setValueAtTime(n.f, ctx.currentTime + n.t);
-            gain.gain.setValueAtTime(0.001, ctx.currentTime + n.t);
-            gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + n.t + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + n.t + n.d);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(ctx.currentTime + n.t);
-            osc.stop(ctx.currentTime + n.t + n.d + 0.05);
-        });
+            osc.frequency.setValueAtTime(340, now);
+            osc.frequency.exponentialRampToValueAtTime(65, now + 0.2);
+            strikeGain.gain.setValueAtTime(0.9, now);
+            strikeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+            osc.connect(strikeGain);
+            strikeGain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.25);
+        } else {
+            // Stadium Brass Horn Fanfare
+            const notes = isSix 
+                ? [{ f: 587.33, t: 0, d: 0.18 }, { f: 739.99, t: 0.18, d: 0.18 }, { f: 880.0, t: 0.36, d: 0.2 }, { f: 1174.66, t: 0.56, d: 0.75 }]
+                : [{ f: 523.25, t: 0, d: 0.16 }, { f: 659.25, t: 0.16, d: 0.16 }, { f: 783.99, t: 0.32, d: 0.55 }];
+
+            notes.forEach(n => {
+                const hornOsc = ctx.createOscillator();
+                const hornGain = ctx.createGain();
+                hornOsc.type = 'sawtooth';
+                hornOsc.frequency.setValueAtTime(n.f, now + n.t);
+                hornGain.gain.setValueAtTime(0.001, now + n.t);
+                hornGain.gain.linearRampToValueAtTime(0.22, now + n.t + 0.03);
+                hornGain.gain.exponentialRampToValueAtTime(0.0001, now + n.t + n.d);
+
+                const hornFilter = ctx.createBiquadFilter();
+                hornFilter.type = 'lowpass';
+                hornFilter.frequency.value = 2200;
+
+                hornOsc.connect(hornFilter);
+                hornFilter.connect(hornGain);
+                hornGain.connect(ctx.destination);
+                hornOsc.start(now + n.t);
+                hornOsc.stop(now + n.t + n.d + 0.05);
+            });
+        }
     } catch(e) {
-        // Audio might be blocked until user gesture, safely ignore
+        console.warn("Crowd sound synthesis error:", e);
     }
+}
+
+function playTvEventAudio(type = 'four') {
+    // 1. Play procedural crowd roar & SFX
+    playStadiumCrowdSound(type);
+
+    // 2. Female voice announcement over crowd sound
+    let phrase = '';
+    if (type === 'four') {
+        const list = ["Boundary! Four runs!", "Four! Glorious boundary!", "Boundary! Cracked away to the fence!"];
+        phrase = list[Math.floor(Math.random() * list.length)];
+    } else if (type === 'six') {
+        const list = ["Six! Massive six!", "Six! That's out of the park!", "Maximum six! What a huge hit!"];
+        phrase = list[Math.floor(Math.random() * list.length)];
+    } else if (type === 'wicket') {
+        const list = ["Out! It's a wicket!", "Wicket down! Big breakthrough!", "Out! Clean bowled! Timber!"];
+        phrase = list[Math.floor(Math.random() * list.length)];
+    }
+
+    setTimeout(() => {
+        speakFemaleVoice(phrase);
+    }, 120);
 }
 
 window.triggerCheerleaderCelebration = function(type = 'four') {
@@ -3950,14 +4127,14 @@ window.triggerCheerleaderCelebration = function(type = 'four') {
             <div class="tv-spotlight tv-spotlight-right"></div>
 
             <div class="tv-cheer-stage" onclick="event.stopPropagation();">
-                <!-- Left Cheerleader -->
+                <!-- Left 3D Cheerleader -->
                 ${getRealCheerleaderHtml(false, type)}
 
                 <!-- Center Banner -->
                 <div class="tv-cheer-banner ${bannerClass}">
                     <div class="flex items-center justify-center gap-2 mb-2">
                         <span class="text-[10px] sm:text-xs font-mono font-black uppercase tracking-widest text-emerald-300 bg-black/40 px-3 py-1 rounded-full border border-emerald-500/30">
-                            🏏 SPORTS DYNASTY CHEER CELEBRATION
+                            🏏 SPORTS DYNASTY 3D CHEER CELEBRATION
                         </span>
                     </div>
                     <h2 class="tv-cheer-title ${titleColor}">${titleText}</h2>
@@ -3970,7 +4147,7 @@ window.triggerCheerleaderCelebration = function(type = 'four') {
                     </div>
                 </div>
 
-                <!-- Right Cheerleader -->
+                <!-- Right 3D Cheerleader -->
                 ${getRealCheerleaderHtml(true, type)}
             </div>
         </div>
@@ -3978,7 +4155,55 @@ window.triggerCheerleaderCelebration = function(type = 'four') {
 
     document.body.insertAdjacentHTML('beforeend', overlayHtml);
     initConfettiParticles(isSix);
-    playCelebrationFanfare();
+    playTvEventAudio(type);
+
+    if (window._cheerTimer) clearTimeout(window._cheerTimer);
+    window._cheerTimer = setTimeout(() => {
+        const el = document.getElementById('tv-cheerleader-overlay');
+        if (el) {
+            el.classList.remove('active');
+            setTimeout(() => el.remove(), 300);
+        }
+    }, 4500);
+};
+
+window.triggerWicketCelebration = function() {
+    let existing = document.getElementById('tv-cheerleader-overlay');
+    if (existing) existing.remove();
+
+    const overlayHtml = `
+        <div id="tv-cheerleader-overlay" class="tv-cheer-overlay active" onclick="this.classList.remove('active'); setTimeout(() => this.remove(), 300);">
+            <canvas id="tv-confetti-canvas" class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 15;"></canvas>
+            
+            <div class="tv-spotlight tv-spotlight-left" style="background: radial-gradient(ellipse at top, rgba(239, 68, 68, 0.45) 0%, transparent 80%);"></div>
+            <div class="tv-spotlight tv-spotlight-right" style="background: radial-gradient(ellipse at top, rgba(249, 115, 22, 0.45) 0%, transparent 80%);"></div>
+
+            <div class="tv-cheer-stage" onclick="event.stopPropagation();">
+                <div class="tv-cheer-banner banner-wicket">
+                    <div class="flex items-center justify-center gap-2 mb-2">
+                        <span class="text-[10px] sm:text-xs font-mono font-black uppercase tracking-widest text-rose-300 bg-black/50 px-3 py-1 rounded-full border border-rose-500/40">
+                            ⚡ BIG BREAKTHROUGH • DISMISSAL
+                        </span>
+                    </div>
+                    <div class="my-3 flex items-center justify-center gap-2 text-4xl animate-bounce">
+                        <span>🏏</span><span>💥</span><span>🎯</span>
+                    </div>
+                    <h2 class="tv-cheer-title text-rose-400" style="text-shadow: 0 0 25px #ef4444;">WICKET DOWN!</h2>
+                    <p class="text-xs sm:text-sm font-mono font-bold text-slate-200 mt-2 tracking-wide">WHAT A MASSIVE BREAKTHROUGH! TIMBER STRUCK!</p>
+                    
+                    <div class="mt-4 flex items-center justify-center gap-3">
+                        <button onclick="document.getElementById('tv-cheerleader-overlay').remove();" class="text-slate-300 hover:text-white text-xs font-mono font-bold px-3 py-1.5 rounded-lg bg-black/60 border border-white/20 transition-all cursor-pointer">
+                            ✕ Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', overlayHtml);
+    initConfettiParticles(false);
+    playTvEventAudio('wicket');
 
     if (window._cheerTimer) clearTimeout(window._cheerTimer);
     window._cheerTimer = setTimeout(() => {
@@ -4416,13 +4641,21 @@ function renderTvStreamTab(data) {
                     </div>
                     ${winProbHtml}
                     <div class="flex items-center gap-1.5 flex-wrap">
-                        <button onclick="window.triggerCheerleaderCelebration('four')" class="tv-cheer-btn tv-cheer-btn-four px-2.5 py-1 rounded-lg font-mono text-[11px] font-black flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs" title="Cheerleader Boundary 4 Celebration">
+                        <button onclick="window.triggerCheerleaderCelebration('four')" class="tv-cheer-btn tv-cheer-btn-four px-2.5 py-1 rounded-lg font-mono text-[11px] font-black flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs" title="Cheerleader Boundary 4 Celebration & Female Voice">
                             <span>💃</span>
-                            <span>4 CHEER</span>
+                            <span>4 BOUNDARY</span>
                         </button>
-                        <button onclick="window.triggerCheerleaderCelebration('six')" class="tv-cheer-btn tv-cheer-btn-six px-2.5 py-1 rounded-lg font-mono text-[11px] font-black flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs" title="Cheerleader Maximum 6 Celebration">
+                        <button onclick="window.triggerCheerleaderCelebration('six')" class="tv-cheer-btn tv-cheer-btn-six px-2.5 py-1 rounded-lg font-mono text-[11px] font-black flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs" title="Cheerleader Maximum 6 Celebration & Female Voice">
                             <span>💃</span>
-                            <span>6 CHEER</span>
+                            <span>6 SIX</span>
+                        </button>
+                        <button onclick="window.triggerWicketCelebration()" class="tv-cheer-btn tv-cheer-btn-wicket px-2.5 py-1 rounded-lg font-mono text-[11px] font-black flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs" title="Wicket Dismissal Celebration & Female Voice">
+                            <span>⚡</span>
+                            <span>WICKET</span>
+                        </button>
+                        <button onclick="window.toggleTvAudio()" class="tv-audio-toggle-btn px-2.5 py-1 rounded-lg font-mono text-[11px] font-black flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs ${tvSoundEnabled ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300' : 'bg-rose-500/20 border border-rose-500/40 text-rose-300'}" title="Toggle Female Commentary Voice & Crowd Cheering">
+                            <span>${tvSoundEnabled ? '🔊' : '🔇'}</span>
+                            <span>${tvSoundEnabled ? 'VOICE: ON' : 'VOICE: OFF'}</span>
                         </button>
                         <button onclick="toggleTvFullscreen()" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-500/40 font-mono text-[11px] font-black flex items-center gap-1 transition active:scale-95 cursor-pointer shadow-xs" title="Toggle 1080p Fullscreen for OBS Stream">
                             <i data-lucide="maximize" class="w-3.5 h-3.5"></i>
@@ -4481,10 +4714,13 @@ function renderTvStreamTab(data) {
                         window._lastCelebratedBallSig = ballSig;
                     } else if (window._lastCelebratedBallSig !== ballSig) {
                         window._lastCelebratedBallSig = ballSig;
+                        const bUpper = ballSym.toUpperCase();
                         if (ballSym === '4') {
                             window.triggerCheerleaderCelebration('four');
                         } else if (ballSym === '6') {
                             window.triggerCheerleaderCelebration('six');
+                        } else if (bUpper === 'W' || (bUpper.includes('W') && !bUpper.includes('WD')) || latestBall.isWicket) {
+                            window.triggerWicketCelebration();
                         }
                     }
                 }
@@ -5039,6 +5275,13 @@ function switchMainTab(targetTab) {
     } else if (targetTab === 'live' && appState.currentMatchData) {
         renderCricinfoLiveTab(appState.currentMatchData);
     } else if (targetTab === 'tv' && appState.currentMatchData) {
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+                if (!window._tvAudioCtx) window._tvAudioCtx = new AudioCtx();
+                if (window._tvAudioCtx.state === 'suspended') window._tvAudioCtx.resume();
+            }
+        } catch(e) {}
         renderTvStreamTab(appState.currentMatchData);
     }
     safeCreateIcons();
